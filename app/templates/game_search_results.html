@@ -1,0 +1,75 @@
+{% extends 'base.html' %}
+{% block title %}Spiel suchen · {{ barcode }} · GameCollector{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <span class="eyebrow">Fallback nach Barcode-Suche</span>
+    <h1>Spiel über Titel finden</h1>
+    <p class="muted">Der gescannte Code <strong>{{ barcode }}</strong> bleibt erhalten und wird beim Übernehmen fest mit der ausgewählten Spielvariante gespeichert.</p>
+  </div>
+  <a class="button secondary-link" href="{{ url_for('barcode_lookup', barcode=barcode, offline=1) }}">Zurück zum Barcode</a>
+</div>
+
+<div class="panel narrow">
+  <form method="post" action="{{ url_for('external_game_search') }}">
+    <input type="hidden" name="barcode" value="{{ barcode }}">
+    <label>EAN / UPC<input value="{{ barcode }}" readonly></label>
+    <label>Spieltitel<input name="title" value="{{ query }}" required></label>
+    <label>Plattform <span class="muted">(optional, verbessert die Treffer)</span>
+      <select name="console_id">
+        <option value="">Alle Plattformen</option>
+        {% for c in consoles %}<option value="{{ c.id }}" {% if selected_console and selected_console.id == c.id %}selected{% endif %}>{{ c.name }}</option>{% endfor %}
+      </select>
+    </label>
+    <button>Erneut nach Spiel suchen</button>
+  </form>
+  {% if rawg_status == 'missing_key' %}
+    <p class="form-help">RAWG ist noch nicht konfiguriert. GameCollector nutzt deshalb die kostenlose Produktsuche als Fallback. Mit <code>RAWG_API_KEY</code> erhältst du deutlich bessere Spiele-Metadaten.</p>
+  {% endif %}
+</div>
+
+{% if results %}
+<div class="section-head"><div><span class="eyebrow">Spiele-Metadaten</span><h2>{{ results|length }} Treffer</h2></div></div>
+<div class="external-grid">
+{% for g in results %}
+  <article class="result-card">
+    {% if g.cover_url %}<img class="cover" src="{{ g.cover_url }}" alt="Cover {{ g.name }}">{% else %}<div class="result-mark">🎮</div>{% endif %}
+    <div class="result-main">
+      <span class="platform-pill">{{ g.platform or 'Unbekannt' }}</span>{% if g.platforms %}<p class="muted result-platforms">{{ g.platforms|join(' · ') }}</p>{% endif %}
+      <h2>{{ g.name }}</h2>
+      <dl class="meta compact-meta">
+        {% if g.year %}<dt>Jahr</dt><dd>{{ g.year }}</dd>{% endif %}
+        {% if g.publisher %}<dt>Publisher</dt><dd>{{ g.publisher }}</dd>{% endif %}
+        {% if g.developer %}<dt>Developer</dt><dd>{{ g.developer }}</dd>{% endif %}
+        {% if g.genre %}<dt>Genre</dt><dd>{{ g.genre }}</dd>{% endif %}
+        <dt>Quelle</dt><dd>{% if g.source == 'RAWG' %}<a href="https://rawg.io" target="_blank" rel="noopener">RAWG</a>{% else %}{{ g.source }}{% endif %}</dd>
+        <dt>Zu speichernder Barcode</dt><dd>{{ barcode }}</dd>
+      </dl>
+    </div>
+    <form method="post" action="{{ url_for('import_game_search_match') }}">
+      <input type="hidden" name="title" value="{{ g.name }}">
+      <input type="hidden" name="barcode" value="{{ barcode }}">
+      <input type="hidden" name="platform" value="{{ g.platform }}">
+      <input type="hidden" name="release_year" value="{{ g.year }}">
+      <input type="hidden" name="publisher" value="{{ g.publisher }}">
+      <input type="hidden" name="developer" value="{{ g.developer }}">
+      <input type="hidden" name="genre" value="{{ g.genre }}">
+      <input type="hidden" name="cover_url" value="{{ g.cover_url }}">
+      <input type="hidden" name="source" value="{{ g.source }}">
+      <input type="hidden" name="source_id" value="{{ g.source_id }}">
+      <input type="hidden" name="region" value="PAL">
+      <label>Diese Variante gehört zu
+        <select name="console_id" required>
+          <option value="">Bitte wählen</option>
+          {% for c in consoles %}<option value="{{ c.id }}" {% if selected_console and selected_console.id == c.id %}selected{% elif not selected_console and g.platform and c.name|lower == g.platform|lower %}selected{% endif %}>{{ c.name }}</option>{% endfor %}
+        </select>
+      </label>
+      <button>Treffer auswählen & Kopie erfassen</button>
+    </form>
+  </article>
+{% endfor %}
+</div>
+{% else %}
+<div class="empty-state"><h2>Kein passender Metadaten-Treffer</h2><p>Der Barcode bleibt trotzdem erhalten. Du kannst die Suche mit einem anderen Titel wiederholen oder die Variante manuell anlegen.</p></div>
+{% endif %}
+{% endblock %}

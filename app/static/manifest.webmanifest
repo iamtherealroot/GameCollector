@@ -1,0 +1,14 @@
+{
+  "name": "GameCollector",
+  "short_name": "GameCollector",
+  "description": "Deine persönliche Videospiel-Sammlung",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#090d18",
+  "theme_color": "#0c1020",
+  "icons": [
+    {"src":"/static/icon-192-v3.png","sizes":"192x192","type":"image/png"},
+    {"src":"/static/icon-512-v3.png","sizes":"512x512","type":"image/png"}
+  ]
+}

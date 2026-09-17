@@ -1,0 +1,12 @@
+.git
+.github
+.env
+data
+uploads
+backups
+updates
+__pycache__
+*.pyc
+*.zip
+*.tar.gz
+docs

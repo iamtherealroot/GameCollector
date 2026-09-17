@@ -1,0 +1,32 @@
+name: Fehlerbericht
+description: Einen reproduzierbaren Fehler melden
+title: "[Bug]: "
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: Bitte keine Zugangsdaten, Datenbankdumps oder privaten Sammlungsdaten hochladen.
+  - type: input
+    id: version
+    attributes:
+      label: GameCollector-Version
+      placeholder: 2.1.2
+    validations:
+      required: true
+  - type: textarea
+    id: description
+    attributes:
+      label: Fehlerbeschreibung
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Schritte zum Nachstellen
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Anonymisierte Logs
+      render: shell

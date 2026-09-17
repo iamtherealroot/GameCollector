@@ -1,0 +1,290 @@
+{% extends 'base.html' %}{% block title %}Scanner · GameCollector{% endblock %}
+{% block head %}<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>{% endblock %}
+{% block content %}
+<div class="scanner-page">
+  <h1>📷 Barcode-Scanner</h1>
+  <p class="muted">Scanne EAN-13, EAN-8, UPC-A oder UPC-E mit der Rückkamera. Der Scanbereich ist für 1D-Barcodes optimiert.</p>
+
+  <div id="reader"></div>
+  <div id="scan-status" class="scanner-status">Scanner bereit. Tippe auf „Kamera starten“.</div>
+
+  <div class="barcode-manual-quick panel">
+    <span class="eyebrow">EAN / UPC</span>
+    <p class="muted small">Falls der Scanner den Code nicht erkennt, kannst du die Nummer direkt hier eingeben. Ein erkannter Code erscheint automatisch in diesem Feld.</p>
+    <form id="manualForm" class="barcode-inline-form">
+      <input id="manualBarcode" inputmode="numeric" pattern="[0-9]*" autocomplete="off" enterkeyhint="go" placeholder="z. B. 5030917297335" aria-label="EAN oder UPC" required>
+      <button>Code verwenden</button>
+    </form>
+    <div id="manualHint" class="scanner-hint" hidden>💡 Noch kein automatischer Treffer. Du kannst die 13 Ziffern unter dem Barcode direkt eingeben.</div>
+  </div>
+
+  <div id="recognized-box" class="recognized-box" hidden>
+    <span class="eyebrow">Erkannter Code</span>
+    <strong id="recognized-code">–</strong>
+    <div class="recognized-actions">
+      <button id="useRecognized" type="button">Code verwenden</button>
+      <button id="scanAgain" class="secondary" type="button">Nochmal scannen</button>
+    </div>
+  </div>
+
+  <div id="scan-debug" class="scanner-debug" aria-live="polite">
+    <span id="debug-library">Bibliothek: prüfe…</span>
+    <span id="debug-camera">Kamera: aus</span>
+    <span id="debug-attempts">Scanversuche: 0</span>
+    <span id="debug-last">Letzter Treffer: –</span>
+    <span id="debug-native">Native Erkennung: prüfe…</span>
+  </div>
+
+  <label class="check scanner-continuous"><input type="checkbox" id="continuousMode"> Dauer-Scanmodus (nach einem Treffer schnell zum nächsten Spiel)</label>
+  <div class="scanner-actions">
+    <button id="startScanner" type="button">Kamera starten</button>
+    <button id="stopScanner" class="secondary" type="button" disabled>Kamera stoppen</button>
+  </div>
+
+  <div class="scanner-tip">
+    <strong>Für beste Erkennung:</strong> Barcode waagerecht und möglichst groß in den schmalen Rahmen halten, 10–20 cm Abstand, Reflexionen vermeiden. Bei kleinen Barcodes ruhig etwas näher herangehen.
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(() => {
+  const startBtn = document.getElementById('startScanner');
+  const stopBtn = document.getElementById('stopScanner');
+  const statusBox = document.getElementById('scan-status');
+  const debugLibrary = document.getElementById('debug-library');
+  const debugCamera = document.getElementById('debug-camera');
+  const debugAttempts = document.getElementById('debug-attempts');
+  const debugLast = document.getElementById('debug-last');
+  const debugNative = document.getElementById('debug-native');
+  const manualBarcode = document.getElementById('manualBarcode');
+  const manualHint = document.getElementById('manualHint');
+  const recognizedBox = document.getElementById('recognized-box');
+  const recognizedCode = document.getElementById('recognized-code');
+  const useRecognized = document.getElementById('useRecognized');
+  const scanAgain = document.getElementById('scanAgain');
+
+  let scanner = null;
+  let locked = false;
+  let attempts = 0;
+  let lastAttemptPaint = 0;
+  let lastCode = '';
+  let hintTimer = null;
+  let nativeTimer = null;
+  let nativeDetector = null;
+
+  function setStatus(text, kind='') {
+    statusBox.textContent = text;
+    statusBox.className = 'scanner-status' + (kind ? ' ' + kind : '');
+  }
+
+  function cleanCode(value) {
+    return String(value || '').replace(/\D/g, '');
+  }
+
+  function plausibleBarcode(code) {
+    return [8, 12, 13].includes(String(code || '').length);
+  }
+
+  function openLookup(code) {
+    const cleaned = cleanCode(code);
+    if (!cleaned) return;
+    manualBarcode.value = cleaned;
+    const cont=document.getElementById('continuousMode').checked?'&continuous=1':''; localStorage.setItem('gc-continuous', document.getElementById('continuousMode').checked?'1':'0'); window.location.href = '/barcode/' + encodeURIComponent(cleaned) + '?scanned=1'+cont;
+  }
+
+  function onScanFailure() {
+    attempts += 1;
+    const now = Date.now();
+    if (now - lastAttemptPaint > 400) {
+      debugAttempts.textContent = 'Scanversuche: ' + attempts;
+      lastAttemptPaint = now;
+    }
+  }
+
+  function stopNativeFallback() {
+    if (nativeTimer) clearInterval(nativeTimer);
+    nativeTimer = null;
+  }
+
+  async function stopScanner(keepStatus=false) {
+    stopNativeFallback();
+    if (hintTimer) clearTimeout(hintTimer);
+    hintTimer = null;
+    if (scanner) {
+      try { await scanner.stop(); } catch (_) {}
+      try { scanner.clear(); } catch (_) {}
+      scanner = null;
+    }
+    startBtn.disabled = false;
+    stopBtn.disabled = true;
+    debugCamera.textContent = 'Kamera: aus';
+    if (!keepStatus) setStatus('Kamera gestoppt.');
+  }
+
+  async function onCode(rawCode, decodedResult, source='html5-qrcode') {
+    if (locked) return;
+    const code = cleanCode(rawCode);
+    if (!plausibleBarcode(code)) return;
+    locked = true;
+    lastCode = code;
+
+    const format = decodedResult && decodedResult.result && decodedResult.result.format
+      ? String(decodedResult.result.format.formatName || decodedResult.result.format)
+      : '';
+
+    debugLast.textContent = 'Letzter Treffer: ' + code + (format ? ' (' + format + ')' : '') + ' · ' + source;
+    manualBarcode.value = code;
+    recognizedCode.textContent = code;
+    recognizedBox.hidden = false;
+    manualHint.hidden = true;
+    setStatus('✅ Barcode erkannt: ' + code, 'success');
+    try { if (navigator.vibrate) navigator.vibrate(120); } catch (_) {}
+
+    await stopScanner(true);
+    recognizedBox.scrollIntoView({behavior:'smooth', block:'center'});
+  }
+
+  function scannerConfig() {
+    return {
+      fps: 20,
+      qrbox: (viewfinderWidth, viewfinderHeight) => {
+        const boxWidth = Math.max(260, Math.min(Math.floor(viewfinderWidth * 0.94), 720));
+        const boxHeight = Math.max(90, Math.min(Math.floor(viewfinderHeight * 0.22), 135));
+        return { width: boxWidth, height: boxHeight };
+      },
+      aspectRatio: 1.777778,
+      disableFlip: false,
+      videoConstraints: {
+        facingMode: { ideal: 'environment' },
+        width: { ideal: 1920 },
+        height: { ideal: 1080 }
+      }
+    };
+  }
+
+  async function startNativeFallback() {
+    if (!('BarcodeDetector' in window)) {
+      debugNative.textContent = 'Native Erkennung: nicht verfügbar';
+      return;
+    }
+    try {
+      const supported = await BarcodeDetector.getSupportedFormats();
+      const formats = ['ean_13','ean_8','upc_a','upc_e'].filter(f => supported.includes(f));
+      if (!formats.length) {
+        debugNative.textContent = 'Native Erkennung: keine EAN/UPC-Formate';
+        return;
+      }
+      nativeDetector = new BarcodeDetector({formats});
+      debugNative.textContent = 'Native Erkennung: aktiv (' + formats.join(', ') + ')';
+      nativeTimer = setInterval(async () => {
+        if (locked || !nativeDetector) return;
+        const video = document.querySelector('#reader video');
+        if (!video || video.readyState < 2) return;
+        try {
+          const results = await nativeDetector.detect(video);
+          if (results && results.length) {
+            const candidate = results.find(r => plausibleBarcode(cleanCode(r.rawValue)));
+            if (candidate) onCode(candidate.rawValue, null, 'BarcodeDetector');
+          }
+        } catch (_) {}
+      }, 300);
+    } catch (err) {
+      debugNative.textContent = 'Native Erkennung: Fehler';
+      console.warn('BarcodeDetector fallback:', err);
+    }
+  }
+
+  async function startWithPreferredCamera() {
+    const cameras = await Html5Qrcode.getCameras();
+    if (!cameras || cameras.length === 0) throw new Error('Keine Kamera gefunden');
+    const backCamera = cameras.find(c => /back|rear|environment|rück/i.test(c.label || '')) || cameras[cameras.length - 1];
+    debugCamera.textContent = 'Kamera: ' + ((backCamera && backCamera.label) || 'Rückkamera');
+    return scanner.start(backCamera.id, scannerConfig(), onCode, onScanFailure);
+  }
+
+  async function startScanner() {
+    if (scanner) return;
+    if (typeof Html5Qrcode === 'undefined' || typeof Html5QrcodeSupportedFormats === 'undefined') {
+      debugLibrary.textContent = 'Bibliothek: FEHLER';
+      setStatus('❌ Scanner-Bibliothek konnte nicht geladen werden.', 'danger');
+      manualHint.hidden = false;
+      return;
+    }
+
+    locked = false;
+    attempts = 0;
+    recognizedBox.hidden = true;
+    manualHint.hidden = true;
+    debugAttempts.textContent = 'Scanversuche: 0';
+    debugLast.textContent = lastCode ? 'Letzter Treffer: ' + lastCode : 'Letzter Treffer: –';
+    setStatus('Kamera wird gestartet…');
+
+    const formats = [
+      Html5QrcodeSupportedFormats.EAN_13,
+      Html5QrcodeSupportedFormats.EAN_8,
+      Html5QrcodeSupportedFormats.UPC_A,
+      Html5QrcodeSupportedFormats.UPC_E
+    ];
+
+    scanner = new Html5Qrcode('reader', {
+      formatsToSupport: formats,
+      verbose: false
+    });
+
+    try {
+      await startWithPreferredCamera();
+      startBtn.disabled = true;
+      stopBtn.disabled = false;
+      setStatus('🔎 Scanner aktiv – Barcode groß und waagerecht in den schmalen Rahmen halten.', 'active');
+      startNativeFallback();
+      hintTimer = setTimeout(() => {
+        if (!locked) {
+          manualHint.hidden = false;
+          manualBarcode.focus({preventScroll:true});
+        }
+      }, 5500);
+    } catch (firstError) {
+      console.warn('Start über Kamera-ID fehlgeschlagen, Fallback auf facingMode:', firstError);
+      try {
+        await scanner.start({ facingMode: 'environment' }, scannerConfig(), onCode, onScanFailure);
+        debugCamera.textContent = 'Kamera: Rückkamera (Fallback)';
+        startBtn.disabled = true;
+        stopBtn.disabled = false;
+        setStatus('🔎 Scanner aktiv – Barcode groß und waagerecht in den schmalen Rahmen halten.', 'active');
+        startNativeFallback();
+        hintTimer = setTimeout(() => { if (!locked) manualHint.hidden = false; }, 5500);
+      } catch (secondError) {
+        console.error(secondError);
+        try { scanner.clear(); } catch (_) {}
+        scanner = null;
+        debugCamera.textContent = 'Kamera: Fehler';
+        setStatus('❌ Kamera konnte nicht gestartet werden: ' + (secondError.message || secondError), 'danger');
+        manualHint.hidden = false;
+      }
+    }
+  }
+
+  document.getElementById('continuousMode').checked = localStorage.getItem('gc-continuous')==='1';
+
+  if (typeof Html5Qrcode !== 'undefined') debugLibrary.textContent = 'Bibliothek: html5-qrcode 2.3.8 geladen';
+  else debugLibrary.textContent = 'Bibliothek: NICHT geladen';
+  debugNative.textContent = ('BarcodeDetector' in window) ? 'Native Erkennung: verfügbar' : 'Native Erkennung: nicht verfügbar';
+
+  manualBarcode.addEventListener('input', () => {
+    const cleaned = cleanCode(manualBarcode.value);
+    if (manualBarcode.value !== cleaned) manualBarcode.value = cleaned;
+  });
+
+  startBtn.addEventListener('click', startScanner);
+  stopBtn.addEventListener('click', () => stopScanner(false));
+  useRecognized.addEventListener('click', () => openLookup(lastCode || manualBarcode.value));
+  scanAgain.addEventListener('click', startScanner);
+  document.getElementById('manualForm').addEventListener('submit', (event) => {
+    event.preventDefault();
+    openLookup(manualBarcode.value);
+  });
+})();
+</script>
+{% endblock %}

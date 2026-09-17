@@ -1,0 +1,8 @@
+{% extends 'base.html' %}{% block title %}Konsolen · GameCollector{% endblock %}
+{% block content %}
+<div class="page-head"><div><span class="eyebrow">Verwaltung</span><h1>Konsolen</h1><p class="muted">Plattformen verwalten und Dubletten sauber zusammenführen.</p></div></div>
+{% if alias_rows %}
+<section class="panel" style="margin-bottom:1rem"><h2>Mögliche Dubletten</h2><p class="muted">Diese Bezeichnungen entsprechen bereits einer kanonischen Plattform und sollten zusammengeführt werden.</p><table><tr><th>Vorhanden</th><th>Empfohlenes Ziel</th><th>Spiele</th><th></th></tr>{% for c, canonical in alias_rows %}<tr><td>{{ c.name }}</td><td>{{ canonical }}</td><td>{{ c.games|length }}</td><td><a href="{{ url_for('console_edit', console_id=c.id) }}">Zusammenführen</a></td></tr>{% endfor %}</table></section>
+{% endif %}
+<div class="split"><section><h2>Neue Konsole</h2><form method="post" class="panel"><label>Name<input name="name" placeholder="PlayStation 2" required></label><label>Hersteller<input name="manufacturer" placeholder="Sony"></label><label>Generation<input name="generation" placeholder="6. Generation"></label><button>Hinzufügen</button><p class="muted small">Bekannte Aliase wie „PS2“, „Sony PlayStation 2“ oder „Nintendo Wii“ werden automatisch normalisiert.</p></form></section><section><h2>Vorhanden</h2><table><tr><th>Konsole</th><th>Hersteller</th><th>Spiele im Katalog</th><th></th></tr>{% for c in consoles %}<tr><td>{{ c.name }}</td><td>{{ c.manufacturer or '–' }}</td><td>{{ c.games|length }}</td><td><a href="{{ url_for('console_edit', console_id=c.id) }}">Bearbeiten</a></td></tr>{% else %}<tr><td colspan="4">Noch keine Konsolen.</td></tr>{% endfor %}</table></section></div>
+{% endblock %}

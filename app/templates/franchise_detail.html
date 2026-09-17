@@ -1,0 +1,38 @@
+{% extends 'base.html' %}{% block title %}{{ name }} · Serien · GameCollector{% endblock %}
+{% block content %}
+{% macro game_card(entry) -%}
+{% if not only_missing or not entry.owned %}
+<article class="series-game-card {% if entry.owned %}series-owned{% endif %}">
+  {% if entry.local_games %}<a class="series-product-link" href="{{ url_for('game_detail', game_id=entry.local_games[0].id) }}">{% endif %}
+  {% if entry.cover_url %}<img src="{{ entry.cover_url }}" alt="Cover {{ entry.title }}">{% else %}<div class="series-cover-empty">🎮</div>{% endif %}
+  {% if entry.local_games %}</a>{% endif %}
+  <div class="series-entry-body">
+    {% if entry.local_games %}<a class="series-title-link" href="{{ url_for('game_detail', game_id=entry.local_games[0].id) }}"><strong>{{ entry.title }}</strong></a>{% else %}<strong>{{ entry.title }}</strong>{% endif %}
+    <small>{% if entry.release_year %}{{ entry.release_year }}{% endif %}{% if entry.platforms %}{% if entry.release_year %} · {% endif %}{{ entry.platforms }}{% endif %}</small>
+    {% if entry.owned %}<span class="owned">✓ Besitzt{% if entry.owned_variants > 1 %} · {{ entry.owned_variants }} Varianten{% endif %}</span>{% else %}<span class="missing-pill">Fehlt</span>{% endif %}
+    {% if entry.match_method %}<span class="series-match-badge">{{ entry.match_method }}</span>{% endif %}
+    {% if entry.market_value %}<span class="mini-price-badge series-price"><small>Gesamtwert</small><strong>{{ eur(entry.market_value) }}</strong></span>{% endif %}
+    {% if entry.price_rows %}<div class="series-platform-prices">{% for row in entry.price_rows %}<span><b>{{ row.platform }}</b><em>{{ row.copies }}× · {{ eur(row.value) }}</em></span>{% endfor %}</div>{% endif %}
+    {% if entry.local_games %}<div class="series-local-links">{% for g in entry.local_games %}<a href="{{ url_for('game_detail', game_id=g.id) }}">✓ {{ g.title }} · {{ g.console.name }}</a>{% endfor %}</div>{% endif %}
+  </div>
+</article>
+{% endif %}
+{%- endmacro %}
+
+<div class="page-head"><div><span class="eyebrow">Automatische Kollektion</span><h1>{{ name }}</h1><p class="muted">{{ owned }} von {{ total }} bekannten eigenständigen Titeln besitzt du.{% if synced %} Serienkatalog geladen.{% endif %}</p></div><div class="page-actions">{% if rawg_enabled and not curated %}<form method="post" action="{{ url_for('franchise_sync', name=name) }}"><button>↻ Reihe mit RAWG synchronisieren</button></form>{% elif curated %}<span class="source-pill">Lokaler Serienkatalog</span>{% endif %}{% if only_missing %}<a class="button" href="{{ url_for('franchise_detail', name=name) }}">Alle Titel</a>{% else %}<a class="button secondary-link" href="{{ url_for('franchise_detail', name=name, missing=1) }}">Nur fehlende anzeigen</a>{% endif %}<a class="button secondary-link" href="{{ url_for('franchise_manage', name=name) }}">Serie verwalten</a><a class="button secondary-link" href="{{ url_for('franchises') }}">Alle Serien</a></div></div>
+
+<div class="series-summary panel"><div><strong>{{ owned }}/{{ total }}</strong><span>gesammelt</span></div><div class="progress big-progress"><span style="width:{{ completion_pct }}%"></span></div><strong>{{ completion_pct }} %</strong></div>
+
+<section class="panel series-value-summary">
+  <div class="section-mini-head"><div><span class="eyebrow">Serienbewertung</span><h2>{{ eur(series_value) }} Gesamtwert</h2></div>{% if series_last_valued_at %}<small>Letzte automatische Bewertung: {{ series_last_valued_at|localdt }}</small>{% endif %}</div>
+  <div class="dashboard-list-kpis"><span class="plain-kpi"><span>Automatischer Marktwert</span><strong>{{ eur(series_auto_value) }}</strong></span><span class="plain-kpi"><span>Eigene Schätzungen</span><strong>{{ eur(series_estimated_value) }}</strong></span><span class="plain-kpi"><span>Bewertete Exemplare</span><strong>{{ series_valued_count }}/{{ series_copy_count }}</strong></span><span class="plain-kpi"><span>Preisabdeckung</span><strong>{{ ((series_valued_count*100/series_copy_count)|round|int) if series_copy_count else 0 }} %</strong></span></div>
+</section>
+
+{% for group in series_groups %}
+<section class="series-group panel">
+  <div class="series-group-head"><div><span class="eyebrow">Unterreihe</span><h2>{{ group.name }}</h2></div><div class="series-group-progress"><strong>{{ group.owned }}/{{ group.total }}</strong><div class="mini-progress"><span style="width:{{ ((group.owned/group.total)*100)|round if group.total else 0 }}%"></span></div></div></div>
+  {% if group.generation_rows %}<div class="generation-grid">{% for gen in group.generation_rows %}<details class="generation-block" open><summary><span>Generation {{ gen.name }}</span><strong>{{ gen.owned }}/{{ gen.total }}</strong></summary><div class="series-game-grid expanded-series-grid">{% for entry in gen['items'] %}{{ game_card(entry) }}{% endfor %}</div></details>{% endfor %}</div>{% endif %}
+  {% if group.ungrouped_items %}{% if group.generation_rows %}<h3 class="series-other-title">Weitere Titel</h3>{% endif %}<div class="series-game-grid expanded-series-grid">{% for entry in group.ungrouped_items %}{{ game_card(entry) }}{% endfor %}</div>{% endif %}
+</section>
+{% else %}<div class="empty-state"><h3>Keine Titel zugeordnet</h3></div>{% endfor %}
+{% endblock %}

@@ -1,0 +1,68 @@
+name: gamecollector
+
+x-app-environment: &app-environment
+  TZ: ${TZ:-Europe/Berlin}
+  SECRET_KEY: ${SECRET_KEY:?SECRET_KEY fehlt in .env}
+  DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-gamecollector}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD fehlt in .env}@db:5432/${POSTGRES_DB:-gamecollector}
+  ADMIN_USERNAME: ${ADMIN_USERNAME:-admin}
+  ADMIN_PASSWORD: ${ADMIN_PASSWORD:-admin}
+  ADMIN_FORCE_PASSWORD_CHANGE: ${ADMIN_FORCE_PASSWORD_CHANGE:-1}
+  SESSION_DAYS: ${SESSION_DAYS:-30}
+  COOKIE_SECURE: ${COOKIE_SECURE:-0}
+  AUTOMATIC_REVALUE_HOUR: ${AUTOMATIC_REVALUE_HOUR:-3}
+  RAWG_API_KEY: ${RAWG_API_KEY:-}
+  EBAY_CLIENT_ID: ${EBAY_CLIENT_ID:-}
+  EBAY_CLIENT_SECRET: ${EBAY_CLIENT_SECRET:-}
+  EBAY_DEV_ID: ${EBAY_DEV_ID:-}
+  EBAY_MARKETPLACE: ${EBAY_MARKETPLACE:-EBAY_DE}
+  EBAY_ENVIRONMENT: ${EBAY_ENVIRONMENT:-production}
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-gamecollector}
+      POSTGRES_USER: ${POSTGRES_USER:-gamecollector}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD fehlt in .env}
+      TZ: ${TZ:-Europe/Berlin}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  web:
+    build: .
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment: *app-environment
+    ports:
+      - "${APP_BIND:-0.0.0.0}:${APP_PORT:-8095}:8000"
+    volumes:
+      - ./uploads:/srv/gamecollector/app/static/uploads
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=5)"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+
+  scheduler:
+    build: .
+    restart: unless-stopped
+    depends_on:
+      web:
+        condition: service_healthy
+    command: ["python", "-m", "app.scheduler"]
+    environment: *app-environment
+    volumes:
+      - ./uploads:/srv/gamecollector/app/static/uploads
+
+volumes:
+  postgres_data:
+    name: ${POSTGRES_VOLUME_NAME:-gamecollector_postgres_data}

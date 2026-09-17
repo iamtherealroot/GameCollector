@@ -1,0 +1,4 @@
+{% extends 'base.html' %}{% block title %}{{ value }} · GameCollector{% endblock %}{% block content %}
+<div class="page-head"><div><span class="eyebrow">{{ heading }}</span><h1>{{ value }}</h1><p class="muted">{{ games|length }} Katalogtitel</p></div></div>
+<div class="cards">{% for g in games %}<a class="card card-link" href="{{ url_for('game_detail', game_id=g.id) }}"><div class="cover-wrap">{% if g.cover_url %}<img class="cover" src="{{ g.cover_url }}" alt="">{% else %}<div class="cover cover-empty">🎮</div>{% endif %}</div><div class="card-body"><span class="platform-pill">{{ g.console.name }}</span><h3>{{ g.title }}</h3><p>{{ g.release_year or '–' }}</p></div></a>{% endfor %}</div>
+{% endblock %}

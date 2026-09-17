@@ -1,0 +1,71 @@
+{% extends 'base.html' %}{% block title %}{{ active_collection_label }} · GameCollector{% endblock %}
+{% block content %}
+<div class="page-head"><div><span class="eyebrow">Bibliothek</span><h1>{% if status=='wishlist' %}Wunschliste{% else %}{{ active_collection_label }}{% endif %}</h1><p class="muted">{{ items|length }} Treffer</p></div>{% if status=='owned' %}<form method="post" action="{{ url_for('collection_revalue') }}"><button>↻ Sammlung neu bewerten</button></form>{% endif %}</div>
+<div class="tabs"><a class="{% if status=='owned' %}active{% endif %}" href="{{ url_for('collection', status='owned') }}">Besitze ich</a><a class="{% if status=='wishlist' %}active{% endif %}" href="{{ url_for('collection', status='wishlist') }}">Wunschliste</a></div>
+
+<form method="get" class="collection-filter-panel">
+  <input type="hidden" name="status" value="{{ status }}">
+  <input type="hidden" name="view" value="{{ view }}">
+
+  <div class="collection-search-row">
+    <label class="collection-search-field">
+      <span>Sammlung durchsuchen</span>
+      <input name="q" value="{{ q }}" placeholder="Titel, Barcode oder Produktcode…">
+    </label>
+    <button type="submit" class="collection-search-button">Suchen</button>
+  </div>
+
+  <details class="collection-more-filters" open>
+    <summary>Weitere Filter{% set active_filter_count = (1 if selected_console else 0) + (1 if selected_franchise else 0) + (1 if region else 0) + (1 if completeness else 0) + (1 if valuation else 0) %}{% if active_filter_count %} <span>{{ active_filter_count }} aktiv</span>{% endif %}</summary>
+    <div class="collection-filter-grid">
+      <label><span>Konsole</span><select name="console_id"><option value="">Alle Konsolen</option>{% for c in consoles %}<option value="{{ c.id }}" {% if selected_console==c.id %}selected{% endif %}>{{ c.name }}</option>{% endfor %}</select></label>
+      <label><span>Serie</span><select name="franchise"><option value="">Alle Serien</option>{% for f in franchises %}<option value="{{ f }}" {% if selected_franchise==f %}selected{% endif %}>{{ f }}</option>{% endfor %}</select></label>
+      <label><span>Region</span><select name="region"><option value="">Alle Regionen</option>{% for r in regions %}<option value="{{ r }}" {% if region==r %}selected{% endif %}>{{ r }}</option>{% endfor %}</select></label>
+      <label><span>Vollständigkeit</span><select name="completeness"><option value="">Alle Vollständigkeiten</option>{% for c in completeness_options %}<option value="{{ c }}" {% if completeness==c %}selected{% endif %}>{{ c }}</option>{% endfor %}</select></label>
+      {% if status=='owned' %}<label><span>Preisstatus</span><select name="valuation"><option value="">Alle Preisstatus</option><option value="auto" {% if valuation=='auto' %}selected{% endif %}>Automatisch bewertet</option><option value="valued" {% if valuation=='valued' %}selected{% endif %}>Mit Wert</option><option value="auto_missing" {% if valuation=='auto_missing' %}selected{% endif %}>Ohne automatischen Wert</option><option value="failed" {% if valuation=='failed' %}selected{% endif %}>Preisquelle ohne Treffer</option><option value="unsupported" {% if valuation=='unsupported' %}selected{% endif %}>Keine automatische Preisquelle</option><option value="no_value" {% if valuation=='no_value' %}selected{% endif %}>Ganz ohne Wert</option><option value="purchased" {% if valuation=='purchased' %}selected{% endif %}>Mit Kaufpreis</option></select></label>{% endif %}
+      <label class="collection-sort-field"><span>Sortieren nach</span><select name="sort"><option value="title" {% if sort=='title' %}selected{% endif %}>Titel A–Z</option><option value="added_desc" {% if sort=='added_desc' %}selected{% endif %}>Zuletzt hinzugefügt</option><option value="value_desc" {% if sort=='value_desc' %}selected{% endif %}>Wert absteigend</option><option value="value_asc" {% if sort=='value_asc' %}selected{% endif %}>Wert aufsteigend</option><option value="purchase_desc" {% if sort=='purchase_desc' %}selected{% endif %}>Kaufpreis absteigend</option><option value="year" {% if sort=='year' %}selected{% endif %}>Erscheinungsjahr</option></select></label>
+    </div>
+    <div class="collection-filter-actions">
+      <button type="submit">Filter anwenden</button>
+      <a class="button secondary-link" href="{{ url_for('collection', status=status, view=view) }}">Zurücksetzen</a>
+    </div>
+  </details>
+</form>
+
+{% if q or selected_console or selected_franchise or region or completeness or valuation %}
+<div class="active-filters" aria-label="Aktive Sammlungsfilter">
+  <strong>Aktive Filter:</strong>
+  {% if q %}<a class="filter-chip" href="{{ url_for('collection', status=status, console_id=selected_console or '', franchise=selected_franchise, region=region, completeness=completeness, valuation=valuation, sort=sort, view=view) }}">Suche: {{ q }} ×</a>{% endif %}
+  {% if selected_console %}<a class="filter-chip" href="{{ url_for('collection', status=status, q=q, franchise=selected_franchise, region=region, completeness=completeness, valuation=valuation, sort=sort, view=view) }}">Konsole: {{ selected_console_label }} ×</a>{% endif %}
+  {% if selected_franchise %}<a class="filter-chip" href="{{ url_for('collection', status=status, q=q, console_id=selected_console or '', region=region, completeness=completeness, valuation=valuation, sort=sort, view=view) }}">Serie: {{ selected_franchise }} ×</a>{% endif %}
+  {% if region %}<a class="filter-chip" href="{{ url_for('collection', status=status, q=q, console_id=selected_console or '', franchise=selected_franchise, completeness=completeness, valuation=valuation, sort=sort, view=view) }}">Region: {{ region }} ×</a>{% endif %}
+  {% if completeness %}<a class="filter-chip" href="{{ url_for('collection', status=status, q=q, console_id=selected_console or '', franchise=selected_franchise, region=region, valuation=valuation, sort=sort, view=view) }}">Vollständigkeit: {{ completeness }} ×</a>{% endif %}
+  {% if valuation %}<a class="filter-chip" href="{{ url_for('collection', status=status, q=q, console_id=selected_console or '', franchise=selected_franchise, region=region, completeness=completeness, sort=sort, view=view) }}">Preisstatus: {{ valuation }} ×</a>{% endif %}
+  <a class="filter-clear" href="{{ url_for('collection', status=status, view=view) }}">Alle entfernen</a>
+</div>
+{% endif %}
+
+<div class="collection-toolbar"><div class="collection-tools"><a class="button secondary-link" href="{{ url_for('collection_bulk') }}">☑ Massenbearbeitung</a><a class="button secondary-link" href="{{ url_for('export_collection_csv') }}">CSV Export</a><a class="button secondary-link" href="{{ url_for('export_collection_json') }}">JSON Export</a></div>
+  <div class="view-switch"><a class="{% if view=='grid' %}active{% endif %}" href="{{ url_for('collection', status=status, q=q, console_id=selected_console or '', valuation=valuation, completeness=completeness, franchise=selected_franchise, region=region, sort=sort, view='grid') }}">▦ Cover</a><a class="{% if view=='list' %}active{% endif %}" href="{{ url_for('collection', status=status, q=q, console_id=selected_console or '', valuation=valuation, completeness=completeness, franchise=selected_franchise, region=region, sort=sort, view='list') }}">☷ Liste</a></div>
+</div>
+
+{% if view=='grid' %}
+<div class="collection-grid">
+{% for i in items %}
+  <article class="collection-card">
+    <a class="collection-cover-link" href="{{ url_for('game_detail', game_id=i.game.id, return_to=request.full_path.rstrip('?')) }}">{% if i.game.cover_url %}<img class="collection-cover" src="{{ i.game.cover_url }}" alt="Cover {{ i.game.title }}">{% else %}<div class="collection-cover collection-cover-empty">🎮</div>{% endif %}</a>
+    <div class="collection-card-body">
+      <div class="collection-badges"><span class="platform-pill">{{ i.game.console.name }}</span><span class="copy-pill">{{ i.completeness }}</span></div>
+      <h3><a href="{{ url_for('game_detail', game_id=i.game.id, return_to=request.full_path.rstrip('?')) }}">{{ i.game.title }}</a></h3>
+      <p class="muted collection-meta">{{ i.game.region }}{% if i.game.release_year %} · {{ i.game.release_year }}{% endif %}{% if i.game.franchise %} · {{ i.game.franchise }}{% endif %}</p>{% if i.storage_location or i.tags or i.play_status %}<p class="muted collection-meta">{% if i.storage_location %}📍 {{ i.storage_location }}{% endif %}{% if i.tags %} · 🏷 {{ i.tags }}{% endif %}{% if i.play_status %} · 🎮 {{ i.play_status }}{% endif %}</p>{% endif %}
+      <div class="collection-card-stats"><div><small>Zustand</small><strong>{{ i.media_condition }}/10{% if i.box_present %} · OVP {{ i.box_condition }}/10{% endif %}</strong></div><div class="price-badge"><small>{% if i.auto_value_eur is not none %}Automatischer Marktwert{% elif i.estimated_value is not none %}Eigene Schätzung{% else %}Ohne Wert{% endif %}</small><strong>{% if i.auto_value_eur is not none %}{{ eur(i.auto_value_eur) }}{% elif i.estimated_value is not none %}{{ eur(i.estimated_value) }}{% else %}–{% endif %}</strong>{% if i.auto_value_updated_at and i.auto_value_eur is not none %}<span>Stand {{ i.auto_value_updated_at|localdt('%d.%m.%y') }}</span>{% endif %}</div></div>
+      {% if i.auto_value_source %}<div class="collection-source"><span class="source-pill">{{ i.auto_value_source }}</span>{% if i.auto_value_updated_at %}<small>{{ i.auto_value_updated_at|localdt('%d.%m.%Y') }}</small>{% endif %}</div>{% elif i.auto_value_status and i.auto_value_status != 'ok' %}<div class="collection-source"><span class="source-pill source-pill-muted">{% if i.auto_value_status=='ebay_too_few_results' %}Zu wenige passende Angebote{% elif i.auto_value_status=='non_physical_excluded' %}Nicht physisch – ausgeschlossen{% else %}{{ i.auto_value_status }}{% endif %}</span>{% if i.auto_value_message %}<small>{{ i.auto_value_message }}</small>{% endif %}</div>{% endif %}
+      <a class="button secondary-link compact-button collection-edit" href="{{ url_for('collection_configure', game_id=i.game.id, item_id=i.id, return_to=request.full_path.rstrip('?')) }}">Kopie bearbeiten</a>
+    </div>
+  </article>
+{% else %}<div class="empty-state"><h3>Keine Treffer</h3><p>Ändere die Filter oder füge ein Spiel hinzu.</p></div>{% endfor %}
+</div>
+{% else %}
+<table class="collection-list"><thead><tr><th>Spiel</th><th>Konsole</th><th>Vollst.</th><th>Zustand</th><th>Marktwert</th><th>Quelle</th><th></th></tr></thead><tbody>{% for i in items %}<tr><td data-label="Spiel"><a href="{{ url_for('game_detail', game_id=i.game.id, return_to=request.full_path.rstrip('?')) }}"><strong>{{ i.game.title }}</strong></a><br><small>{{ i.game.region }}{% if i.game.barcode %} · {{ i.game.barcode }}{% endif %}</small></td><td data-label="Konsole">{{ i.game.console.name }}</td><td data-label="Vollständigkeit">{{ i.completeness }}</td><td data-label="Zustand">{{ i.media_condition }}/10{% if i.box_present %} · OVP {{ i.box_condition }}/10{% endif %}</td><td data-label="Marktwert">{% if i.auto_value_eur is not none %}<strong>{{ eur(i.auto_value_eur) }}</strong>{% if i.auto_value_low_eur is not none %}<br><small>{{ eur(i.auto_value_low_eur) }}–{{ eur(i.auto_value_high_eur) }}</small>{% endif %}{% elif i.estimated_value is not none %}<strong>{{ eur(i.estimated_value) }}</strong><br><small>Eigene Schätzung</small>{% else %}–{% endif %}</td><td data-label="Quelle">{% if i.auto_value_source %}<span class="source-pill">{{ i.auto_value_source }}</span>{% if i.auto_value_updated_at %}<br><small>{{ i.auto_value_updated_at|localdt('%d.%m.%Y') }}</small>{% endif %}{% elif i.auto_value_status and i.auto_value_status != "ok" %}<span class="source-pill">{{ i.auto_value_status }}</span><br><small>{{ i.auto_value_message }}</small>{% else %}–{% endif %}</td><td class="collection-list-action"><a class="button secondary-link compact-button" href="{{ url_for('collection_configure', game_id=i.game.id, item_id=i.id, return_to=request.full_path.rstrip('?')) }}">Bearbeiten</a></td></tr>{% else %}<tr class="collection-list-empty"><td colspan="7">Noch keine Einträge.</td></tr>{% endfor %}</tbody></table>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <span class="eyebrow">RAWG · Serien-Fallback</span>
+    <h1>{{ name }} zuordnen</h1>
+    <p class="muted">Es gibt noch keinen RAWG-verknüpften Katalogtitel. Wähle einen passenden Titel als Ausgangspunkt für die Reihen-Synchronisierung.</p>
+  </div>
+  <div class="page-actions"><a class="button secondary-link" href="{{ url_for('franchise_detail', name=name) }}">Zurück</a></div>
+</div>
+
+{% if aliases|length > 1 %}
+<div class="status-banner"><span>Gesucht wurde nach <strong>{{ aliases|join(' · ') }}</strong>.</span><small>So können umbenannte Reihen wie FIFA / EA Sports FC gemeinsam gefunden werden.</small></div>
+{% endif %}
+
+{% if candidates %}
+<div class="series-seed-grid">
+{% for row in candidates %}
+  <form class="series-seed-card" method="post" action="{{ url_for('franchise_sync', name=name) }}">
+    <input type="hidden" name="seed_id" value="{{ row.source_id }}">
+    {% if row.cover_url %}<img src="{{ row.cover_url }}" alt="" loading="lazy">{% else %}<div class="cover-placeholder">🎮</div>{% endif %}
+    <div class="series-seed-body">
+      <strong>{{ row.name }}</strong>
+      <span>{{ row.year or 'Jahr unbekannt' }}</span>
+      {% if row.platforms %}<small>{{ row.platforms|join(', ') }}</small>{% endif %}
+      {% if row.search_query != name %}<small>gefunden über „{{ row.search_query }}“</small>{% endif %}
+      <button type="submit">Als Ausgangstitel verwenden</button>
+    </div>
+  </form>
+{% endfor %}
+</div>
+{% else %}
+<div class="empty-state"><h2>Keine passenden RAWG-Titel gefunden</h2><p>Du kannst die Serie weiterhin manuell pflegen oder später erneut suchen.</p></div>
+{% endif %}
+{% endblock %}

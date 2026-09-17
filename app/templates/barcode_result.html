@@ -1,0 +1,66 @@
+{% extends 'base.html' %}{% block title %}Barcode {{ barcode }} · GameCollector{% endblock %}
+{% block content %}
+<div class="page-head"><div><span class="eyebrow">EAN / UPC erkannt</span><h1>{{ barcode }}</h1><p class="muted">Der erkannte Code bleibt sichtbar und wird automatisch in die manuelle Anlage übernommen.</p></div><a class="button secondary-link" href="{{ url_for('scanner') }}">📷 Nächstes Spiel scannen</a></div>
+
+<div class="barcode-quick panel">
+  <form method="get" action="{{ url_for('barcode_search') }}" class="barcode-research-form">
+    <label>Erkannter Barcode / EAN / UPC
+      <div class="barcode-copy-row"><input id="barcodeVisible" name="barcode" value="{{ barcode }}" inputmode="numeric" autocomplete="off" required><button type="button" class="secondary" id="copyBarcode">Kopieren</button></div>
+    </label>
+    <div class="barcode-quick-actions"><button>🔎 Erneut suchen</button><a class="button secondary-link" href="{{ url_for('scanner') }}">📷 Neu scannen</a></div>
+  </form>
+  <p class="form-help">Code korrigieren oder einen anderen Barcode eintragen und Enter/„Erneut suchen“ drücken. GameCollector prüft zuerst lokal und sucht bei unbekannter EAN automatisch online.</p>
+</div>
+
+{% if barcode_conflict %}<div class="status-banner warning"><strong>⚠ EAN/UPC mehrfach im Katalog</strong><span>Dieser Code ist {{ matches|length }} Katalogtiteln zugeordnet. Bitte im Qualitätscheck prüfen.</span><a class="button secondary-link compact-button" href="{{ url_for('quality', issue='barcode_duplicate') }}">Konflikt prüfen</a></div>{% endif %}
+{% if accessory_matches %}
+  <div class="status-banner success"><strong>✓ Zubehör bereits erfasst</strong><span>{{ accessory_matches|length }} passender Eintrag im Zubehörbestand.</span></div>
+  <div class="compact-list">{% for a in accessory_matches %}<article class="panel accessory-row">{% if a.photo %}<img src="{{ url_for('static',filename=a.photo) }}" alt="">{% elif a.reference_image %}<img src="{{ a.reference_image }}" alt="">{% endif %}<div><strong>{{ a.name }}</strong><span>{{ a.console.name if a.console else 'Universal' }} · {{ accessory_category_label(a.category) }}</span><small>{{ a.quantity }}× · Zustand {{ a.condition }}/10</small><a class="button compact-button" href="{{ url_for('accessory_item_edit',item_id=a.id) }}">Zubehör öffnen</a></div></article>{% endfor %}</div>
+{% elif matches %}
+  <div class="status-banner success"><strong>✓ Bereits im Katalog</strong><span>{{ matches|length }} Titel · {{ total_copies }} vorhandene Exemplare. Keine Online-Abfrage nötig.</span></div>
+  <div class="cards">{% for g in matches %}{% set copies = user_collection_items(g) %}{% set mycopy = user_collection(g) %}{% set price = game_price(g) %}<article class="card"><a class="card-link" href="{{ url_for('game_detail', game_id=g.id) }}"><div class="cover-wrap">{% if g.cover_url %}<img class="cover" src="{{ g.cover_url }}" alt="">{% else %}<div class="cover cover-empty">🎮</div>{% endif %}</div><div class="card-body"><span class="platform-pill">{{ g.console.name }}</span><h3>{{ g.title }}</h3><p>{{ g.region }} · {{ g.edition }}</p>{% if mycopy and mycopy.status == 'owned' %}<span class="owned">✓ In Sammlung</span>{% else %}<span class="badge">Im Katalog</span>{% endif %}{% if price %}<span class="mini-price-badge card-inline-price"><small>{{ price.label }}</small><strong>{{ eur(price.value) }}</strong></span>{% endif %}</div></a><div class="duplicate-actions">{% if copies %}<span class="owned">✓ {{ copies|length }} Exemplar{{ 'e' if copies|length != 1 else '' }} vorhanden</span><a class="button secondary-link compact-button" href="{{ url_for('collection_configure', game_id=g.id, item_id=copies[0].id) }}">Vorhandenes öffnen</a>{% endif %}<a class="button compact-button" href="{{ url_for('collection_configure', game_id=g.id, new_copy=1, ean_flow=1) }}">＋ Exemplar erfassen</a><a class="button secondary-link compact-button" href="{{ url_for('collection_configure', game_id=g.id, new_copy=1, status='wishlist') }}">♡ Wunschliste</a></div></article>{% endfor %}</div>
+{% elif external_matches %}
+  <div class="status-banner online"><strong>Online gefunden</strong><span>Prüfe Titel und Plattform. Erst mit deiner Bestätigung wird lokal gespeichert.</span></div>
+  <div class="external-grid">{% for g in external_matches %}<article class="result-card">{% if g.cover_url %}<img class="cover" src="{{ g.cover_url }}" alt="Cover">{% else %}<div class="result-mark">▣</div>{% endif %}<div class="result-main"><span class="platform-pill">{{ g.platform }}</span><h2>{{ g.name }}</h2><dl class="meta compact-meta"><dt>Region</dt><dd>{{ g.region }}</dd><dt>EAN / UPC</dt><dd>{{ g.barcode }}</dd>{% if g.publisher %}<dt>Publisher/Marke</dt><dd>{{ g.publisher }}</dd>{% endif %}<dt>Quelle</dt><dd>{{ g.source }}</dd></dl></div><form method="post" action="{{ url_for('import_barcode_match') }}"><input type="hidden" name="title" value="{{ g.name }}">{% if g.platform == 'Unbekannt' %}<label>Konsole<select name="platform" required><option value="">Bitte wählen</option>{% for c in consoles %}<option value="{{ c.name }}">{{ c.name }}</option>{% endfor %}</select></label>{% else %}<input type="hidden" name="platform" value="{{ g.platform }}">{% endif %}<input type="hidden" name="barcode" value="{{ g.barcode }}"><input type="hidden" name="region" value="{{ g.region }}"><input type="hidden" name="source" value="{{ g.source }}"><input type="hidden" name="source_id" value="{{ g.source_id }}"><input type="hidden" name="publisher" value="{{ g.publisher or '' }}"><input type="hidden" name="cover_url" value="{{ g.cover_url or '' }}"><input type="hidden" name="add_collection" value="1"><button>Exemplar erfassen</button></form></article>{% endfor %}</div>
+{% else %}
+  <div class="empty-state"><h2>Kein Online-Treffer</h2><p>Dein lokaler Katalog und der aktuelle Online-Provider kennen diesen Code nicht. Du kannst die Variante über den Titel suchen oder manuell anlegen.</p><a class="button" href="{{ url_for('game_catalog_search', source_ean=barcode) }}">⌕ Spiel ohne EAN suchen</a></div>
+{% endif %}
+
+{% if not matches and not external_matches and not accessory_matches %}
+<div class="panel narrow"><span class="eyebrow">Alternativ</span><h2>Zubehör suchen</h2><p class="muted">Der Code könnte zu einem Controller, Adapter, Datenträger oder einem anderen physischen Zubehörteil gehören.</p><a class="button" href="{{ url_for('accessory_search',q=barcode) }}">⌕ Zubehör ohne EAN-Treffer suchen</a></div>
+<form method="post" action="{{ url_for('external_game_search') }}" class="panel narrow manual-game-form">
+  <span class="eyebrow">Empfohlener nächster Schritt</span>
+  <h2>Spiel über Titel suchen</h2>
+  <p class="muted">Die Barcode-Datenbanken haben keinen Treffer. Suche jetzt in der Spiele-/Produktsuche weiter; dein erkannter EAN/UPC bleibt dabei fest erhalten.</p>
+  <input type="hidden" name="barcode" value="{{ barcode }}">
+  <label>EAN / UPC<input value="{{ barcode }}" readonly></label>
+  <label>Spieltitel<input name="title" required placeholder="z. B. Call of Duty Modern Warfare II"></label>
+  <label>Plattform <span class="muted">(optional)</span><select name="console_id"><option value="">Alle Plattformen</option>{% for c in consoles %}<option value="{{ c.id }}">{{ c.name }}</option>{% endfor %}</select></label>
+  <button>Spieldaten suchen</button>
+</form>
+
+<form method="post" action="{{ url_for('games') }}" class="panel narrow manual-game-form">
+  <h2>Oder vollständig manuell anlegen</h2>
+  <label>EAN / UPC<input name="barcode" value="{{ barcode }}" readonly></label>
+  <label>Titel<input name="title" required></label>
+  <label>Konsole<select name="console_id" required><option value="">Bitte wählen</option>{% for c in consoles %}<option value="{{ c.id }}">{{ c.name }}</option>{% endfor %}</select></label>
+  <div class="row"><label>Region<input name="region" value="PAL"></label><label>Jahr<input name="release_year" type="number"></label></div>
+  <label>Produktcode<input name="product_code" placeholder="z. B. NUS-… / SNSP-…"></label>
+  <label>Serie / Franchise<input name="franchise"></label>
+  <label>Edition<input name="edition" value="Standard"></label>
+  <label>Publisher<input name="publisher"></label><label>Developer<input name="developer"></label><label>Genre<input name="genre"></label><label>Cover-URL<input name="cover_url" type="text"></label>
+  <button>Spiel anlegen</button>
+</form>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+const copyBtn = document.getElementById('copyBarcode');
+if (copyBtn) copyBtn.addEventListener('click', async () => {
+  const value = document.getElementById('barcodeVisible').value;
+  try { await navigator.clipboard.writeText(value); copyBtn.textContent = 'Kopiert ✓'; }
+  catch (_) { document.getElementById('barcodeVisible').select(); }
+});
+</script>
+{% endblock %}

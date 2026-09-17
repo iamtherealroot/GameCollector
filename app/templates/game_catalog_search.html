@@ -1,0 +1,76 @@
+{% extends 'base.html' %}
+{% block title %}Spiel suchen · GameCollector{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div><span class="eyebrow">Katalogsuche</span><h1>Spiel suchen</h1><p class="muted">Keine EAN nötig: zuerst wird dein lokaler GameCollector-Katalog durchsucht, danach kannst du externe Treffer direkt als neuen Katalogtitel anlegen. Ein angelegter Katalogtitel muss noch nicht in deinem Besitz sein.</p></div>
+  <div class="page-actions"><a class="button secondary-link" href="{{ url_for('games') }}">Zum Spielekatalog</a></div>
+</div>
+{% if source_ean %}<div class="status-banner online"><strong>Suche ohne EAN gestartet</strong><span>Für {{ source_ean }} wurde kein Treffer gefunden. Suche jetzt nach Titel und Plattform; die unbekannte EAN wird dem Spiel dabei nicht automatisch zugeordnet.</span></div>{% endif %}
+<form method="get" class="panel identify-search">
+  {% if source_ean %}<input type="hidden" name="source_ean" value="{{ source_ean }}">{% endif %}
+  <label>Spieltitel oder Suchbegriff<input name="q" value="{{ q }}" placeholder="z. B. Microsoft Flight Simulator 2024" autofocus required></label>
+  <label>Plattform <span class="muted">(optional, verbessert die Treffer)</span>
+    <select name="console_id"><option value="">Alle Plattformen</option>{% for c in consoles %}<option value="{{ c.id }}" {% if selected_console and selected_console.id == c.id %}selected{% endif %}>{{ c.name }}</option>{% endfor %}</select>
+  </label>
+  <button>⌕ Suchen</button>
+</form>
+
+{% if q %}
+<section>
+  <div class="section-head"><div><span class="eyebrow">1 · Eigener Katalog</span><h2>{{ local_results|length }} lokale Treffer</h2></div></div>
+  {% if local_results %}
+  <div class="identify-grid">
+  {% for g in local_results %}
+    <article class="identify-card panel">
+      {% if g.cover_url %}<img src="{{ g.cover_url }}" alt="Cover {{ g.title }}" loading="lazy">{% else %}<div class="identify-cover-empty">🎮</div>{% endif %}
+      <div class="identify-body">
+        <span class="platform-pill">Im Katalog</span><span class="owned">✓ Bereits vorhanden</span>
+        <h3>{{ g.title }}</h3>
+        <p class="muted">{{ g.console.name }} · {{ g.region }}{% if g.release_year %} · {{ g.release_year }}{% endif %}{% if g.edition %} · {{ g.edition }}{% endif %}</p>
+        {% if g.barcode %}<small>EAN/UPC: {{ g.barcode }}</small>{% else %}<small class="muted">Keine EAN/UPC hinterlegt</small>{% endif %}
+        <div class="detail-actions"><a class="button compact-button" href="{{ url_for('collection_configure', game_id=g.id, new_copy=1) }}">＋ Zur Sammlung hinzufügen</a><a href="{{ url_for('game_detail', game_id=g.id) }}">Details</a><a href="{{ url_for('game_edit', game_id=g.id) }}">Bearbeiten</a></div>
+      </div>
+    </article>
+  {% endfor %}
+  </div>
+  {% else %}<div class="panel empty-state"><p>Kein lokaler Treffer. Deshalb geht die Suche weiter zu den externen Metadaten.</p></div>{% endif %}
+</section>
+
+<section>
+  <div class="section-head"><div><span class="eyebrow">2 · Externe Metadaten</span><h2>{{ external_results|length }} mögliche Treffer</h2><p class="muted">Du musst das Spiel noch nicht besitzen. Über „Als Katalogspiel anlegen“ wird nur der Master-Katalog ergänzt – eine Sammlungskopie wird nicht erstellt.</p></div></div>
+  {% if rawg_status == 'missing_key' %}<div class="panel"><p class="muted">RAWG ist nicht konfiguriert; es stehen nur schlüssellose Produkttreffer zur Verfügung.</p></div>{% endif %}
+  {% if external_results %}
+  <div class="external-grid">
+  {% for g in external_results %}
+    <article class="result-card">
+      {% if g.cover_url %}<img class="cover" src="{{ g.cover_url }}" alt="Cover {{ g.name }}" loading="lazy">{% else %}<div class="result-mark">🎮</div>{% endif %}
+      <div class="result-main">
+        <span class="platform-pill">{{ g.source }}</span>{% if g.platform_match %}<span class="owned">✓ Plattform passt</span>{% endif %}
+        <h2>{{ g.name }}</h2>
+        <dl class="meta compact-meta">
+          {% if g.platform %}<dt>Plattform</dt><dd>{{ g.platform }}</dd>{% endif %}
+          {% if g.year %}<dt>Jahr</dt><dd>{{ g.year }}</dd>{% endif %}
+          {% if g.publisher %}<dt>Publisher</dt><dd>{{ g.publisher }}</dd>{% endif %}
+          {% if g.developer %}<dt>Developer</dt><dd>{{ g.developer }}</dd>{% endif %}
+          {% if g.genre %}<dt>Genre</dt><dd>{{ g.genre }}</dd>{% endif %}
+          <dt>EAN/UPC</dt><dd>Nicht bekannt · kann später ergänzt werden</dd>
+        </dl>
+        {% if g.already_local %}<div class="status-banner warning"><strong>Ähnlicher Eintrag ist bereits lokal vorhanden</strong><span>Prüfe zuerst den lokalen Treffer oben.</span></div>{% endif %}
+      </div>
+      <form method="post" action="{{ url_for('import_catalog_search_match') }}">
+        <input type="hidden" name="title" value="{{ g.name }}"><input type="hidden" name="barcode" value="">
+        <input type="hidden" name="platform" value="{{ g.platform }}"><input type="hidden" name="release_year" value="{{ g.year }}">
+        <input type="hidden" name="publisher" value="{{ g.publisher }}"><input type="hidden" name="developer" value="{{ g.developer }}"><input type="hidden" name="genre" value="{{ g.genre }}">
+        <input type="hidden" name="cover_url" value="{{ g.cover_url }}"><input type="hidden" name="source" value="{{ g.source }}"><input type="hidden" name="source_id" value="{{ g.source_id }}"><input type="hidden" name="region" value="PAL">
+        <label>Diese Variante gehört zu
+          <select name="console_id" required><option value="">Bitte wählen</option>{% for c in consoles %}<option value="{{ c.id }}" {% if selected_console and selected_console.id == c.id %}selected{% elif not selected_console and g.platform and c.name|lower == g.platform|lower %}selected{% endif %}>{{ c.name }}</option>{% endfor %}</select>
+        </label>
+        <div class="duplicate-actions"><button name="destination" value="collection">＋ Zur Sammlung hinzufügen</button><button class="secondary" name="destination" value="catalog">Nur als Katalogspiel anlegen</button></div>
+      </form>
+    </article>
+  {% endfor %}
+  </div>
+  {% else %}<div class="panel empty-state"><h2>Keine externen Treffer</h2><p>Versuche einen kürzeren Titel oder wähle die Plattform aus.</p></div>{% endif %}
+</section>
+{% endif %}
+{% endblock %}

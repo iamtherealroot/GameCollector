@@ -1,0 +1,43 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  smoke-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check public repository contents
+        run: bash scripts/check-public-tree.sh
+      - name: Create test configuration
+        run: |
+          cp .env.example .env
+          sed -i 's/POSTGRES_PASSWORD=CHANGE_ME/POSTGRES_PASSWORD=ci-password/' .env
+          sed -i 's/SECRET_KEY=CHANGE_ME/SECRET_KEY=ci-secret-only/' .env
+          sed -i 's/ADMIN_PASSWORD=admin/ADMIN_PASSWORD=ci-admin-password/' .env
+          sed -i 's/ADMIN_FORCE_PASSWORD_CHANGE=1/ADMIN_FORCE_PASSWORD_CHANGE=0/' .env
+          printf '\nAPP_BIND=127.0.0.1\n' >> .env
+      - name: Compile Python
+        run: python3 -m py_compile app/app.py app/scheduler.py
+      - name: Validate Compose
+        run: docker compose config -q
+      - name: Start GameCollector
+        run: docker compose up -d --build
+      - name: Wait for deep healthcheck
+        run: |
+          for i in $(seq 1 30); do
+            curl -fsS http://127.0.0.1:8095/health/deep && exit 0
+            sleep 4
+          done
+          docker compose logs web
+          exit 1
+      - name: Stop containers
+        if: always()
+        run: docker compose down

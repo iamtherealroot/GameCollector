@@ -1,0 +1,34 @@
+{% extends 'base.html' %}
+{% block title %}Zubehör bearbeiten · GameCollector{% endblock %}
+{% block content %}
+<div class="page-head"><div><span class="eyebrow">Zubehör & Komponenten</span><h1>{{ item.name }}</h1><p class="muted">Eintrag, Lieferumfang und Bewertung bearbeiten.</p></div><div class="page-actions"><a class="button secondary-link" href="{{ return_to or url_for('accessories') }}">← Zurück</a></div></div>
+<form method="post" class="panel" enctype="multipart/form-data" id="accessory-edit-form">
+  <input type="hidden" name="return_to" value="{{ return_to or '' }}">
+  <label>Name<input name="name" required value="{{ item.name }}"></label>
+  <div class="row">
+    <label>Kategorie<select name="category">{% for key,label in categories.items() %}<option value="{{ key }}" {% if item.category==key %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></label>
+    <label>Komponententyp<select name="component_kind">{% for key,label in component_kinds.items() %}<option value="{{ key }}" {% if item.component_kind==key %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></label>
+  </div>
+  <label>Plattform<select name="console_id"><option value="">Universal / keine feste Zuordnung</option>{% for c in consoles %}<option value="{{ c.id }}" {% if item.console_id==c.id %}selected{% endif %}>{{ c.name }}</option>{% endfor %}</select></label>
+  <div class="row"><label>Hersteller<input name="manufacturer" value="{{ item.manufacturer or '' }}"></label><label>Modellnummer<input name="model_number" value="{{ item.model_number or '' }}"></label></div>
+  <div class="row"><label>EAN / UPC<input name="barcode" value="{{ item.barcode or '' }}" inputmode="numeric"></label><label>Produktcode<input name="product_code" value="{{ item.product_code or '' }}"></label></div>
+  <label>Kompatibilität<input name="compatibility" value="{{ item.compatibility or '' }}"></label>
+  <label>Teil eines Sets<select name="parent_accessory_id"><option value="">Eigenständiger Eintrag</option>{% for p in parent_items %}<option value="{{ p.id }}" {% if item.parent_accessory_id==p.id %}selected{% endif %}>{{ p.name }}</option>{% endfor %}</select></label>
+  <div class="row"><label>Farbe<input name="color" value="{{ item.color or '' }}"></label><label>Anzahl<input name="quantity" type="number" min="1" value="{{ item.quantity or 1 }}"></label></div>
+  <div class="row"><label>Status<select name="status"><option value="owned" {% if item.status=='owned' %}selected{% endif %}>Im Besitz</option><option value="wishlist" {% if item.status=='wishlist' %}selected{% endif %}>Wunschliste</option></select></label><label>Zustand 1–10<input name="condition" type="number" min="1" max="10" value="{{ item.condition or 8 }}"></label></div>
+  <div class="copy-checks">
+    <label class="copy-check"><input type="checkbox" name="boxed" value="1" {% if item.boxed %}checked{% endif %}><span><strong>OVP vorhanden</strong></span></label>
+    <label class="copy-check"><input type="checkbox" name="media_present" value="1" {% if item.media_present %}checked{% endif %}><span><strong>Datenträger vorhanden</strong></span></label>
+    <label class="copy-check"><input type="checkbox" name="case_present" value="1" {% if item.case_present %}checked{% endif %}><span><strong>Hülle vorhanden</strong></span></label>
+    <label class="copy-check"><input type="checkbox" name="manual_present" value="1" {% if item.manual_present %}checked{% endif %}><span><strong>Anleitung vorhanden</strong></span></label>
+    <label class="copy-check"><input type="checkbox" name="original_product" value="1" {% if item.original_product %}checked{% endif %}><span><strong>Originalprodukt</strong></span></label>
+    <label class="copy-check"><input type="checkbox" name="included_in_parent_value" value="1" {% if item.included_in_parent_value %}checked{% endif %}><span><strong>Im Setwert enthalten</strong><small>Komponente nicht doppelt addieren</small></span></label>
+  </div>
+  <label>Datenträgerzustand 1–10<input name="disc_condition" type="number" min="1" max="10" value="{{ item.disc_condition or '' }}"></label>
+  <div class="row"><label>Kaufpreis<input name="purchase_price" inputmode="decimal" value="{{ item.purchase_price if item.purchase_price is not none else '' }}"></label><label>Eigener Schätzwert<input name="estimated_value" inputmode="decimal" value="{{ item.estimated_value if item.estimated_value is not none else '' }}"></label></div>
+  <label>Lagerplatz<input name="storage_location" value="{{ item.storage_location or '' }}"></label><label>Referenzbild-URL<input name="reference_image" type="text" value="{{ item.reference_image or '' }}"></label>
+  {% if item.photo %}<p class="form-help">Ein eigenes Foto ist vorhanden. Ohne neuen Upload bleibt es erhalten.</p>{% endif %}
+  <label>Eigenes Foto ersetzen<input type="file" name="photo" accept="image/*"></label><label>Notizen<textarea name="notes" rows="4">{{ item.notes or '' }}</textarea></label>
+  <button>Änderungen speichern</button>
+</form>
+{% endblock %}

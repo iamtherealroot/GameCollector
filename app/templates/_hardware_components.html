@@ -1,0 +1,15 @@
+<section class="hardware-components">
+  <div class="section-mini-head"><div><span class="eyebrow">{{ hardware_class_label }}</span><h2>Einzelteile und Setzustand</h2></div></div>
+  <p class="muted">Fehlende Teile beeinflussen Vollständigkeit und Marktwert; Defekte zusätzlich den Setzustand.</p>
+  <div class="component-editor">
+  {% for component in component_profile %}{% set value=component_values.get(component.key,{}) %}
+    <fieldset class="component-row"><legend>{{ component.label }} <small>{{ component.weight }} %</small></legend>
+      <label>Vorhanden<select name="component_{{ component.key }}_availability"><option value="present" {% if value.get('availability','present')=='present' %}selected{% endif %}>Vorhanden</option><option value="missing" {% if value.get('availability')=='missing' %}selected{% endif %}>Fehlt</option><option value="na" {% if value.get('availability')=='na' %}selected{% endif %}>Nicht zutreffend</option></select></label>
+      <label>Zustand<input type="number" min="1" max="10" name="component_{{ component.key }}_condition" value="{{ value.get('condition',8) }}"></label>
+      <label>Funktion<select name="component_{{ component.key }}_function">{% for key,label in [('tested','Funktioniert'),('untested','Ungeprüft'),('partial','Teilweise defekt'),('defective','Defekt')] %}<option value="{{ key }}" {% if value.get('function','tested')==key %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></label>
+      <label class="check component-original"><input type="checkbox" name="component_{{ component.key }}_original" value="1" {% if value.get('original',true) %}checked{% endif %}> Originalteil</label>
+      <label class="component-notes">Hinweis<input name="component_{{ component.key }}_notes" value="{{ value.get('notes','') }}" placeholder="z. B. Stickdrift, Pixelfehler, Kratzer"></label>
+    </fieldset>
+  {% endfor %}
+  </div>
+</section>

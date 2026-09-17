@@ -1,0 +1,42 @@
+{% extends 'base.html' %}{% block title %}{{ game.title }} identifizieren · GameCollector{% endblock %}
+{% block content %}
+<div class="page-head"><div><span class="eyebrow">Metadaten</span><h1>Spiel identifizieren</h1><p class="muted">Passenden Datensatz suchen und Metadaten übernehmen. Dein Titel in GameCollector darf dabei deutsch oder frei angepasst bleiben.</p></div><div class="page-actions"><a class="button secondary-link" href="{{ url_for('game_edit', game_id=game.id, return_to=return_to) if return_edit else url_for('game_detail', game_id=game.id, return_to=return_to) }}">Abbrechen</a></div></div>
+<form method="get" class="panel identify-search">{% if return_edit %}<input type="hidden" name="return_edit" value="1">{% endif %}{% if return_to %}<input type="hidden" name="return_to" value="{{ return_to }}">{% endif %}<label>Suchbegriff<input name="q" value="{{ q }}" autofocus></label><button>Suchen</button></form>
+<div class="identify-current panel"><strong>Aktuell in GameCollector:</strong> {{ game.title }} · {{ game.console.name }}{% if game.release_year %} · {{ game.release_year }}{% endif %}<br><small>Der Treffername der Quelle kann englisch sein. Dein lokaler Titel wird nur geändert, wenn du „Titel ändern“ aktivierst.</small></div>
+{% if rawg_status == 'missing_key' %}<div class="panel"><p class="muted">RAWG ist nicht konfiguriert; es werden nur die verfügbaren schlüssellosen Produkttreffer angezeigt.</p></div>{% endif %}
+<div class="identify-grid">
+{% for row in results %}
+<article class="identify-card panel">
+  {% if row.cover_url %}<img src="{{ row.cover_url }}" alt="Cover {{ row.name }}" loading="lazy">{% else %}<div class="identify-cover-empty">🎮</div>{% endif %}
+  <div class="identify-body">
+    <span class="platform-pill">{{ row.source }}</span>{% if row.platform_exact %}<span class="owned">✓ Plattform passt</span>{% else %}<span class="issue-pill">Andere Plattform/Version</span>{% endif %}
+    <h3>{{ row.name }}</h3><small class="muted">Quelltitel: {{ row.name }}</small>
+    <p class="muted">{{ row.platform or game.console.name }}{% if row.year %} · {{ row.year }}{% endif %}</p>{% if row.existing_game %}<div class="status-banner warning"><strong>Externe ID wird bereits verwendet</strong><span>{{ row.existing_game.title }} · {{ row.existing_game.console.name }}. Anbieter wie RAWG bündeln teilweise getrennte Spiele/Editionen. Die Übernahme bleibt deshalb erlaubt; EAN/UPC ist das stärkere Dublettensignal.</span></div>{% endif %}
+    {% if row.publisher %}<small>{{ row.publisher }}</small>{% endif %}
+    <form method="post">
+      {% if return_edit %}<input type="hidden" name="return_edit" value="1">{% endif %}{% if return_to %}<input type="hidden" name="return_to" value="{{ return_to }}">{% endif %}
+      <input type="hidden" name="source" value="{{ row.source }}">
+      <input type="hidden" name="source_id" value="{{ row.source_id }}">
+      <details open>
+        <summary>Übernehmen</summary>
+        <div class="identify-fields">
+          <label class="identify-title-field"><span>Titel in GameCollector</span><input name="preferred_title" value="{{ game.title }}" autocomplete="off"></label>
+          <label><input type="checkbox" name="fields" value="title"> Titel ändern</label>
+          <label><input type="checkbox" name="fields" value="release_year" checked> Jahr</label>
+          <label><input type="checkbox" name="fields" value="publisher" checked> Publisher</label>
+          <label><input type="checkbox" name="fields" value="developer" checked> Developer</label>
+          <label><input type="checkbox" name="fields" value="genre" checked> Genre</label>
+          <label><input type="checkbox" name="fields" value="franchise" checked> Serie erkennen</label>
+          <label><input type="checkbox" name="fields" value="cover" checked> Cover</label>
+          <label><input type="checkbox" name="fields" value="external" checked> Externe ID</label>
+        </div>
+      </details>
+      <button>{% if row.existing_game %}Trotzdem für {{ game.title }} übernehmen{% else %}Treffer übernehmen{% endif %}</button>{% if row.existing_game %}<a class="button secondary-link" href="{{ url_for('game_detail', game_id=row.existing_game.id) }}">Vorhandenen Eintrag öffnen</a>{% endif %}
+    </form>
+  </div>
+</article>
+{% else %}
+<div class="panel empty-state"><h2>Keine Treffer</h2><p>Versuche einen kürzeren Titel oder entferne Editionsbezeichnungen. Auch bei englischen Treffern kannst du deinen deutschen Titel in GameCollector beibehalten.</p></div>
+{% endfor %}
+</div>
+{% endblock %}

@@ -1,0 +1,160 @@
+{% extends 'base.html' %}
+{% block title %}Kopie erfassen · {{ game.title }} · GameCollector{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <span class="eyebrow">{{ active_collection_label }} · konkrete Ausgabe</span>
+    <h1>{{ game.title }}{% if item %} · Exemplar #{{ item.id }}{% elif new_copy %} · Neues Exemplar{% endif %}</h1>
+    <p class="muted">{{ game.console.name }} · {{ game.region }}{% if game.barcode %} · EAN/UPC {{ game.barcode }}{% endif %}{% if game.product_code %} · {{ game.product_code }}{% endif %}</p>
+  </div>
+  <div class="page-actions">
+    {% if return_to %}<a class="button secondary-link" href="{{ return_to }}">← Zurück zur Sammlung</a>{% endif %}
+    <a class="button secondary-link" href="{{ url_for('game_detail', game_id=game.id, return_to=return_to) }}">Zum Spiel</a>
+  </div>
+</div>
+
+{% if new_import %}
+<div class="status-banner success"><strong>✓ Katalogdaten gespeichert</strong><span>Jetzt erfassen wir, was bei deiner eigenen Kopie tatsächlich vorhanden ist.</span></div>
+{% endif %}
+{% if ean_flow %}<div class="status-banner online"><strong>EAN-Assistent · Schritt 1 von 2</strong><span>Erfasse zuerst dein Exemplar. Danach kannst du Titel, Plattform und weitere Spieldaten prüfen.</span></div>{% endif %}
+{% if retro_flow %}<div class="status-banner online"><strong>Retro-Assistent · Schritt 1 von 2</strong><span>Erfasse zuerst Zustand und Vollständigkeit. Danach öffnet sich automatisch der komplette Katalogeintrag.</span></div>{% endif %}
+
+{% if copies %}<div class="copy-tabs"><span>Exemplare:</span>{% for c in copies %}<a class="{% if item and c.id == item.id %}active{% endif %}" href="{{ url_for('collection_configure', game_id=game.id, item_id=c.id, return_to=return_to) }}">#{{ c.id }}</a>{% endfor %}<a href="{{ url_for('collection_configure', game_id=game.id, new_copy=1, return_to=return_to) }}">＋ Neu</a></div>{% endif %}
+<div class="collection-copy-grid">
+  <section class="panel">
+    <h2>Zustand & Vollständigkeit</h2>
+    <form method="post" action="{{ url_for('collection_configure', game_id=game.id, item_id=item.id if item else None, new_copy=1 if (new_copy and not item) else None) }}" id="copy-form" enctype="multipart/form-data">
+      {% if item %}<input type="hidden" name="item_id" value="{{ item.id }}">{% endif %}
+      {% if return_to %}<input type="hidden" name="return_to" value="{{ return_to }}">{% endif %}
+      {% if ean_flow %}<input type="hidden" name="ean_flow" value="1">{% endif %}
+      {% if retro_flow %}<input type="hidden" name="retro_flow" value="1">{% endif %}
+      {% if prices and selected_market_value is not none %}
+      <input type="hidden" name="market_value_usd" value="{{ selected_market_value }}">
+      <input type="hidden" name="market_value_source" value="PriceCharting">
+      <input type="hidden" name="pricecharting_product_id" value="{{ prices.id }}">
+      {% endif %}
+      <label>Status
+        <select name="status">
+          <option value="owned" {% if not item or item.status == 'owned' %}selected{% endif %}>Besitze ich</option>
+          <option value="wishlist" {% if (item and item.status == 'wishlist') or request.args.get('status')=='wishlist' %}selected{% endif %}>Wunschliste</option>
+        </select>
+      </label>
+
+      <div class="copy-checks">
+        <label class="copy-check"><input type="checkbox" name="media_present" {% if not item or item.media_present %}checked{% endif %}><span><strong>Modul / Disc vorhanden</strong><small>Das eigentliche Spielmedium</small></span></label>
+        <label class="copy-check"><input type="checkbox" name="box_present" {% if item and item.box_present %}checked{% endif %}><span><strong>OVP / Hülle vorhanden</strong><small>Originalverpackung bzw. Originalhülle</small></span></label>
+        <label class="copy-check"><input type="checkbox" name="manual_present" {% if item and item.manual_present %}checked{% endif %}><span><strong>Anleitung vorhanden</strong><small>Originale Anleitung / Booklet</small></span></label>
+        <label class="copy-check"><input type="checkbox" name="sealed" {% if item and item.sealed %}checked{% endif %}><span><strong>Original versiegelt</strong><small>Setzt Medium, OVP und Anleitung automatisch</small></span></label>
+      </div>
+
+      <div class="row">
+        <label>Medium-Zustand 1–10<input type="number" name="media_condition" min="1" max="10" value="{{ item.media_condition if item else 8 }}"></label>
+        <label>OVP/Hüllen-Zustand 1–10<input type="number" name="box_condition" min="1" max="10" value="{{ item.box_condition if item else 8 }}"></label>
+      </div>
+      <div class="row three">
+        <label>Kaufpreis €<input type="text" inputmode="decimal" name="purchase_price" value="{{ item.purchase_price if item and item.purchase_price is not none else '' }}"></label>
+        <label>Kaufdatum<input type="date" name="purchase_date" value="{{ item.purchase_date.isoformat() if item and item.purchase_date else '' }}"></label>
+        <label>Seltenheit 1–5<input type="number" name="rarity" min="1" max="5" value="{{ item.rarity if item else 1 }}"></label>
+      </div>
+      <label>Eigener Schätzwert €
+        <input type="text" inputmode="decimal" name="estimated_value" value="{{ item.estimated_value if item and item.estimated_value is not none else '' }}" placeholder="z. B. 39,90">
+        <small class="form-help">Akzeptiert 39,90 oder 39.90. Ein eigener Schätzwert hat Vorrang vor dem automatischen Referenzwert.</small>
+      </label>
+      <label>Notizen<textarea name="notes" placeholder="z. B. kleine Druckstelle an der OVP, PAL-DE, Erstbesitz …">{{ (item.notes or '') if item else '' }}</textarea></label>
+      <div class="row three"><label>Arbeitsmarkierung<select name="work_marker"><option value="">Keine</option><option value="favorite" {% if item and item.work_marker=='favorite' %}selected{% endif %}>★ Favorit</option><option value="cover" {% if item and item.work_marker=='cover' %}selected{% endif %}>Cover suchen</option><option value="price" {% if item and item.work_marker=='price' %}selected{% endif %}>Preis prüfen</option><option value="manual" {% if item and item.work_marker=='manual' %}selected{% endif %}>Anleitung fehlt</option></select></label><label>Lagerplatz<input name="storage_location" value="{{ (item.storage_location or '') if item else '' }}" placeholder="z. B. Regal 2 / Box A"></label><label>Tags<input name="tags" value="{{ (item.tags or '') if item else '' }}" placeholder="Kindheit, Import, Steelbook"></label><label>Spielstatus<select name="play_status"><option value="unplayed" {% if not item or item.play_status=='unplayed' %}selected{% endif %}>Unbespielt</option><option value="started" {% if item and item.play_status=='started' %}selected{% endif %}>Angefangen</option><option value="finished" {% if item and item.play_status=='finished' %}selected{% endif %}>Durchgespielt</option><option value="complete" {% if item and item.play_status=='complete' %}selected{% endif %}>100 %</option></select></label></div>
+      <details class="subpanel"><summary>Wunschliste-Details</summary><div class="row three"><label>Priorität<select name="wishlist_priority"><option value="1" {% if item and item.wishlist_priority==1 %}selected{% endif %}>Niedrig</option><option value="2" {% if not item or item.wishlist_priority==2 %}selected{% endif %}>Normal</option><option value="3" {% if item and item.wishlist_priority==3 %}selected{% endif %}>Hoch</option></select></label><label>Wunschpreis €<input type="text" inputmode="decimal" name="wishlist_target_price" value="{{ item.wishlist_target_price if item and item.wishlist_target_price is not none else '' }}"></label><label>Gesuchter Zustand<select name="wishlist_condition"><option value="">Egal</option><option value="Loose" {% if item and item.wishlist_condition=='Loose' %}selected{% endif %}>Loose</option><option value="CIB" {% if item and item.wishlist_condition=='CIB' %}selected{% endif %}>CIB</option><option value="Sealed" {% if item and item.wishlist_condition=='Sealed' %}selected{% endif %}>Sealed</option></select></label></div><div class="row"><label>Händler / Quelle<input name="wishlist_shop" value="{{ (item.wishlist_shop or '') if item else '' }}"></label><label>Link<input type="url" name="wishlist_url" value="{{ (item.wishlist_url or '') if item else '' }}"></label></div><label>Wunschlisten-Notiz<textarea name="wishlist_notes">{{ (item.wishlist_notes or '') if item else '' }}</textarea></label></details>
+      <details class="subpanel"><summary>Eigene Fotos dieses Exemplars</summary><div class="row three"><label>Vorderseite<input type="file" name="photo_front" accept="image/jpeg,image/png,image/webp"></label><label>Rückseite<input type="file" name="photo_back" accept="image/jpeg,image/png,image/webp"></label><label>Disc / Modul<input type="file" name="photo_media" accept="image/jpeg,image/png,image/webp"></label></div>{% if item and (item.photo_front or item.photo_back or item.photo_media) %}<div class="copy-photo-grid">{% for label,path in [('Vorderseite',item.photo_front),('Rückseite',item.photo_back),('Medium',item.photo_media)] %}{% if path %}<figure><img src="{{ url_for('static', filename=path) }}" alt="{{ label }}"><figcaption>{{ label }}</figcaption></figure>{% endif %}{% endfor %}</div>{% endif %}</details>
+      <div class="form-actions">
+        <button name="save_action" value="return">{% if ean_flow or retro_flow %}Weiter: Spieldaten anpassen →{% elif return_to %}Speichern und zur Sammlung{% else %}Speichern und zum Spiel{% endif %}</button>
+        <button class="secondary" name="save_action" value="stay">Speichern und hierbleiben</button>
+      </div>
+    </form>
+  </section>
+
+  <aside>
+    <div class="panel market-panel">
+      <span class="eyebrow">Kostenlose Bewertung</span>
+      <h2>Automatischer EUR-Marktwert</h2>
+      <p class="muted">Für unterstützte Retro-Plattformen nutzt GameCollector PrixRetro.com als kostenlose Referenz. Die Werte basieren auf abgeschlossenen eBay-France-Verkäufen und werden passend zu Vollständigkeit und deinem Zustandswert angepasst.</p>
+      {% if item %}
+      <form method="post" action="{{ url_for('collection_auto_value', game_id=game.id) }}">{% if item %}<input type="hidden" name="item_id" value="{{ item.id }}">{% endif %}<button>↻ Jetzt kostenlos bewerten</button></form>
+      {% else %}
+      <p class="form-help">Speichere zuerst deine konkrete Kopie, damit GameCollector Loose/CIB/Sealed und den Zustand berücksichtigen kann.</p>
+      {% endif %}
+      {% if item and item.auto_value_eur is not none %}
+      <div class="auto-value-card">
+        <span>Automatischer Marktwert</span><strong>{{ '%.2f'|format(item.auto_value_eur) }} €</strong>
+        {% if item.auto_value_low_eur is not none %}<small>Spanne {{ '%.2f'|format(item.auto_value_low_eur) }}–{{ '%.2f'|format(item.auto_value_high_eur) }} €</small>{% endif %}
+        <small>{{ item.auto_value_condition }} · Sicherheit {{ item.auto_value_confidence }} · {{ item.auto_value_source }}</small>
+        {% if item.auto_value_updated_at %}<small>Stand {{ item.auto_value_updated_at|localdt }}</small>{% endif %}
+        {% if item.auto_value_url %}<a href="{{ item.auto_value_url }}" target="_blank" rel="noopener">Preisquelle öffnen ↗</a>{% endif %}
+      </div>
+      {% endif %}
+      {% if item and item.price_history %}
+      <a class="button secondary-link compact-button" href="{{ url_for('price_history_page', item_id=item.id) }}">Preisverlauf als Kurve öffnen</a>
+      <details class="price-history"><summary>Preisverlauf ({{ item.price_history|length }})</summary><div>{% for h in item.price_history|sort(attribute='recorded_at', reverse=true) %}<p><strong>{{ '%.2f'|format(h.value_eur) }} €</strong> · {{ h.source }} · {{ h.recorded_at|localdt('%d.%m.%Y') }}</p>{% endfor %}</div></details>
+      {% endif %}
+      <p class="form-help">Kostenloser Anbieter: PrixRetro.com · persönliche/nicht-kommerzielle Nutzung · Quelle wird sichtbar ausgewiesen.</p>
+    </div>
+
+    <div class="panel market-panel secondary-market">
+      <span class="eyebrow">Optional</span>
+      <h2>PriceCharting</h2>
+      {% if pricecharting_enabled %}
+        <p class="muted">Aktuelle Referenzpreise für Loose, CIB, Sealed und weitere Zustände. PriceCharting liefert die Werte in USD.</p>
+        <form method="post" action="{{ url_for('collection_market_value', game_id=game.id) }}">{% if item %}<input type="hidden" name="item_id" value="{{ item.id }}">{% endif %}
+          <label>Referenzzustand
+            <select name="price_kind">
+              <option value="loose">Nur Modul / Disc (Loose)</option>
+              <option value="cib">Komplett mit OVP + Anleitung (CIB)</option>
+              <option value="new">Neu / versiegelt</option>
+              <option value="box_only">Nur OVP</option>
+              <option value="manual_only">Nur Anleitung</option>
+              <option value="graded">Gegradet / versiegelt</option>
+            </select>
+          </label>
+          <button>Marktwert abrufen</button>
+        </form>
+      {% else %}
+        <p class="muted">Optional: <code>PRICECHARTING_TOKEN</code> in deiner <code>.env</code> hinterlegen. Die PriceCharting-API benötigt ein kostenpflichtiges Abo.</p>
+      {% endif %}
+
+      {% if prices %}
+        <div class="market-match">
+          <strong>{{ prices.product_name }}</strong>
+          <small>{{ prices.console_name }} · PriceCharting-ID {{ prices.id }}</small>
+        </div>
+        <div class="price-grid">
+          <div><span>Loose</span><strong>{% if prices.loose is not none %}${{ '%.2f'|format(prices.loose) }}{% else %}–{% endif %}</strong></div>
+          <div><span>CIB</span><strong>{% if prices.cib is not none %}${{ '%.2f'|format(prices.cib) }}{% else %}–{% endif %}</strong></div>
+          <div><span>Sealed</span><strong>{% if prices.new is not none %}${{ '%.2f'|format(prices.new) }}{% else %}–{% endif %}</strong></div>
+          <div><span>Graded</span><strong>{% if prices.graded is not none %}${{ '%.2f'|format(prices.graded) }}{% else %}–{% endif %}</strong></div>
+          <div><span>Nur OVP</span><strong>{% if prices.box_only is not none %}${{ '%.2f'|format(prices.box_only) }}{% else %}–{% endif %}</strong></div>
+          <div><span>Nur Anleitung</span><strong>{% if prices.manual_only is not none %}${{ '%.2f'|format(prices.manual_only) }}{% else %}–{% endif %}</strong></div>
+        </div>
+        {% if selected_market_value is not none %}<div class="status-banner online"><strong>Ausgewählte Referenz</strong><span>${{ '%.2f'|format(selected_market_value) }} · wird beim Speichern deiner Kopie mitgespeichert</span></div>{% endif %}
+        <p class="form-help">Diese Preise sind Referenzwerte in USD. Dein eigener Schätzwert bleibt bewusst separat in Euro, damit keine stillschweigende Währungsumrechnung erfolgt.</p>
+      {% elif item and item.market_value_usd is not none %}
+        <div class="market-saved"><span>Zuletzt gespeicherte Referenz</span><strong>${{ '%.2f'|format(item.market_value_usd) }}</strong>{% if item.market_value_updated_at %}<small>{{ item.market_value_updated_at|localdt }}</small>{% endif %}</div>
+      {% endif %}
+    </div>
+  </aside>
+</div>
+{% if item %}<section class="panel danger-zone"><h2>Exemplar löschen</h2><p class="muted">Löscht nur dieses Exemplar. Der Spiele-Katalogeintrag und weitere Exemplare bleiben erhalten.</p><form method="post" action="{{ url_for('collection_item_delete', item_id=item.id) }}" onsubmit="return confirm('Exemplar #{{ item.id }} wirklich löschen?')">{% if return_to %}<input type="hidden" name="return_to" value="{{ return_to }}">{% endif %}<button class="danger">Exemplar endgültig löschen</button></form></section>{% endif %}
+<div class="mobile-form-dock"><a class="button secondary-link" href="{{ return_to or url_for('game_detail', game_id=game.id) }}">← Zurück</a><button type="submit" form="copy-form">Speichern</button></div>
+{% endblock %}
+{% block scripts %}<script>
+(() => {
+  const form = document.getElementById('copy-form');
+  if (!form) return;
+  let dirty = false;
+  form.addEventListener('input', () => { dirty = true; });
+  form.addEventListener('change', () => { dirty = true; });
+  form.addEventListener('submit', () => { dirty = false; });
+  window.addEventListener('beforeunload', event => {
+    if (!dirty) return;
+    event.preventDefault();
+    event.returnValue = '';
+  });
+})();
+</script>{% endblock %}

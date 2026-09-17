@@ -1,0 +1,4 @@
+{% extends 'base.html' %}{% block title %}{{ heading }} · GameCollector{% endblock %}{% block content %}
+<div class="page-head"><div><span class="eyebrow">Metadaten</span><h1>{{ heading }}</h1><p class="muted">Alle {{ heading|lower }} mit Anzahl der zugeordneten Katalogtitel.</p></div></div>
+<div class="metadata-grid">{% for name,count in rows %}<a class="panel metadata-card" href="{{ url_for('metadata_games', field=field, value=name) }}"><strong>{{ name }}</strong><span>{{ count }} Spiele</span></a>{% else %}<div class="empty-state">Noch keine Daten vorhanden.</div>{% endfor %}</div>
+{% endblock %}

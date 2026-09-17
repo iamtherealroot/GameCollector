@@ -1,0 +1,79 @@
+{% extends 'base.html' %}
+{% block title %}Zubehör · GameCollector{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div><span class="eyebrow">Hardware Collection</span><h1>Zubehör</h1><p class="muted">Physisches Zubehör, Datenträger und vollständige Sets verwalten und bewerten.</p></div>
+  <div class="page-actions">
+    <a class="button" href="{{ url_for('accessory_search') }}">⌕ Zubehör suchen</a>
+    <form method="post" action="{{ url_for('accessories_revalue_all') }}"><button data-disable-on-submit>↻ Unbewertetes Zubehör bewerten</button></form>
+    <a class="button secondary-link" href="{{ url_for('hardware') }}">Konsolen</a>
+  </div>
+</div>
+
+<form method="get" class="panel accessory-filter-grid">
+  <label>Suche<input name="q" value="{{ q }}" placeholder="Name, EAN oder Produktcode"></label>
+  <label>Kategorie<select name="category"><option value="">Alle Kategorien</option>{% for key,label in categories.items() %}<option value="{{ key }}" {% if selected_category==key %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></label>
+  <label>Plattform<select name="console_id"><option value="">Alle Plattformen</option>{% for c in consoles %}<option value="{{ c.id }}" {% if selected_console_id==c.id %}selected{% endif %}>{{ c.name }}</option>{% endfor %}</select></label>
+  <label>Status<select name="status"><option value="">Alle</option><option value="owned" {% if selected_status=='owned' %}selected{% endif %}>Im Besitz</option><option value="wishlist" {% if selected_status=='wishlist' %}selected{% endif %}>Wunschliste</option></select></label>
+  <label>Sortierung<select name="sort"><option value="name" {% if selected_sort=='name' %}selected{% endif %}>Name</option><option value="value_desc" {% if selected_sort=='value_desc' %}selected{% endif %}>Wert absteigend</option><option value="newest" {% if selected_sort=='newest' %}selected{% endif %}>Neueste zuerst</option></select></label>
+  <button>Filtern</button>
+</form>
+
+<div class="split">
+<section>
+  <h2>Zubehör manuell hinzufügen</h2>
+  <form method="post" class="panel" enctype="multipart/form-data">
+    <input type="hidden" name="return_to" value="{{ request.full_path }}">
+    <label>Name<input name="name" required placeholder="z. B. Game Boy Player Startup Disc"></label>
+    <div class="row">
+      <label>Kategorie<select name="category">{% for key,label in categories.items() %}<option value="{{ key }}">{{ label }}</option>{% endfor %}</select></label>
+      <label>Komponententyp<select name="component_kind">{% for key,label in component_kinds.items() %}<option value="{{ key }}">{{ label }}</option>{% endfor %}</select></label>
+    </div>
+    <label>Plattform<select name="console_id"><option value="">Universal / keine feste Zuordnung</option>{% for c in consoles %}<option value="{{ c.id }}">{{ c.name }}</option>{% endfor %}</select></label>
+    <div class="row"><label>Hersteller<input name="manufacturer"></label><label>Modellnummer<input name="model_number"></label></div>
+    <div class="row"><label>EAN / UPC<input name="barcode" inputmode="numeric"></label><label>Produktcode<input name="product_code" placeholder="z. B. DOL-017"></label></div>
+    <label>Kompatibilität<input name="compatibility" placeholder="z. B. Nintendo GameCube · Game Boy Player"></label>
+    <label>Teil eines Sets<select name="parent_accessory_id"><option value="">Eigenständiger Eintrag</option>{% for p in parent_items %}<option value="{{ p.id }}">{{ p.name }}</option>{% endfor %}</select></label>
+    <div class="row"><label>Farbe<input name="color"></label><label>Anzahl<input name="quantity" type="number" min="1" value="1"></label></div>
+    <div class="row"><label>Status<select name="status"><option value="owned">Im Besitz</option><option value="wishlist">Wunschliste</option></select></label><label>Zustand 1–10<input name="condition" type="number" min="1" max="10" value="8"></label></div>
+    <div class="copy-checks">
+      <label class="copy-check"><input type="checkbox" name="boxed" value="1"><span><strong>OVP vorhanden</strong></span></label>
+      <label class="copy-check"><input type="checkbox" name="media_present" value="1"><span><strong>Datenträger vorhanden</strong></span></label>
+      <label class="copy-check"><input type="checkbox" name="case_present" value="1"><span><strong>Hülle vorhanden</strong></span></label>
+      <label class="copy-check"><input type="checkbox" name="manual_present" value="1"><span><strong>Anleitung vorhanden</strong></span></label>
+      <label class="copy-check"><input type="checkbox" name="original_product" value="1" checked><span><strong>Originalprodukt</strong></span></label>
+      <label class="copy-check"><input type="checkbox" name="included_in_parent_value" value="1"><span><strong>Im Setwert enthalten</strong><small>Nicht noch einmal zum Gesamtwert addieren</small></span></label>
+    </div>
+    <label>Datenträgerzustand 1–10<input name="disc_condition" type="number" min="1" max="10"></label>
+    <div class="row"><label>Kaufpreis<input name="purchase_price" inputmode="decimal"></label><label>Eigener Schätzwert<input name="estimated_value" inputmode="decimal"></label></div>
+    <label>Lagerplatz<input name="storage_location"></label><label>Referenzbild-URL<input name="reference_image" type="text"></label>
+    <label>Eigenes Foto<input type="file" name="photo" accept="image/*"></label><label>Notizen<textarea name="notes" rows="3"></textarea></label>
+    <button>Zubehör speichern</button>
+  </form>
+</section>
+<section>
+  <h2>Bestand</h2>
+  <div class="compact-list">
+  {% for i in items %}
+    <article class="panel accessory-row">
+      {% if i.photo %}<img src="{{ url_for('static', filename=i.photo) }}" alt="Eigenes Foto">{% elif i.reference_image %}<img src="{{ i.reference_image }}" alt="">{% endif %}
+      <div class="accessory-value-body">
+        <strong>{{ i.quantity }}× {{ i.name }}</strong>
+        <span>{{ accessory_category_label(i.category) }} · {{ i.console.name if i.console else 'Universal' }}{% if i.model_number %} · {{ i.model_number }}{% endif %}</span>
+        <small>{% if i.status=='wishlist' %}Wunschliste{% else %}Im Besitz{% endif %} · Zustand {{ i.condition }}/10{% if i.parent_accessory %} · Set: {{ i.parent_accessory.name }}{% endif %}</small>
+        {% if i.product_code or i.barcode %}<small>{% if i.product_code %}Produktcode {{ i.product_code }}{% endif %}{% if i.product_code and i.barcode %} · {% endif %}{% if i.barcode %}EAN {{ i.barcode }}{% endif %}</small>{% endif %}
+        {% if i.component_kind=='software_disc' %}<small>Disc {{ i.disc_condition or i.condition }}/10{% if i.case_present %} · Hülle{% endif %}{% if i.manual_present %} · Anleitung{% endif %}</small>{% endif %}
+        {% if effective_value(i) is not none %}<div class="hardware-catalog-value"><span><small>Wert je Stück</small><strong>{{ eur(effective_value(i)) }}</strong></span><span><small>Gesamtwert</small><strong>{{ eur(effective_value(i) * (i.quantity or 1)) }}</strong></span></div><small>{{ effective_value_source(i) }}{% if i.auto_value_updated_at and i.auto_value_eur is not none %} · {{ i.auto_value_updated_at|localdt }}{% endif %}{% if not accessory_counts_in_total(i) %} · im Setwert enthalten{% endif %}</small>{% endif %}
+        {% if i.auto_value_message %}<small>{{ i.auto_value_message }}</small>{% endif %}
+        <div class="accessory-actions">
+          <a class="button secondary-link compact-button" href="{{ url_for('accessory_item_edit', item_id=i.id, return_to=request.full_path) }}">✎ Bearbeiten</a>
+          <form method="post" action="{{ url_for('accessory_item_value', item_id=i.id) }}"><button class="compact-button">↻ Neu bewerten</button></form>
+          <form method="post" action="{{ url_for('accessory_item_delete', item_id=i.id) }}" onsubmit="return confirm('Dieses Zubehör wirklich löschen?');"><button class="compact-button secondary">🗑 Löschen</button></form>
+        </div>
+      </div>
+    </article>
+  {% else %}<div class="empty-state">Keine Einträge für diese Filter.</div>{% endfor %}
+  </div>
+</section>
+</div>
+{% endblock %}

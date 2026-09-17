@@ -1,0 +1,21 @@
+{% extends 'base.html' %}
+{% block title %}Zubehör suchen · GameCollector{% endblock %}
+{% block content %}
+<div class="page-head"><div><span class="eyebrow">Zubehörkatalog</span><h1>Zubehör suchen</h1><p class="muted">Zuerst wird dein Bestand geprüft, anschließend werden physische Angebote über eBay gesucht.</p></div><a class="button secondary-link" href="{{ url_for('accessories') }}">← Zum Zubehör</a></div>
+<form method="get" class="panel accessory-search-form">
+  <label>Suchbegriff<input name="q" value="{{ q }}" placeholder="z. B. Game Boy Player Startup Disc" autofocus></label>
+  <label>Plattform<select name="console_id"><option value="">Alle Plattformen</option>{% for c in consoles %}<option value="{{ c.id }}" {% if selected_console_id==c.id %}selected{% endif %}>{{ c.name }}</option>{% endfor %}</select></label>
+  <label>Kategorie<select name="category"><option value="">Alle Kategorien</option>{% for key,label in categories.items() %}<option value="{{ key }}" {% if selected_category==key %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></label>
+  <button>⌕ Suchen</button>
+</form>
+{% if q %}
+<section><div class="section-head"><div><span class="eyebrow">Eigener Bestand</span><h2>Lokale Treffer</h2></div></div><div class="compact-list">
+{% for i in local_results %}<article class="panel accessory-row">{% if i.photo %}<img src="{{ url_for('static',filename=i.photo) }}" alt="">{% elif i.reference_image %}<img src="{{ i.reference_image }}" alt="">{% endif %}<div><strong>{{ i.name }}</strong><span>{{ i.console.name if i.console else 'Universal' }} · {{ accessory_category_label(i.category) }}</span><small>{{ i.quantity }}× · {% if i.status=='owned' %}Im Besitz{% else %}Wunschliste{% endif %}</small><a class="button secondary-link compact-button" href="{{ url_for('accessory_item_edit',item_id=i.id,return_to=request.full_path) }}">Bearbeiten</a></div></article>{% else %}<div class="empty-state">Noch kein passender Eintrag in deinem Bestand.</div>{% endfor %}
+</div></section>
+<section><div class="section-head"><div><span class="eyebrow">Online</span><h2>eBay-Treffer</h2>{% if online_queries %}<p class="muted">Gesucht nach: {{ online_queries|join(' · anschließend ') }}</p>{% endif %}</div></div>
+{% if online_status_message %}<div class="status-banner warning"><strong>eBay-Suche nicht verfügbar</strong><span>{{ online_status_message }}</span><a class="button secondary-link compact-button" href="{{ url_for('account') }}">eBay-Einstellungen prüfen</a></div>{% elif online_status=='ok' and online_results %}<div class="status-banner success"><strong>{{ online_results|length }} Zubehörtreffer gefunden</strong><span>Wähle einen Treffer aus und ergänze anschließend Zustand und Vollständigkeit.</span></div>{% endif %}
+<div class="external-grid">
+{% for r in online_results %}<article class="result-card">{% if r.cover_url %}<img class="cover" src="{{ r.cover_url }}" alt="">{% else %}<div class="result-mark">🎛</div>{% endif %}<div class="result-main"><span class="platform-pill">{{ r.condition or 'Physisches Zubehör' }}</span><h2>{{ r.name }}</h2>{% if r.price is not none %}<p><strong>{{ '%.2f'|format(r.price)|replace('.', ',') }} {{ r.currency or 'EUR' }}</strong></p>{% endif %}<form method="post" action="{{ url_for('accessory_search_import') }}"><input type="hidden" name="name" value="{{ r.name }}"><input type="hidden" name="cover_url" value="{{ r.cover_url or '' }}"><input type="hidden" name="source_id" value="{{ r.id or '' }}"><input type="hidden" name="console_id" value="{{ selected_console_id or '' }}"><input type="hidden" name="category" value="{{ selected_category or 'other' }}"><button>＋ Zur Sammlung hinzufügen</button></form></div></article>{% else %}{% if not online_status_message %}<div class="empty-state"><h3>Keine passenden Online-Treffer</h3><p>Versuche nur den Produktnamen oder eine Modellnummer, beispielsweise „Game Boy Player“, „DOL-017“ oder „DualShock 2“.</p></div>{% endif %}{% endfor %}
+</div></section>
+{% endif %}
+{% endblock %}

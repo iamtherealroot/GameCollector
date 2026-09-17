@@ -1,0 +1,1 @@
+"""GameCollector application package."""
