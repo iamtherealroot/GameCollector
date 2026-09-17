@@ -28,16 +28,23 @@ jobs:
         run: python3 -m py_compile app/app.py app/scheduler.py
       - name: Validate Compose
         run: docker compose config -q
-      - name: Start GameCollector
-        run: docker compose up -d --build
+      - name: Build GameCollector
+        run: docker compose build
+      - name: Start database and web app
+        run: docker compose up -d db web
       - name: Wait for deep healthcheck
         run: |
           for i in $(seq 1 30); do
             curl -fsS http://127.0.0.1:8095/health/deep && exit 0
             sleep 4
           done
-          docker compose logs web
+          docker compose ps -a
+          docker compose logs --no-color db web
           exit 1
+      - name: Start scheduler
+        run: |
+          docker compose up -d scheduler
+          test "$(docker inspect -f '{{.State.Status}}' gamecollector-scheduler-1)" = "running"
       - name: Stop containers
         if: always()
         run: docker compose down
