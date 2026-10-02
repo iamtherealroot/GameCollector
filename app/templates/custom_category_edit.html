@@ -1,0 +1,13 @@
+{% extends 'base.html' %}
+{% block title %}Kategorie bearbeiten · {{ app_name }}{% endblock %}
+{% block content %}
+<section class="panel"><h1>Sammlungskategorie bearbeiten</h1>
+<form method="post" class="form-grid" action="{{ url_for('custom_collection_category_edit', category_id=category.id) }}">
+  <input type="hidden" name="category_token" value="{{ category_token }}">
+  <label>Name<input name="title" required minlength="2" maxlength="120" value="{{ category.title }}"></label>
+  <label>Symbol<input name="icon" maxlength="8" value="{{ category.icon }}"></label>
+  <label class="wide">Beschreibung<input name="description" maxlength="240" value="{{ category.description }}"></label>
+  <div class="collector-actions wide"><button class="button" type="submit">Änderungen speichern</button>
+  <a class="button" href="{{ url_for('collector_section', section='custom', custom_category=category.id) }}">Abbrechen</a></div>
+</form></section>
+{% endblock %}

@@ -21,6 +21,8 @@ jobs:
         run: python -m pip install -r requirements.txt
       - name: Game price stability regression tests
         run: python3 scripts/test_game_price_stability.py
+      - name: Custom category deletion regression tests
+        run: python3 scripts/test_custom_category_delete.py
       - name: Check public repository contents
         run: bash scripts/check-public-tree.sh
       - name: Create test configuration

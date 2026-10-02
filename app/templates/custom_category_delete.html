@@ -1,0 +1,16 @@
+{% extends 'base.html' %}
+{% block title %}Kategorie löschen · {{ app_name }}{% endblock %}
+{% block content %}
+<section class="panel danger-zone">
+  <h1>{{ category.icon }} {{ category.title }} löschen?</h1>
+  <p>Dieser eigene Bereich wird vom Dashboard entfernt.</p>
+  {% if item_count %}<p><strong>{{ item_count }} Objekte bleiben erhalten.</strong> Du findest sie anschließend unter „Weitere Sammlungen“ und kannst sie einer anderen Kategorie zuordnen. Preise, Fotos und Notizen bleiben bestehen.</p>
+  {% else %}<p>Die Kategorie enthält keine Objekte.</p>{% endif %}
+  <form method="post" action="{{ url_for('custom_collection_category_delete', category_id=category.id) }}">
+    <input type="hidden" name="delete_token" value="{{ delete_token }}">
+    <label><input type="checkbox" name="confirm_delete" value="1" required> Ich möchte die Kategorie „{{ category.title }}“ entfernen.</label>
+    <div class="collector-actions"><button class="danger" type="submit">Kategorie löschen</button>
+    <a class="button" href="{{ url_for('collector_section', section='custom', custom_category=category.id) }}">Abbrechen</a></div>
+  </form>
+</section>
+{% endblock %}

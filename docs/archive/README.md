@@ -119,6 +119,8 @@ Historische Notizen bleiben zur Nachvollziehbarkeit erhalten. Sie beschreiben de
 
 ## Release-Notizen
 
+- [RELEASE-NOTES-v4.6.6](releases/RELEASE-NOTES-v4.6.6.md)
+
 - [RELEASE-NOTES-v3.1.0](releases/RELEASE-NOTES-v3.1.0.md)
 - [RELEASE-NOTES-v4.0.0](releases/RELEASE-NOTES-v4.0.0.md)
 - [RELEASE-NOTES-v4.6.5](releases/RELEASE-NOTES-v4.6.5.md)

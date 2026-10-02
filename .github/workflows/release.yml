@@ -48,7 +48,7 @@ jobs:
           fi
           gh release create "$tag" \
             --target "$(git rev-parse HEAD)" \
-            --title "Bibo $tag – Stabilere Spielebewertung" \
+            --title "Bibo $tag" \
             --notes-file "RELEASE-NOTES-${tag}.md" \
             "$RUNNER_TEMP/bibo-release/Bibo-${tag}.zip" \
             "$RUNNER_TEMP/bibo-release/Bibo-${tag}-SHA256SUMS.txt"

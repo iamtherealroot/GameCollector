@@ -29,6 +29,8 @@
 
 **Jedes Exemplar zählt.** Mehrere Kopien mit derselben EAN können jeweils einen eigenen Zustand, Kaufpreis, Lagerort, Fotos und Notizen haben. Katalogdaten und persönlicher Besitz werden getrennt verwaltet.
 
+Eigene Dashboard-Kategorien lassen sich bearbeiten oder entfernen. Objekte können einzeln oder gemeinsam neu zugeordnet werden; beim Entfernen einer Kategorie bleibt ihr Bestand erhalten. [Anleitung](docs/CATEGORIES.md)
+
 ## Das steckt drin
 
 - **Schnell erfassen:** EAN-/UPC-Scanner auf dem Smartphone, Suche und CSV-Import.
@@ -45,11 +47,11 @@ Metadaten und Preisquellen sind je nach Bereich optional, etwa eBay, PrixRetro, 
 
 ## Installation & Update
 
-**Ein Paket, ein Installer:** Lade `Bibo-vX.Y.Z.zip` aus den [Releases](https://github.com/iamtherealroot/GameCollector/releases/latest) auf deinen Server und entpacke es **außerhalb des Installationsverzeichnisses**. Beispiel für v4.6.6:
+**Ein Paket, ein Installer:** Lade `Bibo-vX.Y.Z.zip` aus den [Releases](https://github.com/iamtherealroot/GameCollector/releases/latest) auf deinen Server und entpacke es **außerhalb des Installationsverzeichnisses**. Beispiel für v4.7.0:
 
 ```bash
-unzip Bibo-v4.6.6.zip
-cd Bibo-v4.6.6
+unzip Bibo-v4.7.0.zip
+cd Bibo-v4.7.0
 sudo bash install.sh
 ```
 
@@ -69,7 +71,7 @@ Der Standardpfad bleibt `/opt/gamecollector`, damit vorhandene Installationen we
 | Aktualisieren und sichern | [Updates & Wiederherstellung](docs/UPDATES.md) |
 | Dienste und Datenhaltung | [Architektur](docs/ARCHITECTURE.md) |
 | Eigene Daten und externe Anbieter | [Datenschutz](docs/PRIVACY.md) |
-| Änderungen dieser Version | [Release-Notizen v4.6.6](RELEASE-NOTES-v4.6.6.md) |
+| Änderungen dieser Version | [Release-Notizen v4.7.0](RELEASE-NOTES-v4.7.0.md) |
 | Entwicklungsgeschichte | [Changelog](CHANGELOG.md) · [Dokumentationsarchiv](docs/archive/README.md) |
 
 ## Mitmachen
@@ -85,7 +87,7 @@ python3 scripts/test_game_price_stability.py
 Weitere Prüfungen laufen in [GitHub Actions](https://github.com/iamtherealroot/GameCollector/actions). Für ein Release mit passender `APP_VERSION`:
 
 ```bash
-bash scripts/build_release.sh 4.6.6
+bash scripts/build_release.sh 4.7.0
 ```
 
 Bibo steht unter der [GPL-3.0](LICENSE).
