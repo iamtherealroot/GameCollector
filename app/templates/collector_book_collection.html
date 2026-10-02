@@ -1,0 +1,33 @@
+{% extends 'base.html' %}
+{% block title %}{{ title }} · Buchreihe · Bibo{% endblock %}
+{% block content %}
+<section class="collector-section-hero compact-collection-hero">
+  <a class="collector-back" href="{{ url_for('collector_collections', type='books') }}">← Buchreihen</a>
+  <span class="collector-section-icon">📚</span><span class="eyebrow">Buchreihe</span><h1>{{ title }}</h1>
+  <div class="collector-section-stats"><span><strong>{{ books|length }}</strong> {{ 'Band' if books|length == 1 else 'Bände' }} vorhanden</span>{% if catalog_count %}<span><strong>{{ missing|length }}</strong> fehlen</span>{% endif %}<span><strong>{{ eur(total_value) }}</strong> Gesamtwert</span></div>
+  <div class="collector-actions"><form method="post" action="{{ url_for('collector_book_collection_refresh', item_id=anchor_id) }}"><button class="button" type="submit">↻ Buchreihe synchronisieren</button></form></div>
+</section>
+
+<section class="panel">
+  <div class="section-mini-head"><div><span class="eyebrow">Sammlung</span><h2>Vorhandene Bücher</h2></div></div>
+  <div class="collector-item-list">
+    {% for entry in books %}{% set row = entry.row %}{% set meta = entry.meta %}
+    <article class="panel collector-item-row">
+      {% if row.cover_url %}<img src="{{ row.cover_url }}" alt="Cover von {{ row.title }}" loading="lazy">{% endif %}
+      <div><span class="platform-pill">{% if entry.order not in [none, ''] %}Band {{ entry.order }}{% else %}Reihenfolge offen{% endif %}</span><h3><a href="{{ url_for('collector_item_detail', item_id=row.id) }}">{{ row.title }}</a>{% if row.quantity and row.quantity > 1 %} <span class="source-pill">{{ row.quantity }}×</span>{% endif %}</h3><p class="muted">{{ meta.author or 'Autor unbekannt' }}{% if row.media_type %} · {{ row.media_type }}{% endif %}{% if row.edition %} · {{ row.edition }}{% endif %}{% if row.release_year %} · {{ row.release_year }}{% endif %}{% if row.barcode %} · ISBN {{ row.barcode }}{% endif %}</p><div class="collector-actions"><a class="button" href="{{ url_for('collector_item_detail', item_id=row.id) }}">Öffnen</a><a class="button" href="{{ url_for('collector_item_edit', item_id=row.id) }}">Bearbeiten</a></div></div>
+      <strong>{{ eur(entry.value) }}</strong>
+    </article>
+    {% endfor %}
+  </div>
+</section>
+
+<section class="panel">
+  <div class="section-mini-head"><div><span class="eyebrow">Open Library</span><h2>Fehlende Bücher</h2></div><span>{{ missing|length }} Titel</span></div>
+  {% if missing %}<div class="collector-item-list">
+    {% for book in missing %}<article class="panel collector-item-row">
+      {% if book.cover_url %}<img src="{{ book.cover_url }}" alt="Cover von {{ book.title }}" loading="lazy">{% endif %}
+      <div>{% if book.order %}<span class="platform-pill">Band {{ book.order }}</span>{% endif %}<h3>{{ book.title }}</h3><p class="muted">{{ book.author or 'Autor unbekannt' }}{% if book.year %} · {{ book.year }}{% endif %}{% if book.isbn %} · ISBN {{ book.isbn }}{% endif %}</p><div class="collector-actions"><a class="button" href="{{ url_for('collector_books_search', isbn=book.isbn) if book.isbn else url_for('collector_books_search', q=book.title) }}">＋ Buch suchen/hinzufügen</a></div></div><strong class="muted">Fehlt</strong>
+    </article>{% endfor %}
+  </div>{% elif catalog_count %}<p class="muted">Alle von Open Library erkannten Titel dieser Reihe sind vorhanden.</p>{% else %}<p class="muted">Noch kein Reihenkatalog geladen. Starte oben „Buchreihe synchronisieren“.</p>{% endif %}
+</section>
+{% endblock %}

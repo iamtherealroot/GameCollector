@@ -1,0 +1,51 @@
+{% extends 'base.html' %}
+{% block title %}{{ config.title }} suchen · Collector{% endblock %}
+{% block content %}
+<section class="collector-section-hero">
+  <a class="collector-back" href="{{ url_for('collector_section', section=section) }}">← {{ config.title }}</a>
+  <span class="collector-section-icon">{{ config.icon }}</span><span class="eyebrow">TMDB · EAN</span>
+  <h1>{{ config.singular }} suchen</h1>
+  <p>Durchsuche auch große Film- und Serienwelten. Neuere Treffer können zuerst angezeigt werden; TMDB liefert Werkdaten, EAN und Ausgabe bleiben Daten deines Exemplars.</p>
+</section>
+<section class="panel media-title-search">
+  <div class="collector-actions media-kind-switch"><a class="button {% if section=='movies' %}active{% endif %}" href="{{ url_for('collector_media_search', section='movies') }}">🎬 Filme</a><a class="button {% if section=='tv' %}active{% endif %}" href="{{ url_for('collector_media_search', section='tv') }}">📺 Serien</a><a class="button" href="{{ url_for('collector_collections', type=section) }}">🗂️ Reihenübersicht</a></div>
+  <h2>Titel suchen</h2>
+  <form method="get" class="media-title-search-form">
+    <input type="hidden" name="section" value="{{ section }}">
+    <label>Titel<input name="q" value="{{ query }}" placeholder="z. B. Batman" required></label>
+    <label>Jahr (optional)<input name="year" value="{{ year_filter|default('') }}" inputmode="numeric" maxlength="4" placeholder="2022"></label>
+    <label>Sortierung<select name="sort"><option value="newest" {% if result_sort|default('newest')=='newest' %}selected{% endif %}>Neueste zuerst</option><option value="relevance" {% if result_sort|default('newest')=='relevance' %}selected{% endif %}>TMDB-Relevanz</option><option value="oldest" {% if result_sort|default('newest')=='oldest' %}selected{% endif %}>Älteste zuerst</option></select></label>
+    <button class="button" type="submit">🔎 Suchen</button>
+  </form>
+  <h2>EAN / UPC suchen</h2>
+  <form method="get" class="collector-actions"><input type="hidden" name="section" value="{{ section }}"><input name="ean" value="{{ ean }}" inputmode="numeric" placeholder="EAN / UPC" required><button class="button" type="submit">▥ EAN suchen</button></form>
+  {% if not tmdb_configured %}<p class="warning">TMDB ist noch nicht konfiguriert.</p>{% endif %}
+  {% if query %}<p class="muted">{{ results|length }} Treffer geladen{% if total_available|default(0) > results|length %} · {{ total_available }} Treffer bei TMDB verfügbar{% endif %}. Verfeinere bei Bedarf über Jahr oder Sortierung.</p>{% endif %}
+  {% if ean %}<p class="muted">EAN {{ ean }} · Barcode-Provider: {{ barcode_products|length }} Treffer · TMDB: {{ results|length }} Kandidaten</p>{% endif %}
+</section>
+{% if results %}
+<section class="collector-item-list">
+  {% for hit in results %}
+  <article class="panel collector-item-row">
+    {% if hit.cover_url %}<img src="{{ hit.cover_url }}" alt="" loading="lazy">{% endif %}
+    <div>
+      <h3>{{ hit.title }}</h3>
+      <p class="muted">{% if hit.original_title and hit.original_title != hit.title %}{{ hit.original_title }} · {% endif %}{{ hit.year or 'Jahr unbekannt' }} · TMDB #{{ hit.id }}</p>
+      {% if hit.overview %}<p>{{ hit.overview[:280] }}{% if hit.overview|length > 280 %}…{% endif %}</p>{% endif %}
+      {% if hit.owned_item_id %}
+        <div class="collector-actions"><a class="button" href="{{ url_for('collector_item_detail', item_id=hit.owned_item_id) }}">✓ Bereits vorhanden · öffnen</a></div>
+      {% endif %}
+      <form method="post" action="{{ url_for('collector_media_import') }}" class="collector-actions">
+        <input type="hidden" name="section" value="{{ section }}"><input type="hidden" name="title" value="{{ hit.title }}"><input type="hidden" name="tmdb_id" value="{{ hit.id }}"><input type="hidden" name="release_year" value="{{ hit.year or '' }}"><input type="hidden" name="cover_url" value="{{ hit.cover_url or '' }}"><input type="hidden" name="barcode" value="{{ ean or '' }}">
+        <select name="media_type">{% for x in ['DVD','Blu-ray','Blu-ray 3D','4K UHD Blu-ray','HD DVD','VHS','Video-CD','Sonstiges'] %}<option value="{{ x }}" {% if (hit.media_type == x) or (section == 'movies' and not hit.media_type and x == 'Blu-ray') or (section == 'tv' and not hit.media_type and x == 'DVD') %}selected{% endif %}>{{ x }}</option>{% endfor %}</select>
+        {% if section == 'tv' %}<input name="edition" value="{{ hit.edition or '' }}" placeholder="z. B. Staffel 1 / Komplettbox">{% endif %}
+        <button class="button" type="submit">{% if hit.owned_item_id %}＋ Weiteres Exemplar anlegen{% else %}＋ Physische Ausgabe anlegen{% endif %}</button>
+      </form>
+    </div>
+  </article>
+  {% endfor %}
+</section>
+{% elif query or ean %}
+<section class="panel"><p>Keine passenden {{ config.title }} gefunden.{% if ean %} Der Barcode-Provider konnte die EAN nicht eindeutig auf einen TMDB-Titel auflösen. Die Titelsuche bleibt als Fallback verfügbar.{% endif %}</p></section>
+{% endif %}
+{% endblock %}

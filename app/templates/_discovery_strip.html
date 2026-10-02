@@ -1,0 +1,7 @@
+{% if rows %}<div class="similar-preview-head"><div><span class="eyebrow">Ähnliche Titel</span><h2>Könnte ebenfalls passen</h2></div><a href="{{ url_for('discovery_center', type=category, seed=seed.id) }}">Alle Empfehlungen →</a></div>
+<div class="similar-preview-strip">
+{% for item in rows %}<a class="similar-preview-card" href="{{ item.target_url }}">
+  <span class="similar-preview-cover">{% if item.cover_url %}<img src="{{ item.cover_url }}" alt="Cover von {{ item.title }}" loading="lazy">{% else %}<span>🖼️</span>{% endif %}</span>
+  <span class="similar-preview-copy"><strong>{{ item.title }}</strong><small>{% if item.year %}{{ item.year }} · {% endif %}{{ item.reason }}</small><em class="collection-state {{ item.collection_state }}">{{ '✓ ' if item.collection_state=='owned' else ('☆ ' if item.collection_state=='wishlist' else '') }}{{ item.collection_label }}</em></span>
+</a>{% endfor %}
+</div>{% endif %}

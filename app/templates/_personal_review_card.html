@@ -1,0 +1,11 @@
+<section class="panel personal-review-card">
+  <div class="personal-review-head"><div><span class="eyebrow">Meine Bewertung</span><h2>{% if personal_review and personal_review.review_title %}{{ personal_review.review_title }}{% else %}Persönlicher Eintrag{% endif %}</h2></div>{% if personal_review %}<strong>{{ personal_review.overall_rating }}<small>/10</small></strong>{% endif %}</div>
+  {% if personal_review %}
+    <div class="personal-review-dimensions">{% for label in review_dimensions %}{% set value=personal_review|attr('dimension_' ~ loop.index) %}{% if value %}<span><small>{{ label }}</small><strong>{{ value }}/10</strong></span>{% endif %}{% endfor %}</div>
+    {% if personal_review.spoiler %}<div class="status-banner warning"><strong>⚠ Spoiler</strong><span>Diese persönliche Rezension enthält Angaben zur Handlung.</span></div>{% endif %}
+    {% if personal_review.review_text %}<p class="personal-review-text">{{ personal_review.review_text }}</p>{% endif %}
+    {% if personal_review.pros or personal_review.cons %}<div class="personal-review-pros-cons">{% if personal_review.pros %}<div><strong>＋ Stärken</strong><p>{{ personal_review.pros }}</p></div>{% endif %}{% if personal_review.cons %}<div><strong>− Schwächen</strong><p>{{ personal_review.cons }}</p></div>{% endif %}</div>{% endif %}
+    <div class="personal-review-meta">{% if personal_review.favorite %}<span>♥ Favorit</span>{% endif %}{% if personal_review.recommendation %}<span>{% if personal_review.recommendation=='yes' %}✓ Empfehlenswert{% elif personal_review.recommendation=='maybe' %}≈ Mit Einschränkungen{% else %}✗ Nicht empfohlen{% endif %}</span>{% endif %}{% if personal_review.consumed_at %}<span>{{ personal_review.consumed_at.strftime('%d.%m.%Y') }}</span>{% endif %}</div>
+    <a class="button secondary-link" href="{{ url_for('personal_review_edit', source_kind=review_source_kind, source_id=review_source_id) }}">✎ Bewertung bearbeiten</a>
+  {% else %}<p class="muted">Noch keine eigene inhaltliche Bewertung vorhanden. Marktwert und Zustandsbewertung bleiben davon unberührt.</p><a class="button" href="{{ url_for('personal_review_edit', source_kind=review_source_kind, source_id=review_source_id) }}">★ Eigene Bewertung schreiben</a>{% endif %}
+</section>

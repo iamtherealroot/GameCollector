@@ -1,0 +1,216 @@
+{% extends 'base.html' %}
+{% block title %}Karte scannen · Collector{% endblock %}
+{% block head %}<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js" defer></script>{% endblock %}
+{% block content %}
+<section class="collector-section-hero card-scan-hero"><a class="collector-back" href="{{ url_for('collector_section', section='cards') }}">← Sammelkarten</a><span class="collector-section-icon">📷</span><span class="eyebrow">Card Scanner · Visual Recognition</span><h1>Karte scannen</h1><p>Pokémon kann direkt über die visuelle PokéCollector-Erkennung identifiziert werden. Für Magic und Yu-Gi-Oh! bleibt die schnelle Namenssuche erhalten; OCR ist nur noch ein Fallback und blockiert den Scan nicht.</p></section>
+<section class="panel card-scanner-panel">
+  <div class="card-scan-controls">
+    <label>TCG<select id="scanTcg"><option value="auto">Automatisch erkennen</option><option value="pokemon">Pokémon</option><option value="magic">Magic: The Gathering</option><option value="yugioh">Yu-Gi-Oh!</option></select></label>
+    <label>Magic-Sprache<select id="scanMagicLang"><option value="de">Deutsch</option><option value="en">Englisch</option><option value="all">Alle Sprachen</option></select></label>
+  </div>
+  <label class="card-camera-button">📷 Kamera öffnen / Foto auswählen<input id="cardPhoto" type="file" accept="image/jpeg,image/png,image/webp" capture="environment"></label>
+  <div id="scanPreviewWrap" class="card-scan-preview" hidden><img id="scanPreview" alt="Aufgenommenes Kartenfoto"></div>
+  <div id="scanRegionPreview" class="panel" hidden style="margin-top:.8rem">
+    <strong>Verwendete Scanbereiche</strong><p class="muted" style="margin:.35rem 0 .7rem">So sieht Collector die Karte. Der Namensbereich zeigt die vergrößerte und aufbereitete Titelzeile ohne Mana-/HP-Bereich.</p>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem"><div><small>Karte</small><canvas id="cardCropPreview" style="width:100%;border-radius:10px;margin-top:.3rem"></canvas></div><div><small>Namensbereich</small><canvas id="nameCropPreview" style="width:100%;border-radius:10px;margin-top:.3rem"></canvas></div></div>
+  </div>
+  <label class="card-scan-keep"><input id="keepPhoto" type="checkbox"> Eigenes Foto beim Hinzufügen der Karte behalten</label>
+  <p class="muted">Schnellscan: zuerst Kartenname, danach Nummer/Set-Code/Passcode zur Verifikation. Das vollständige Foto wird nur bei Bedarf analysiert. Ohne „Foto behalten“ wird nichts hochgeladen.</p>
+  <div id="scanStatus" class="scanner-status">Noch kein Foto ausgewählt.</div>
+  <div class="collector-actions"><button id="visualPokemonButton" class="button" type="button" disabled>🧠 Pokémon visuell erkennen</button><button id="recognizeButton" class="button secondary" type="button" disabled>⚡ Name per OCR</button><button id="fullRecognizeButton" class="button secondary" type="button" disabled>✨ OCR vollständig</button></div>
+</section>
+<section id="ocrResultPanel" class="panel" hidden>
+  <strong>Erkannter Kartenhinweis</strong>
+  <p id="detectedHint"></p>
+  <details><summary>Erkannten Text anzeigen / korrigieren</summary><textarea id="ocrText" rows="8"></textarea></details>
+  <div class="collector-actions"><button id="searchDetected" class="button" type="button">🔎 Treffer suchen</button><button id="retryFull" class="button" type="button">✨ Genauer erkennen</button><a class="button" href="{{ url_for('collector_cards_search') }}">Manuell suchen</a></div>
+</section>
+{% endblock %}
+{% block scripts %}
+<script>
+(() => {
+ const fileInput=document.getElementById('cardPhoto'), preview=document.getElementById('scanPreview'), wrap=document.getElementById('scanPreviewWrap');
+ const status=document.getElementById('scanStatus'), visualButton=document.getElementById('visualPokemonButton'), fastButton=document.getElementById('recognizeButton'), fullButton=document.getElementById('fullRecognizeButton'), textBox=document.getElementById('ocrText');
+ const panel=document.getElementById('ocrResultPanel'), hint=document.getElementById('detectedHint'), tcg=document.getElementById('scanTcg'), keep=document.getElementById('keepPhoto');
+ const regionPreview=document.getElementById('scanRegionPreview'), cardCropPreview=document.getElementById('cardCropPreview'), nameCropPreview=document.getElementById('nameCropPreview');
+ let currentFile=null, scanToken='', workerPromise=null;
+ const setStatus=(msg, cls='')=>{status.className='scanner-status '+cls; status.textContent=msg;};
+ const buttons=(disabled)=>{visualButton.disabled=disabled||!currentFile;fastButton.disabled=disabled||!currentFile;fullButton.disabled=disabled||!currentFile;};
+ function warmWorker(){
+   if(workerPromise||!window.Tesseract) return workerPromise;
+   workerPromise=Tesseract.createWorker('deu+eng',1,{logger:m=>{if(m.status==='loading language traineddata') setStatus('Schnellerkennung wird vorbereitet …','active');}}).catch(e=>{workerPromise=null;throw e;});
+   return workerPromise;
+ }
+ window.addEventListener('load',()=>setTimeout(()=>{if(window.Tesseract) warmWorker();},300));
+ fileInput.addEventListener('change',()=>{currentFile=fileInput.files&&fileInput.files[0]; scanToken=''; panel.hidden=true; regionPreview.hidden=true; if(!currentFile){wrap.hidden=true;buttons(true);return;} preview.src=URL.createObjectURL(currentFile);wrap.hidden=false;buttons(false);setStatus('Foto bereit. Zuerst wird der Kartenname gelesen, danach die Nummer zur Verifikation.','active');});
+ function infer(text){
+   const compact=text.replace(/\s+/g,' ').trim();
+   const pass=(compact.match(/\b\d{8}\b/)||[])[0];
+   if(pass) return {tcg:'yugioh',q:pass,label:'Yu-Gi-Oh!-Passcode '+pass,confident:true};
+   const setCode=(compact.match(/\b[A-Z0-9]{2,8}-[A-Z0-9]{2,8}\b/i)||[])[0];
+   if(setCode && (tcg.value==='yugioh'||tcg.value==='auto')) return {tcg:'yugioh',q:setCode,label:'Yu-Gi-Oh!-Set-Code '+setCode.toUpperCase(),confident:true};
+   const number=compact.match(/\b0*(\d{1,4})\s*\/\s*(\d{1,4})\b/);
+   const magicSet=compact.match(/\b(M\d{2}|[A-Z]{2,5})\b/i);
+   if(number && tcg.value==='magic'){
+     const q=(number[1]+'/'+number[2]+(magicSet?' '+magicSet[1].toUpperCase():''));
+     return {tcg:'magic',q:q,label:'Magic-Kartennummer '+q,confident:!!magicSet};
+   }
+   if(number && tcg.value==='pokemon') return {tcg:'pokemon',q:number[1]+'/'+number[2],label:'Pokémon-Kartennummer '+number[1]+'/'+number[2],confident:true};
+   const lines=text.split(/\r?\n/).map(x=>x.trim()).filter(x=>x.length>=3 && x.length<=80 && !/^\d+$/.test(x));
+   const q=lines[0]||compact.slice(0,80);
+   return {tcg:tcg.value,q:q,label:'Kartentext „'+q+'“',confident:false};
+ }
+ async function detectAndNormalizeCard(file){
+   const img=await createImageBitmap(file);
+   const maxDetect=520, ds=Math.min(1,maxDetect/img.width,maxDetect/img.height);
+   const dw=Math.max(1,Math.round(img.width*ds)), dh=Math.max(1,Math.round(img.height*ds));
+   const probe=document.createElement('canvas'); probe.width=dw; probe.height=dh;
+   const pc=probe.getContext('2d',{alpha:false}); pc.drawImage(img,0,0,dw,dh);
+   const data=pc.getImageData(0,0,dw,dh).data;
+   const samples=[]; const pad=Math.max(3,Math.round(Math.min(dw,dh)*0.035));
+   for(const [cx,cy] of [[pad,pad],[dw-pad-1,pad],[pad,dh-pad-1],[dw-pad-1,dh-pad-1]]){const i=(cy*dw+cx)*4;samples.push([data[i],data[i+1],data[i+2]]);}
+   const bg=[0,1,2].map(k=>samples.reduce((a,v)=>a+v[k],0)/samples.length);
+   let minX=dw,minY=dh,maxX=0,maxY=0,count=0;
+   const mx=Math.round(dw*.08), my=Math.round(dh*.05);
+   for(let y=my;y<dh-my;y+=2){for(let x=mx;x<dw-mx;x+=2){const i=(y*dw+x)*4;const dr=data[i]-bg[0],dg=data[i+1]-bg[1],db=data[i+2]-bg[2];const dist=Math.sqrt(dr*dr+dg*dg+db*db);const lum=(data[i]+data[i+1]+data[i+2])/3;const bgl=(bg[0]+bg[1]+bg[2])/3;if(dist>62 || lum<bgl-55){minX=Math.min(minX,x);maxX=Math.max(maxX,x);minY=Math.min(minY,y);maxY=Math.max(maxY,y);count++;}}}
+   let sx=0,sy=0,sw=img.width,sh=img.height,detected=false;
+   if(count>80 && maxX>minX && maxY>minY){
+     const bw=maxX-minX,bh=maxY-minY;
+     const ratio=bw/Math.max(bh,1), area=(bw*bh)/(dw*dh);
+     if(bw/dw>.18 && bh/dh>.28 && ratio>.52 && ratio<.88 && area>.10 && area<.88){
+       const ex=bw*.035,ey=bh*.025; minX=Math.max(0,minX-ex);maxX=Math.min(dw,maxX+ex);minY=Math.max(0,minY-ey);maxY=Math.min(dh,maxY+ey);
+       sx=minX/ds;sy=minY/ds;sw=(maxX-minX)/ds;sh=(maxY-minY)/ds;detected=true;
+     }
+   }
+   if(!detected){
+     const target=.716; sh=img.height*.78; sw=sh*target; if(sw>img.width*.9){sw=img.width*.9;sh=sw/target;} sx=(img.width-sw)/2;sy=(img.height-sh)/2;
+   }
+   const out=document.createElement('canvas'); out.width=716;out.height=1000;const oc=out.getContext('2d',{alpha:false});oc.drawImage(img,sx,sy,sw,sh,0,0,out.width,out.height);img.close();
+   return {canvas:out,detected};
+ }
+ function regionCanvas(card, yStart, yShare){
+   const src=card.canvas, sy=Math.round(src.height*yStart), sh=Math.max(1,Math.round(src.height*yShare));
+   const canvas=document.createElement('canvas'); canvas.width=src.width; canvas.height=sh;
+   const ctx=canvas.getContext('2d',{alpha:false}); ctx.filter='grayscale(1) contrast(1.9)'; ctx.drawImage(src,0,sy,src.width,sh,0,0,canvas.width,canvas.height); return canvas;
+ }
+ function titleCanvas(card, binary=false){
+   const src=card.canvas;
+   // Magic/Pokémon/YGO place the title at the top. Keep a small left safety margin,
+   // but deliberately remove the right-side mana/HP/attribute area.
+   const sx=Math.round(src.width*.012), sy=Math.round(src.height*.012);
+   const sw=Math.round(src.width*.825), sh=Math.round(src.height*.092);
+   const scale=4, canvas=document.createElement('canvas'); canvas.width=sw*scale; canvas.height=sh*scale;
+   const ctx=canvas.getContext('2d',{alpha:false}); ctx.imageSmoothingEnabled=true; ctx.imageSmoothingQuality='high';
+   ctx.filter='grayscale(1) contrast(2.15)'; ctx.drawImage(src,sx,sy,sw,sh,0,0,canvas.width,canvas.height);
+   if(binary){
+     const im=ctx.getImageData(0,0,canvas.width,canvas.height), d=im.data;
+     for(let i=0;i<d.length;i+=4){const v=d[i] < 168 ? 0 : 255; d[i]=d[i+1]=d[i+2]=v; d[i+3]=255;} ctx.putImageData(im,0,0);
+   }
+   return canvas;
+ }
+ function ocrCandidate(result){
+   const text=((result.data&&result.data.text)||'').trim(), name=bestName(text);
+   const confidence=Number((result.data&&result.data.confidence)||0);
+   const letters=(name.match(/\p{L}/gu)||[]).length;
+   const score=confidence + Math.min(letters,32)*1.7 - (/\b\d+\s*$/.test(name)?8:0);
+   return {name,text,score};
+ }
+ async function canvasBlob(canvas){return await new Promise((resolve,reject)=>canvas.toBlob(b=>b?resolve(b):reject(new Error('Scan-Ausschnitt konnte nicht erstellt werden.')),'image/jpeg',0.94));}
+ function copyPreview(src,dst){dst.width=src.width;dst.height=src.height;dst.getContext('2d',{alpha:false}).drawImage(src,0,0);}
+ function showScanRegions(card,nameCanvas){copyPreview(card.canvas,cardCropPreview);copyPreview(nameCanvas,nameCropPreview);regionPreview.hidden=false;}
+ 
+ function bestName(text){
+   const lines=text.split(/\r?\n/).map(x=>x.replace(/[^\p{L}\p{N}'’:\- ,.]/gu,' ').replace(/\s+/g,' ').trim()).filter(Boolean);
+   const usable=lines.filter(x=>x.length>=3&&x.length<=60&&!/^\d+$/.test(x)&&!/^\d+\s*\/\s*\d+$/.test(x));
+   if(!usable.length) return '';
+   usable.sort((a,b)=>{const sa=(/^[\p{L}]/u.test(a)?5:0)+Math.min(a.length,30)/10; const sb=(/^[\p{L}]/u.test(b)?5:0)+Math.min(b.length,30)/10; return sb-sa;});
+   return usable[0];
+ }
+ async function maybeUpload(){
+   if(!keep.checked||!currentFile) return '';
+   const fd=new FormData(); fd.append('photo',currentFile,currentFile.name||'scan.jpg');
+   const r=await fetch('{{ url_for("collector_cards_scan_photo") }}',{method:'POST',body:fd}); const data=await r.json();
+   if(!r.ok||!data.ok) throw new Error(data.error||'Foto konnte nicht gespeichert werden.'); return data.token;
+ }
+ function showResult(txt, mode, preferredName=''){
+   if(!txt.trim()) throw new Error('Kein verwertbarer Kartenhinweis erkannt. Nutze „Vollständige Erkennung“ oder die manuelle Suche.');
+   textBox.value=txt.trim(); const found=infer(txt);
+   const selected=tcg.value==='auto'?found.tcg:tcg.value;
+   const name=(preferredName||bestName(txt)||'').trim();
+   hint.textContent=name?('Name: '+name+(found.confident?' · '+found.label:'')):found.label;
+   panel.hidden=false; panel.dataset.tcg=selected; panel.dataset.q=name||found.q; panel.dataset.name=name;
+   setStatus((mode==='fast'?'Schnellscan':'Erkennung')+' abgeschlossen'+(name?' – Suche erfolgt nach „'+name+'“.':'.') ,'success');
+ }
+ async function visualPokemonRecognize(){
+   if(!currentFile)return;
+   if(tcg.value!=='pokemon'&&tcg.value!=='auto'){
+     setStatus('Die PokéCollector-Bilderkennung ist nur für Pokémon gedacht. Für dieses TCG bitte Namenssuche/OCR verwenden.','danger'); return;
+   }
+   buttons(true); setStatus('🧠 PokéCollector analysiert die Karte visuell …','active');
+   try{
+     const fd=new FormData(); fd.append('photo',currentFile,currentFile.name||'card.jpg');
+     const controller=new AbortController(); const timer=setTimeout(()=>controller.abort(),60000);
+     const r=await fetch('{{ url_for("collector_cards_scan_recognize_pokemon") }}',{method:'POST',body:fd,signal:controller.signal}); clearTimeout(timer);
+     const data=await r.json(); if(!r.ok||!data.ok) throw new Error(data.error||'Visuelle Erkennung fehlgeschlagen.');
+     const rec=data.recognized||{}; const name=(rec.name||rec.name_en||'').trim();
+     if(!name) throw new Error('PokéCollector konnte keinen Kartennamen bestimmen.');
+     const number=[rec.number_local,rec.number_total].filter(Boolean).join('/');
+     textBox.value=name+(number?'\n'+number:'')+(rec.set_code?'\n'+rec.set_code:'');
+     panel.hidden=false; panel.dataset.tcg='pokemon'; panel.dataset.q=name; panel.dataset.name=name;
+     const matches=Array.isArray(data.matches)?data.matches:[]; const top=matches[0]||{};
+     hint.textContent='Pokémon: '+name+(number?' · '+number:'')+(top.set?' · '+top.set:'')+(data.confident?' · ✓ eindeutig':' · Kandidaten gefunden');
+     scanToken=await maybeUpload();
+     setStatus('PokéCollector hat „'+name+'“ erkannt'+(data.confident?' und eindeutig zugeordnet.':'. Treffer bitte prüfen.'),'success');
+   }catch(e){
+     const msg=e&&e.name==='AbortError'?'PokéCollector-Erkennung hat zu lange gedauert.':(e.message||'Visuelle Erkennung fehlgeschlagen.');
+     setStatus('PokéCollector konnte die Karte diesmal nicht eindeutig verarbeiten. Die Namenssuche per OCR bleibt verfügbar.','danger');
+   }finally{buttons(false);}
+ }
+ async function fastRecognize(){
+   if(!currentFile)return; buttons(true); setStatus('⚡ Schritt 1/2: Kartenname wird gelesen …','active');
+   try{
+     if(!window.Tesseract) throw new Error('Texterkennung konnte nicht geladen werden.');
+     const worker=await warmWorker();
+     const card=await detectAndNormalizeCard(currentFile);
+     setStatus((card.detected?'Kartenrahmen erkannt ✓':'Kartenrahmen angenähert')+' · Name wird gelesen …','active');
+     const nameCanvas=titleCanvas(card,false);
+     showScanRegions(card,nameCanvas);
+     const nameCrop=await canvasBlob(nameCanvas);
+     const nameResult=await worker.recognize(nameCrop,{tessedit_pageseg_mode:'7',preserve_interword_spaces:'1',tessedit_char_whitelist:'ABCDEFGHIJKLMNOPQRSTUVWXYZÄÖÜabcdefghijklmnopqrstuvwxyzäöüßÀÁÂÃÅÆÇÈÉÊËÌÍÎÏÑÒÓÔÕØŒÙÚÛÝàáâãåæçèéêëìíîïñòóôõøœùúûýÿ0123456789 -–—,.:\'’'});
+     let candidate=ocrCandidate(nameResult);
+     // A second high-contrast pass is only used when the first title read is weak.
+     if(!candidate.name || candidate.score<72){
+       const binaryCrop=await canvasBlob(titleCanvas(card,true));
+       const binaryResult=await worker.recognize(binaryCrop,{tessedit_pageseg_mode:'7',preserve_interword_spaces:'1'});
+       const second=ocrCandidate(binaryResult); if(second.score>candidate.score) candidate=second;
+     }
+     const nameText=candidate.text; const name=candidate.name.replace(/\s+\d+\s*$/,'').trim();
+     if(name) setStatus('Name erkannt: „'+name+'“ · Schritt 2/2: Nummer/Set wird geprüft …','active');
+     else setStatus('Name nicht eindeutig · Schritt 2/2: Nummer/Set wird geprüft …','active');
+     const verifyCanvas=regionCanvas(card,0.885,0.105);
+     const verifyCrop=await canvasBlob(verifyCanvas);
+     const verifyResult=await worker.recognize(verifyCrop,{tessedit_pageseg_mode:'6'}); const verifyText=(verifyResult.data&&verifyResult.data.text)||'';
+     const combined=(name?name+'\n':'')+verifyText; showResult(combined,'fast',name);
+     scanToken=await maybeUpload();
+   }catch(e){setStatus((e.message||'Schnellscan fehlgeschlagen')+' Du kannst die vollständige Erkennung starten.','danger');}finally{buttons(false);}
+ }
+ async function fullRecognize(){
+   if(!currentFile)return; buttons(true); setStatus('Vollständige Karte wird analysiert …','active');
+   try{
+     if(!window.Tesseract) throw new Error('Texterkennung konnte nicht geladen werden.');
+     const r=await Tesseract.recognize(currentFile,'deu+eng',{logger:m=>{if(m.status==='recognizing text')setStatus('Vollständige Erkennung: '+Math.round((m.progress||0)*100)+' %','active');}});
+     showResult((r.data&&r.data.text)||'','full'); scanToken=await maybeUpload();
+   }catch(e){setStatus(e.message||'Kartenerkennung fehlgeschlagen.','danger');}finally{buttons(false);}
+ }
+ visualButton.addEventListener('click',visualPokemonRecognize); fastButton.addEventListener('click',fastRecognize); fullButton.addEventListener('click',fullRecognize); document.getElementById('retryFull').addEventListener('click',fullRecognize);
+ document.getElementById('searchDetected').addEventListener('click',async()=>{
+   let found; try{found=infer(textBox.value||'');}catch(e){found={tcg:tcg.value,q:(textBox.value||'').trim()};} let token=scanToken;
+   try{if(keep.checked&&!token) token=await maybeUpload();}catch(e){setStatus(e.message,'danger');return;}
+   const recognizedName=(panel.dataset.name||'').trim();
+   const searchQuery=recognizedName||panel.dataset.q||found.q;
+   const selectedTcg=panel.dataset.tcg||(tcg.value==='auto'?found.tcg:tcg.value);
+   const u=new URL('{{ url_for("collector_cards_search") }}',location.origin); u.searchParams.set('q',searchQuery); u.searchParams.set('tcg',selectedTcg); u.searchParams.set('magic_lang',document.getElementById('scanMagicLang').value); if(token)u.searchParams.set('scan_token',token); location.href=u.toString();
+ });
+})();
+</script>
+{% endblock %}

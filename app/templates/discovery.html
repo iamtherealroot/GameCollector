@@ -1,0 +1,19 @@
+{% extends 'base.html' %}
+{% block title %}Entdecken · Bibo{% endblock %}
+{% block content %}
+<div class="page-head"><div><span class="eyebrow">Persönliche Empfehlungen</span><h1>Ähnliche Titel entdecken</h1><p class="muted">Aus deiner Sammlung abgeleitet, nachvollziehbar begründet und ohne bereits vorhandene Titel.</p></div><a class="button secondary" href="{{ url_for('collector_home') }}">← Startseite</a></div>
+<nav class="discovery-tabs" aria-label="Empfehlungsbereich">{% for key, values in categories.items() %}<a class="{{ 'active' if key==selected_category else '' }}" href="{{ url_for('discovery_center', type=key) }}"><span>{{ values[0] }}</span>{{ values[1] }}</a>{% endfor %}</nav>
+<section class="panel discovery-controls">
+  <form method="get"><input type="hidden" name="type" value="{{ selected_category }}"><label>Empfehlungen ausgehend von<select name="seed" onchange="this.form.submit()">{% for seed in seeds %}<option value="{{ seed.id }}" {% if selected_seed and seed.id==selected_seed.id %}selected{% endif %}>{{ seed.title }}</option>{% else %}<option>Kein eigener Titel vorhanden</option>{% endfor %}</select></label><button class="button" type="submit" {% if not seeds %}disabled{% endif %}>Neu laden</button></form>
+  <p class="muted">Bibo zeigt den Empfehlungsgrund auf jeder Karte. Der physische Deutschland-Status bleibt ungeklärt, solange keine belastbare Bestätigung vorliegt.</p>
+</section>
+{% if rows %}<section class="discovery-grid" aria-label="Empfohlene Titel">
+{% for item in rows %}<article class="discovery-card">
+  <a class="discovery-card-main" href="{{ url_for('discovery_preview', token=item.token) }}">
+    <div class="discovery-cover">{% if item.cover_url %}<img src="{{ item.cover_url }}" alt="Cover von {{ item.title }}" loading="lazy" onerror="this.hidden=true;this.nextElementSibling.hidden=false"><span hidden>🖼️</span>{% else %}<span>🖼️</span>{% endif %}</div>
+    <div class="discovery-card-copy"><span class="eyebrow">{{ categories[item.category][0] }} {{ categories[item.category][1] }} · {{ item.source }}</span><h2>{{ item.title }}</h2><p>{% if item.year %}{{ item.year }} · {% endif %}{{ item.platform or item.artist or item.author or item.set_name or item.media_type or 'Ausgabe ungeklärt' }}</p><strong class="discovery-reason">✦ {{ item.reason }}</strong><small class="availability-pill {{ item.availability or 'unknown' }}">{{ item.availability_label }}</small></div>
+  </a>
+  <footer><a class="button secondary" href="{{ url_for('discovery_preview', token=item.token) }}">Details</a><form method="post" action="{{ url_for('discovery_action') }}"><input type="hidden" name="token" value="{{ item.token }}"><button class="button" name="action" value="wishlist">☆ Wunschliste</button><button class="button ghost" name="action" value="hide">Nicht mehr zeigen</button></form></footer>
+</article>{% endfor %}
+</section>{% else %}<section class="panel empty-state"><h2>Keine neuen Empfehlungen</h2><p>{{ notice or ('Wähle zuerst einen eigenen Titel aus ' if seeds else 'In diesem Bereich befindet sich noch kein geeigneter Ausgangstitel in deiner Sammlung.') }}</p>{% if selected_category in ['movies','tv'] and not tmdb_configured %}<p>Für Film- und Serienempfehlungen muss TMDB unter den Kontoeinstellungen verbunden sein.</p>{% endif %}</section>{% endif %}
+{% endblock %}

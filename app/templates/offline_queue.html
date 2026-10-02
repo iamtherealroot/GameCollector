@@ -1,0 +1,43 @@
+{% extends 'base.html' %}
+{% block title %}Offline-Erfassungen · Bibo{% endblock %}
+{% block content %}
+<div class="page-head"><div><span class="eyebrow">PWA · Synchronisation</span><h1>Offline-Erfassungen</h1><p class="muted">Offline gescannte Barcodes werden zuerst hier gesammelt. Der Bestand wird niemals automatisch überschrieben.</p></div><div class="page-actions"><button type="button" id="offline-sync-now">↻ Jetzt synchronisieren</button><a class="button secondary-link" href="{{ url_for('scanner') }}">📷 Scanner</a></div></div>
+
+<div class="stats offline-queue-stats"><div class="stat-card"><strong id="local-capture-count">0</strong><span>noch auf diesem Gerät</span></div><div class="stat-card"><strong>{{ counts.queued }}</strong><span>zu identifizieren</span></div><div class="stat-card"><strong>{{ counts.review }}</strong><span>zu bestätigen</span></div><div class="stat-card danger"><strong>{{ counts.conflict }}</strong><span>Konflikte</span></div></div>
+
+<section class="panel offline-local-panel" id="offline-local-panel" hidden><div class="section-mini-head"><div><span class="eyebrow">Dieses Gerät</span><h2>Noch nicht übertragen</h2></div></div><div id="offline-local-list"></div></section>
+
+<section class="offline-server-list">
+{% for row in rows %}{% set capture=row.capture %}
+<article class="panel offline-capture-card state-{{ capture.state }}">
+  <div class="offline-capture-main"><div><span class="source-pill {{ capture.state }}">{% if capture.state=='queued' %}Identifizieren{% elif capture.state=='review' %}Bestätigen{% elif capture.state=='conflict' %}Konflikt{% else %}Erledigt{% endif %}</span><h2>{{ capture.barcode }}</h2><p>{{ capture.message }}</p><small>Erfasst von {{ capture.actor.display_name or capture.actor.username }} · {{ (capture.client_created_at or capture.received_at)|localdt }}</small></div>
+  <div class="offline-capture-actions">{% if capture.state!='dismissed' %}<a class="button" href="{{ url_for('collector_identify',barcode=capture.barcode,offline_capture=capture.id) }}">Prüfen und zuordnen</a><form method="post" action="{{ url_for('offline_capture_dismiss',capture_id=capture.id) }}"><button class="secondary">Als erledigt markieren</button></form>{% else %}<form method="post" action="{{ url_for('offline_capture_restore',capture_id=capture.id) }}"><button class="secondary">Wieder öffnen</button></form>{% endif %}</div></div>
+  {% if row.matches %}<details><summary>Gefundene lokale Zuordnungen ({{ row.matches|length }})</summary><ul class="offline-match-list">{% for match in row.matches %}<li><strong>{{ match.title }}</strong><span>{{ match.subtitle }}{% if match.copies %} · {{ match.copies }} Exemplar(e){% endif %}</span></li>{% endfor %}</ul></details>{% endif %}
+</article>
+{% else %}<div class="panel empty-state"><h2>Keine synchronisierten Offline-Erfassungen</h2><p>Wenn du ohne Verbindung einen Barcode scannst, erscheint er nach der nächsten Synchronisierung hier.</p></div>{% endfor %}
+</section>
+{% endblock %}
+{% block scripts %}<script>
+(() => {
+  const count = document.getElementById('local-capture-count');
+  const panel = document.getElementById('offline-local-panel');
+  const list = document.getElementById('offline-local-list');
+  const button = document.getElementById('offline-sync-now');
+  const escapeHtml = value => String(value || '').replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
+  async function renderLocal() {
+    if (!window.GameCollectorOfflineQueue) return;
+    const rows = await window.GameCollectorOfflineQueue.list();
+    count.textContent = rows.length;
+    panel.hidden = rows.length === 0;
+    list.innerHTML = rows.map(row => `<div class="offline-local-row"><strong>${escapeHtml(row.barcode)}</strong><span>${new Date(row.created_at).toLocaleString('de-DE')}</span></div>`).join('');
+  }
+  button.addEventListener('click', async () => {
+    button.disabled = true; button.textContent = 'Synchronisiere …';
+    const result = await window.GameCollectorOfflineQueue.sync();
+    if (result && result.ok) location.reload();
+    button.disabled = false; button.textContent = '↻ Jetzt synchronisieren';
+  });
+  document.addEventListener('gc:offline-queue-changed', renderLocal);
+  renderLocal();
+})();
+</script>{% endblock %}

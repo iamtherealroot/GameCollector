@@ -1,0 +1,7 @@
+{% extends 'base.html' %}{% block title %}{{ code }} · Bibo{% endblock %}{% block content %}
+<section class="panel narrow http-error-card">
+  <span class="eyebrow">Fehler {{ code }}</span><h1>{{ title }}</h1><p>{{ message }}</p>
+  {% if reference %}<p class="muted">Fehlerkennung: <code>{{ reference }}</code>. Damit lässt sich der Vorfall in der technischen Fehlerzentrale wiederfinden.</p>{% endif %}
+  <div class="page-actions"><a class="button" href="{{ url_for('collector_home') }}">Zur Startseite</a>{% if current_user.is_authenticated %}<a class="button secondary-link" href="{{ url_for('error_center') }}">Fehlerzentrale</a>{% endif %}</div>
+</section>
+{% endblock %}

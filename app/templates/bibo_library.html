@@ -1,0 +1,56 @@
+{% extends 'base.html' %}
+{% block title %}Bibliothek · Bibo{% endblock %}
+{% block content %}
+<section class="bibo-library-hero">
+  <div>
+    <span class="eyebrow">BIBO 4.0 · GEMEINSAMES REGISTER</span>
+    <h1>Deine ganze Bibliothek</h1>
+    <p>Werke, Ausgaben und einzelne Exemplare aus allen Sammlungsbereichen in einer Ansicht.</p>
+  </div>
+  <img src="{{ url_for('static', filename='branding/bibo-icon-master.png') }}?v={{ app_version }}" alt="Bibo">
+</section>
+
+<section class="panel bibo-library-controls">
+  <form method="get" class="filter-grid">
+    <label>Suche<input name="q" value="{{ query_text }}" placeholder="Titel, Reihe, Plattform oder Format"></label>
+    <label>Bereich<select name="kind"><option value="all">Alle Bereiche</option>{% for kind in kinds %}<option value="{{ kind }}" {% if selected_kind == kind %}selected{% endif %}>{{ kind_labels.get(kind, kind) }}</option>{% endfor %}</select></label>
+    <label>Status<select name="status"><option value="all">Alle Status</option><option value="owned" {% if selected_status == 'owned' %}selected{% endif %}>Im Besitz</option><option value="wishlist" {% if selected_status == 'wishlist' %}selected{% endif %}>Wunschliste</option><option value="missing" {% if selected_status == 'missing' %}selected{% endif %}>Fehlt</option></select></label>
+    <button type="submit">Anwenden</button><a class="button secondary" href="{{ url_for('bibo_library') }}">Zurücksetzen</a>
+  </form>
+  <div class="bibo-library-stats">
+    <span><strong>{{ stats.works }}</strong> Werke</span>
+    <span><strong>{{ stats.series }}</strong> Reihen</span>
+    <span><strong>{{ stats.editions }}</strong> Ausgaben/Modelle</span>
+    <span><strong>{{ stats.copies }}</strong> Exemplare</span>
+    <span><strong>{{ eur(stats.value) }}</strong> Wert</span>
+  </div>
+  <p class="muted"><a href="{{ url_for('bibo_registry_status') }}">Register prüfen und aktualisieren →</a></p>
+</section>
+
+<section class="bibo-register" aria-label="Bibliothekseinträge">
+  {% for row in rows %}
+  <article class="bibo-register-row">
+    <div class="bibo-register-cover">
+      {% if row.edition.image_url %}<img src="{{ row.edition.image_url }}" alt="" loading="lazy">{% else %}<span>{{ row.kind_label[:1] }}</span>{% endif %}
+    </div>
+    <div class="bibo-register-main">
+      <span class="badge">{{ row.kind_label }}</span>
+      <h2>{{ row.work.title }}</h2>
+      {% if row.work.series_name %}<small>Reihe: {{ row.work.series_name }}</small>{% endif %}
+      <p>{{ row.subtitle or 'Standardausgabe' }}{% if row.edition.release_year %} · {{ row.edition.release_year }}{% endif %}</p>
+    </div>
+    <div class="bibo-register-copy">
+      <strong>{{ row.copy_row.quantity }}× {{ 'Digital' if row.copy_row.ownership_format == 'digital' else 'Physisch' }}</strong>
+      <small>{{ 'Im Besitz' if row.copy_row.status == 'owned' else row.copy_row.status|capitalize }}</small>
+    </div>
+    <div class="bibo-register-value">
+      <strong>{{ eur(row.total_value) if row.total_value is not none else '–' }}</strong>
+      {% if row.value is not none and row.copy_row.quantity > 1 %}<small>{{ eur(row.value) }} je Exemplar</small>{% endif %}
+    </div>
+    <div class="bibo-register-actions"><a class="button secondary" href="{{ row.link }}">Werk öffnen</a>{% if row.legacy_link %}<a href="{{ row.legacy_link }}">Originaldatensatz →</a>{% endif %}</div>
+  </article>
+  {% else %}
+  <div class="empty-state"><h2>Keine passenden Einträge</h2><p>Ändere Suche oder Filter.</p></div>
+  {% endfor %}
+</section>
+{% endblock %}

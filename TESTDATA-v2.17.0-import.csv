@@ -1,0 +1,6 @@
+Titel;Konsole;Region;Edition;EAN;Besitztyp;Vollständigkeit;Lagerort;Notizen
+GameCollector Test Physisch;Nintendo Switch;PAL;Standard;2990000000001;Physisch;Komplett;Testregal A;Erstes Testexemplar
+GameCollector Test Digital;Nintendo Switch;PAL;Standard;2990000000002;Digital;Digital;;Digitaler Test
+GameCollector Test Physisch;Nintendo Switch;PAL;Standard;2990000000001;Physisch;Nur Modul;Testregal B;Zweites separates Exemplar
+GameCollector Test Digital;Nintendo Switch;PAL;Standard;2990000000002;Digital;Digital;;Bewusst überspringen
+;Nintendo Switch;PAL;Standard;;;;;Fehlerhafte Testzeile

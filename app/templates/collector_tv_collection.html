@@ -1,0 +1,36 @@
+{% extends 'base.html' %}
+{% block title %}{{ title }} · TV-Sammlung · Collector{% endblock %}
+{% block content %}
+<section class="collector-section-hero tv-collection-hero"><a class="collector-back" href="{{ url_for('collector_collections', type='tv') }}">← TV-Serien</a><span class="collector-section-icon">📺</span><span class="eyebrow">TV-Sammlung</span><h1>{{ title }}</h1></section>
+<section class="panel tv-collection-summary">
+  <div class="collection-progress-head"><strong>{{ owned_count }} / {{ physical_total if unknown_count == 0 else '?' }}</strong><span>deutsche Disc-Staffeln{% if pct is not none %} · {{ pct }} %{% else %} · Fortschritt noch nicht vollständig bestimmbar{% endif %}</span></div>
+  {% if pct is not none %}<div class="progress-track"><span style="width:{{ [pct,100]|min }}%"></span></div>{% endif %}
+  <div class="collection-summary-kpis"><span>Vorhanden <strong>{{ owned_count }}</strong></span><span>Fehlend <strong>{{ missing_count }}</strong></span><span>Nie physisch in DE <strong>{{ never_physical_de_count }}</strong></span><span>Digital <strong>{{ digital_count }}</strong></span><span>Ungeklärt <strong>{{ unknown_count }}</strong></span><span>Wert <strong>{{ eur(total_value) }}</strong></span></div>
+</section>
+<section class="panel tv-season-list-panel">
+  <form id="tv-bulk-status-form" method="post" class="collection-bulk-status"><strong>Ausgewählte Staffeln</strong><div class="season-bulk-actions"><button type="button" class="button secondary" data-select-seasons="all">Alle</button><button type="button" class="button secondary" data-select-seasons="open">Fehlende/ungeklärte</button><button type="button" class="button secondary" data-select-seasons="none">Keine</button></div><select name="item_id" aria-label="Komplettbox auswählen"><option value="">Box auswählen …</option>{% for item in candidate_rows %}<option value="{{ item.id }}">{{ item.title }}{% if item.edition %} · {{ item.edition }}{% endif %}{% if item.media_type %} · {{ item.media_type }}{% endif %} · #{{ item.id }}</option>{% endfor %}</select><button class="button" name="action" value="bulk_item_link" type="submit">Box zuordnen</button><button class="button" name="status" value="never_physical_de" type="submit">Nie physisch in DE erschienen</button><button class="button secondary" name="status" value="physical" type="submit">DE-Disc bestätigt</button><button class="button secondary" name="status" value="unknown" type="submit">Einstufung entfernen</button></form>
+  <div class="tv-season-list-head"><span>Staffel</span><span>Besitz</span><span>Preis</span></div>
+  <div class="tv-season-list">
+  {% for season in seasons %}
+    <div class="tv-season-line" id="season-{{ season.number }}">
+      <div class="tv-season-title-cell"><label class="collection-bulk-check" title="Staffel für Massenbearbeitung auswählen"><input form="tv-bulk-status-form" type="checkbox" name="seasons" value="{{ season.number }}"><span></span></label><a class="tv-season-name" {% if season.owned_rows %}href="{{ url_for('collector_item_detail', item_id=season.owned_rows[0].id) }}"{% else %}href="#season-{{ season.number }}"{% endif %}>
+        {% if season.cover %}<img src="{{ season.cover }}" alt="" loading="lazy">{% endif %}
+        <span><strong>{{ season.name or ('Staffel ' ~ season.number) }}</strong><small>{% if season.episode_count %}{{ season.episode_count }} Episoden{% endif %}{% if season.air_date %}{% if season.episode_count %} · {% endif %}{{ season.air_date[:4] }}{% endif %}</small></span>
+      </a>
+      {% if season.owned_rows %}<span class="collection-editions">{% for copy in season.owned_rows %}<a href="{{ url_for('collector_item_detail', item_id=copy.id) }}">↳ Exemplar #{{ copy.id }} · {{ copy.title }}{% if copy.media_type %} · {{ copy.media_type }}{% endif %}{% if copy.edition %} · {{ copy.edition }}{% endif %}</a>{% endfor %}</span>{% endif %}</div>
+      <div class="tv-season-owned">{% if season.status == 'owned' %}<span class="tv-status owned">✓ Vorhanden</span>{% elif season.status == 'physical' %}<span class="tv-status missing">✗ Fehlt</span>{% elif season.status == 'never_physical_de' %}<span class="tv-status digital">— Nie physisch in DE erschienen</span>{% elif season.status == 'digital' %}<span class="tv-status digital">— Digital</span>{% else %}<span class="tv-status unknown">? Ungeklärt</span>{% endif %}</div>
+      <strong class="tv-season-price">{% if season.owned_rows %}{{ eur(season.value) }}{% if season.shared_copy %}<small title="Der Boxwert wird in der Sammlungsgesamtsumme nur einmal gezählt">In Box</small>{% endif %}{% else %}—{% endif %}</strong>
+      <details class="tv-season-status"><summary>Zuordnung / Status</summary>
+        <div class="compact-status-actions">
+          <form method="post" class="collector-actions collection-link-form"><input type="hidden" name="season" value="{{ season.number }}"><input type="hidden" name="action" value="item_link"><label>Vorhandenes Serien-/Staffelobjekt zuordnen<select name="item_id" required><option value="">Exemplar auswählen …</option>{% for item in candidate_rows %}<option value="{{ item.id }}" {% if season.linked_item and season.linked_item.id == item.id %}selected{% endif %}>{{ item.title }}{% if item.media_type %} · {{ item.media_type }}{% endif %}{% if item.barcode %} · {{ item.barcode }}{% endif %}</option>{% endfor %}</select></label><button class="button" type="submit">Exemplar zuordnen</button></form>
+          {% if season.linked_item %}<form method="post" class="collector-actions"><input type="hidden" name="season" value="{{ season.number }}"><input type="hidden" name="action" value="item_unlink"><button class="button" type="submit">Zuordnung lösen</button></form>{% endif %}
+          <form method="post" class="collector-actions"><input type="hidden" name="season" value="{{ season.number }}"><input type="hidden" name="action" value="status"><button class="button" name="status" value="physical" type="submit">DE-Disc bestätigt</button><button class="button" name="status" value="never_physical_de" type="submit">Nie physisch in DE erschienen</button><button class="button" name="status" value="digital" type="submit">Digital</button><button class="button" name="status" value="unknown" type="submit">Ungeklärt</button></form>
+        </div>
+      </details>
+    </div>
+  {% endfor %}
+  </div>
+</section>
+<p class="muted tv-collection-note">Manuelle Exemplar-Zuordnungen haben Vorrang. Solange Staffeln ungeklärt sind, zeigt Bibo bewusst keine irreführenden 100 % an. „Nie physisch in Deutschland erschienen“ wird bei Serien bewusst nur manuell gesetzt, da TMDB keine verlässlichen deutschen Disc-Veröffentlichungsdaten je Staffel bereitstellt.</p>
+{% endblock %}
+{% block scripts %}<script>document.querySelectorAll('[data-select-seasons]').forEach(button=>button.addEventListener('click',()=>{const mode=button.dataset.selectSeasons;document.querySelectorAll('input[form="tv-bulk-status-form"][name="seasons"]').forEach(box=>{const line=box.closest('.tv-season-line'),open=line?.querySelector('.tv-status.missing,.tv-status.unknown');box.checked=mode==='all'||(mode==='open'&&Boolean(open));});}));</script>{% endblock %}

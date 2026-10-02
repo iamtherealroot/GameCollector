@@ -1,0 +1,5 @@
+{% extends 'base.html' %}{% block title %}Sammlungsassistent · Bibo{% endblock %}
+{% block content %}
+<section class="page-hero"><div><span class="eyebrow">Bibo denkt mit</span><h1>Sammlungsassistent</h1><p>Konkrete, priorisierte Vorschläge aus deinen Reihen, Preisen, Erfassungen und Datenhinweisen.</p></div><a class="button secondary-link" href="{{ url_for('dashboard') }}">← Dashboard</a></section>
+<section class="panel"><div class="section-mini-head"><div><span class="eyebrow">Priorisiert</span><h2>Was sich als Nächstes lohnt</h2></div><span>{{ rows|length }} Hinweise</span></div><div class="insight-grid insight-grid-full">{% for row in rows %}<a class="insight-card" href="{{ row.url }}"><span>{{ row.icon }}</span><div><small>{{ row.kind }}</small><strong>{{ row.title }}</strong><p>{{ row.description }}</p></div><em>Öffnen →</em></a>{% else %}<div class="empty-state"><h3>Alles erledigt</h3><p>Aktuell gibt es keine offenen Empfehlungen.</p></div>{% endfor %}</div></section>
+{% endblock %}

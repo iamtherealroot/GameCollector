@@ -14,6 +14,13 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Install test dependencies
+        run: python -m pip install -r requirements.txt
+      - name: Game price stability regression tests
+        run: python3 scripts/test_game_price_stability.py
       - name: Check public repository contents
         run: bash scripts/check-public-tree.sh
       - name: Create test configuration
@@ -26,6 +33,15 @@ jobs:
           printf '\nAPP_BIND=127.0.0.1\n' >> .env
       - name: Compile Python
         run: python3 -m py_compile app/app.py app/scheduler.py
+      - name: Compile templates and route map
+        run: python3 scripts/release_smoke.py && python3 scripts/test_logical_counts.py
+      - name: Authenticated core-page smoke test
+        env:
+          DATABASE_URL: sqlite:////tmp/bibo-release-smoke.db
+          ADMIN_USERNAME: smoke-admin
+          ADMIN_PASSWORD: smoke-password
+          SECRET_KEY: smoke-secret
+        run: python3 scripts/integration_smoke.py
       - name: Validate Compose
         run: docker compose config -q
       - name: Build GameCollector

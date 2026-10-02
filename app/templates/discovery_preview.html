@@ -1,0 +1,12 @@
+{% extends 'base.html' %}
+{% block title %}{{ item.title }} · Entdecken · Bibo{% endblock %}
+{% block content %}
+<div class="page-head"><div><span class="eyebrow">{{ category_label }} · {{ item.source }}</span><h1>{{ item.title }}</h1><p class="muted">{{ item.reason }}</p></div><a class="button secondary" href="{{ url_for('discovery_center', type=item.category) }}">← Empfehlungen</a></div>
+<section class="panel discovery-preview">
+  <div class="discovery-preview-cover">{% if item.cover_url %}<img src="{{ item.cover_url }}" alt="Cover von {{ item.title }}" onerror="this.hidden=true;this.nextElementSibling.hidden=false"><span hidden>🖼️</span>{% else %}<span>🖼️</span>{% endif %}</div>
+  <div><span class="availability-pill {{ item.availability or 'unknown' }}">{{ item.availability_label }}</span><dl><dt>Titel</dt><dd>{{ item.title }}</dd><dt>Bereich</dt><dd>{{ category_label }}</dd>{% if item.year %}<dt>Jahr</dt><dd>{{ item.year }}</dd>{% endif %}{% if item.platform %}<dt>Plattform</dt><dd>{{ item.platform }}</dd>{% endif %}{% if item.artist %}<dt>Interpret</dt><dd>{{ item.artist }}</dd>{% endif %}{% if item.author %}<dt>Autor/in</dt><dd>{{ item.author }}</dd>{% endif %}{% if item.set_name %}<dt>Set</dt><dd>{{ item.set_name }}</dd>{% endif %}<dt>Datenquelle</dt><dd>{{ item.source }}</dd><dt>Warum empfohlen?</dt><dd>{{ item.reason }}</dd></dl>
+    <div class="discovery-preview-actions"><form method="post" action="{{ url_for('discovery_action') }}"><input type="hidden" name="token" value="{{ item.token }}"><button class="button" name="action" value="add">＋ {{ 'Exemplar konfigurieren' if item.category=='games' else ('Kartentreffer öffnen' if item.category=='cards' else 'Über Fragenkatalog hinzufügen') }}</button><button class="button secondary" name="action" value="wishlist">☆ Zur Wunschliste</button><button class="button ghost" name="action" value="hide">Nicht mehr empfehlen</button></form></div>
+  </div>
+</section>
+<p class="muted">Externe Metadaten werden erst nach deiner Bestätigung übernommen. Der Status „physisch in Deutschland erschienen“ wird nicht aus einer bloßen Empfehlung abgeleitet.</p>
+{% endblock %}

@@ -1,0 +1,26 @@
+{% extends 'base.html' %}
+{% block title %}{{ family.name }} · Konsolenreihe · Collector{% endblock %}
+{% block content %}
+<section class="collector-section-hero compact-collection-hero">
+  <a class="collector-back" href="{{ url_for('collector_collections', type='consoles') }}">← Konsolenreihen</a>
+  <span class="collector-section-icon">🕹️</span><span class="eyebrow">Konsolenreihe · Deutschland</span>
+  <h1>{{ family.name }}</h1><p>Jede in Deutschland veröffentlichte Konsolengeneration wird einmal gezählt; Modellvarianten und mehrere Exemplare werden darunter zusammengefasst.</p>
+</section>
+<section class="panel collection-compact-summary">
+  <div class="collection-progress-head"><strong>{{ family.owned }} / {{ family.total }}</strong><span>Konsolengenerationen vorhanden · {{ family.pct }} %</span></div>
+  <div class="progress-track"><span style="width:{{ [family.pct,100]|min }}%"></span></div>
+  <div class="collection-summary-kpis"><span>Fehlend <strong>{{ family.missing }}</strong></span><span>Exemplare <strong>{{ family.copy_count }}</strong></span><span>Bewertet <strong>{{ family.valued_count }}</strong></span><span>Wert <strong>{{ eur(family.value) }}</strong></span></div>
+</section>
+<section class="panel collection-compact-list-panel">
+  <div class="console-family-head"><span>Konsole / Generation</span><span>Besitz</span><span>Wert</span></div>
+  {% for console in family['items'] %}
+  <article class="console-family-line{% if not console.owned %} is-missing{% endif %}">
+    <a class="console-family-title" href="{{ console.url }}">{% if console.cover %}<img src="{{ console.cover }}" alt="" loading="lazy">{% else %}<span class="console-family-placeholder">🕹️</span>{% endif %}<span><strong>{{ console.title }}</strong><small>{% if console.order %}Deutschland ab {{ console.order }} · {% endif %}{{ console.models|length }} Modellvarianten</small></span></a>
+    <div>{% if console.owned %}<span class="compact-status owned">✓ Vorhanden</span><small>{{ console.owned_items|length }} Exemplar{% if console.owned_items|length != 1 %}e{% endif %}</small>{% else %}<span class="compact-status missing">✗ Fehlt</span>{% endif %}</div>
+    <strong class="collection-compact-price">{% if console.owned %}{{ eur(console.value) }}{% else %}—{% endif %}</strong>
+    {% if console.models %}<details class="console-family-models"><summary>Modelle und Exemplare</summary><div>{% for model in console.models %}<a href="{{ url_for('hardware_detail', model_id=model.id) }}"><span>{{ model.name }}{% if model.edition %} · {{ model.edition }}{% endif %}</span><small>{{ model.items|selectattr('status','equalto','owned')|list|length }} im Besitz</small></a>{% endfor %}</div></details>{% endif %}
+  </article>
+  {% endfor %}
+</section>
+<p class="muted collection-compact-note">Die Soll-Liste basiert auf den regulär in Deutschland erschienenen Hauptkonsolen und Handhelds. Revisionen wie Slim, OLED oder unterschiedliche Speichergrößen zählen als Modellvarianten, nicht als eigene Generation.</p>
+{% endblock %}

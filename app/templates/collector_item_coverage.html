@@ -1,0 +1,21 @@
+{% extends 'base.html' %}
+{% block title %}Boxinhalt · {{ row.title }} · Bibo{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div><span class="eyebrow">Veröffentlichungsinhalt</span><h1>{{ row.title }}</h1><p class="muted">Ein Boxset kann mehrere logische Filme, Staffeln oder Bände abdecken. Der Sammlungswert dieser physischen Ausgabe wird trotzdem nur einmal summiert.</p></div>
+  <a class="button secondary-link" href="{{ url_for('collector_item_detail',item_id=row.id) }}">Zurück zum Exemplar</a>
+</div>
+{% if row.category == 'movies' %}
+<section class="panel tmdb-coverage-import">
+  <span class="eyebrow">TMDB-Verknüpfung</span><h2>Filme per TMDB-Link hinzufügen</h2>
+  <p class="muted">Füge pro Zeile den Link eines enthaltenen Films oder seine TMDB-Film-ID ein. Bibo übernimmt den deutschen Titel und die eindeutige Film-ID, ohne den Boxpreis zu vervielfachen.</p>
+  <form method="post"><input type="hidden" name="action" value="tmdb_add"><textarea name="tmdb_links" rows="6" spellcheck="false" placeholder="https://www.themoviedb.org/movie/12345-filmname&#10;67890"></textarea><button type="submit">TMDB-Links prüfen und hinzufügen</button></form>
+  <div class="status-banner"><strong>Wichtig</strong><span>Nur <code>/movie/</code>-Links werden übernommen. Ein fehlender TMDB-Disc-Eintrag ändert niemals automatisch den deutschen Veröffentlichungsstatus.</span></div>
+</section>
+{% endif %}
+<section class="panel coverage-editor">
+  <h2>Abgedeckte Werke</h2><p>Eine Zeile pro Werk im Format <code>Bereich|eindeutiger Schlüssel|Anzeigename</code>.</p>
+  <form method="post"><textarea name="coverage_lines" rows="14" spellcheck="false" placeholder="movies|movie:tmdb:123|Beispielfilm&#10;tv|tv:456:season:2|Beispielserie – Staffel 2">{{ coverage_lines }}</textarea><div class="status-banner"><strong>Erlaubte Bereiche</strong><span><code>movies</code>, <code>tv</code> oder <code>books</code>. Bereits erkannte Boxinhalte wurden automatisch eingetragen.</span></div><button>Abdeckung speichern</button></form>
+</section>
+{% if entries %}<section class="panel"><h2>Aktuelle Zuordnung</h2><div class="coverage-summary">{% for entry in entries %}<span><strong>{{ entry.target_title }}</strong><small>{{ entry.target_key }} · {{ entry.origin }}{% if entry.target_kind == 'movies' and entry.target_key.startswith('movie:tmdb:') %} · <a href="https://www.themoviedb.org/movie/{{ entry.target_key.rsplit(':',1)[-1] }}" target="_blank" rel="noopener">TMDB öffnen ↗</a>{% endif %}</small></span>{% endfor %}</div></section>{% endif %}
+{% endblock %}

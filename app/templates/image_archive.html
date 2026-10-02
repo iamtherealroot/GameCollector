@@ -1,0 +1,19 @@
+{% extends 'base.html' %}
+{% block title %}Bildarchiv · Bibo{% endblock %}
+{% block content %}
+<div class="page-head"><div><span class="eyebrow">Verwaltung</span><h1>Bildarchiv</h1><p class="muted">Externe HTTPS-Bilder dauerhaft in Bibo sichern und die Datenbankverweise auf lokale Dateien umstellen.</p></div></div>
+<div class="stats image-archive-stats">
+  <div><span>Extern</span><strong>{{ stats.remaining }}</strong><span>noch zu archivieren</span></div>
+  <div><span>Lokal</span><strong>{{ stats.archived }}</strong><span>Quellen archiviert</span></div>
+  <div><span>Fehler</span><strong>{{ stats.failed }}</strong><span>Quellen nicht erreichbar</span></div>
+  <div><span>Speicher</span><strong>{{ '%.1f'|format(stats.bytes / 1024 / 1024) }} MB</strong><span>normalisierte WebP-Dateien</span></div>
+</div>
+<section class="panel">
+  <h2>Bestehende Links übernehmen</h2>
+  <p>Pro Lauf werden höchstens 30 Bilder geladen. Bereits identische Bilder werden nur einmal gespeichert. Lokale Uploads bleiben unverändert.</p>
+  {% if by_kind %}<div class="bibo-library-stats">{% for label,count in by_kind.items() %}<span><strong>{{ count }}</strong> {{ label }}</span>{% endfor %}</div>{% endif %}
+  <form method="post" action="{{ url_for('admin_images_archive') }}" class="image-archive-actions"><input type="hidden" name="limit" value="30"><button {% if not stats.remaining %}disabled{% endif %}>Nächste 30 Bilder archivieren</button>{% if stats.failed %}<button class="secondary" name="force_failed" value="1">Fehler erneut versuchen</button>{% endif %}</form>
+</section>
+{% if failures %}<section class="panel"><h2>Letzte Fehler</h2><div class="activity-list">{% for row in failures %}<div class="activity-row"><strong>{{ row.error or 'Download fehlgeschlagen' }}</strong><span class="truncate-url">{{ row.source_url }}</span><small>{{ row.last_attempt_at|localdt }} · {{ row.attempts }} Versuch{{ 'e' if row.attempts != 1 else '' }}</small></div>{% endfor %}</div></section>{% endif %}
+<section class="panel"><h2>Sicherheit und Haltbarkeit</h2><ul><li>Nur öffentliche HTTPS-Adressen werden geladen; lokale und private Netzwerkziele sind gesperrt.</li><li>Dateien werden als echte Bilder geprüft, EXIF-korrigiert, auf maximal 1800 Pixel verkleinert und als WebP gespeichert.</li><li>Das Komplettbackup enthält das Bildarchiv automatisch im Upload-Verzeichnis.</li></ul></section>
+{% endblock %}
