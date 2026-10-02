@@ -5698,6 +5698,44 @@ def custom_collection_category_create():
     flash(f"Sammlungskategorie „{title}“ wurde angelegt. Du kannst jetzt direkt das erste Objekt hinzufügen.", "success")
     return redirect(url_for("collector_section", section="custom", custom_category=key))
 
+
+@app.route("/collector/custom-categories/<category_id>/delete", methods=["GET", "POST"])
+@login_required
+def custom_collection_category_delete(category_id):
+    if not collection_capability("edit_items"):
+        abort(403)
+    owner_id = active_collection_user_id()
+    category = _custom_collection_category(owner_id, category_id)
+    if not category:
+        abort(404)
+    items = [row for row in CollectorItem.query.filter_by(user_id=owner_id, category="custom").all()
+             if collector_metadata(row).get("custom_category") == category_id]
+    token_key = f"custom_category_delete:{owner_id}:{category_id}"
+    if request.method == "POST":
+        expected_token = session.get(token_key)
+        provided_token = request.form.get("delete_token", "")
+        if not expected_token or not secrets.compare_digest(expected_token, provided_token):
+            abort(400)
+        if request.form.get("confirm_delete") != "1":
+            flash("Bitte das Entfernen dieser Kategorie bestätigen.", "warning")
+            return redirect(url_for("custom_collection_category_delete", category_id=category_id))
+        for row in items:
+            metadata = collector_metadata(row)
+            metadata.pop("custom_category", None)
+            row.metadata_json = json.dumps(metadata, ensure_ascii=False)
+        categories = [entry for entry in custom_collection_categories(owner_id) if entry["id"] != category_id]
+        app_setting_set(f"custom_collection_categories_{owner_id}", json.dumps(categories, ensure_ascii=False))
+        log_activity("custom_category_deleted", "custom_category", None,
+                     f"Sammlungskategorie „{category['title']}“ wurde entfernt; {len(items)} Objekte bleiben erhalten.")
+        db.session.commit()
+        session.pop(token_key, None)
+        flash(f"Kategorie „{category['title']}“ entfernt. {len(items)} Objekte bleiben unter Weitere Sammlungen erhalten.", "success")
+        return redirect(url_for("collector_home"))
+    token = session.get(token_key) or secrets.token_urlsafe(32)
+    session[token_key] = token
+    return render_template("custom_category_delete.html", category=category, item_count=len(items), delete_token=token)
+
+
 def _tv_season_number(row, meta=None):
     """Return the represented season, never the number of a split disc/volume.
 

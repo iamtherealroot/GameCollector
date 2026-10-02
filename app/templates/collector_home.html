@@ -22,6 +22,18 @@
   <a class="collector-module collector-module-more dashboard-add-category" href="#custom-category-create"><span class="collector-module-icon">＋</span><div><span class="module-state planned">Dashboard erweitern</span><h2>Sammlungskategorie hinzufügen</h2><p>Lege einen eigenen Bereich mit Name, Symbol und Beschreibung an.</p></div><footer><strong>Neue Kategorie</strong><span>Jetzt anlegen ↓</span></footer></a>
 </section>
 <section class="panel" id="custom-category-create"><div class="section-mini-head"><div><span class="eyebrow">Eigene Bereiche</span><h2>Neue Sammlungskategorie</h2></div></div><form method="post" action="{{ url_for('custom_collection_category_create') }}" class="form-grid"><label>Name<input name="title" required minlength="2" maxlength="120" placeholder="z. B. Figuren, Brettspiele, Modelle"></label><label>Symbol<input name="icon" maxlength="8" value="📦" placeholder="Emoji"></label><label class="wide">Kurze Beschreibung<input name="description" maxlength="240" placeholder="Was sammelst du in diesem Bereich?"></label><button class="button wide" type="submit">＋ Kategorie zum Dashboard hinzufügen</button></form><p class="muted">Nach dem Anlegen öffnet Bibo die neue Kategorie direkt. Dort kannst du sofort das erste Objekt hinzufügen.</p></section>
+{% if custom_category_tiles and can_collection('edit_items') %}
+<section class="panel" id="custom-category-manage">
+  <h2>Eigene Kategorien verwalten</h2>
+  <p class="muted">Beim Entfernen einer Kategorie bleiben ihre Objekte unter „Weitere Sammlungen“ erhalten.</p>
+  {% for category in custom_category_tiles %}
+  <div class="section-mini-head">
+    <a href="{{ url_for('collector_section', section='custom', custom_category=category.id) }}">{{ category.icon }} {{ category.title }}</a>
+    <a class="button" href="{{ url_for('custom_collection_category_delete', category_id=category.id) }}">Kategorie löschen</a>
+  </div>
+  {% endfor %}
+</section>
+{% endif %}
 {% endblock %}
 {% block scripts %}<script>
 (()=>{
