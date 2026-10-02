@@ -6,13 +6,17 @@
   <meta name="theme-color" content="#0c1020">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="apple-mobile-web-app-title" content="GameCollector">
+  <meta name="apple-mobile-web-app-title" content="Bibo">
   <meta name="mobile-web-app-capable" content="yes">
-  <title>{% block title %}GameCollector{% endblock %}</title>
-  <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='favicon.svg') }}">
-  <link rel="apple-touch-icon" sizes="180x180" href="{{ url_for('static', filename='apple-touch-icon-v3.png') }}">
+  <title>{% block title %}Bibo{% endblock %}</title>
+  <link rel="icon" href="{{ url_for('static', filename='favicon-bibo.ico') }}?v={{ app_version }}" sizes="any">
+  <link rel="icon" type="image/png" sizes="32x32" href="{{ url_for('static', filename='favicon-32-bibo.png') }}?v={{ app_version }}">
+  <link rel="icon" type="image/png" sizes="64x64" href="{{ url_for('static', filename='favicon-64-bibo.png') }}?v={{ app_version }}">
+  <link rel="apple-touch-icon" sizes="180x180" href="{{ url_for('static', filename='apple-touch-icon-bibo.png') }}">
   <link rel="manifest" href="{{ url_for('static', filename='manifest.webmanifest') }}?v={{ app_version }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v={{ app_version }}">
+  <script>window.GC_CURRENT_USER_ID={{ current_user.id|tojson if current_user.is_authenticated else 'null' }};</script>
+  <script defer src="{{ url_for('static', filename='offline-queue.js') }}?v={{ app_version }}"></script>
   {% block head %}{% endblock %}
 </head>
 <body>
@@ -20,7 +24,7 @@
 {% if current_user.is_authenticated %}
 <header class="topbar">
   <div class="topbar-main">
-    <a class="brand" href="{{ url_for('dashboard') }}"><img src="{{ url_for('static', filename='favicon.svg') }}" alt=""><span>GameCollector</span><em>v{{ app_version }}</em></a>
+    <a class="brand brand-v213" href="{{ url_for('collector_home') }}" aria-label="Bibo Startseite"><img class="brand-logo" src="{{ url_for('static', filename='branding/bibo-icon-master.png') }}?v={{ app_version }}" alt="Bibo"><em class="brand-version">v{{ app_version }}</em></a>
     <form class="header-universal-search" method="get" action="{{ url_for('universal_search') }}" role="search">
       <div class="header-search-field"><span class="header-search-icon" aria-hidden="true">🔎</span><input name="q" aria-label="Sammlung durchsuchen" placeholder="Titel, EAN / UPC oder Hardware suchen…" inputmode="search" autocomplete="off" required></div>
       <button class="header-search-submit" type="submit" aria-label="Suchen">Suchen</button>
@@ -29,42 +33,49 @@
     <details class="account-menu">
       <summary aria-label="Kontomenü öffnen">
         <span class="account-avatar">{{ (current_user.display_name or current_user.username)[:1]|upper }}</span>
-        <span class="account-summary-text"><strong>{{ current_user.display_name or current_user.username }}</strong><small>{% if effective_role=='admin' %}Administrator{% elif effective_role=='viewer' %}Nur Lesen{% else %}Bearbeiter{% endif %}</small></span>
+        <span class="account-summary-text"><strong>{{ current_user.display_name or current_user.username }}</strong><small>{% if current_user.is_admin %}Systemadministrator{% elif effective_role=='manager' %}Verwalter{% elif effective_role=='viewer' %}Nur Lesen{% else %}Bearbeiter{% endif %}</small></span>
         <span class="account-chevron">⌄</span>
       </summary>
       <div class="account-popover">
-        <div class="account-identity"><span class="account-avatar large">{{ (current_user.display_name or current_user.username)[:1]|upper }}</span><div><strong>{{ current_user.display_name or current_user.username }}</strong><small>@{{ current_user.username }} · {% if effective_role=='admin' %}Administrator{% elif effective_role=='viewer' %}Nur Lesen{% else %}Bearbeiter{% endif %}</small></div></div>
-        <div class="scope-switch"><span>Sammlung</span><div class="shared-only-hint">👥 Gemeinsamer Bestand für alle Benutzer</div></div>
+        <div class="account-identity"><span class="account-avatar large">{{ (current_user.display_name or current_user.username)[:1]|upper }}</span><div><strong>{{ current_user.display_name or current_user.username }}</strong><small>@{{ current_user.username }} · {% if current_user.is_admin %}Systemadministrator{% elif effective_role=='manager' %}Verwalter{% elif effective_role=='viewer' %}Nur Lesen{% else %}Bearbeiter{% endif %}</small></div></div>
+        <div class="scope-switch"><span>Aktive Sammlung</span>{% for space in available_collection_spaces %}<form method="post" action="{{ url_for('collection_switch', collection_id=space.id) }}"><input type="hidden" name="return_to" value="{{ request.full_path }}"><button class="{{ 'active' if active_collection_space and space.id==active_collection_space.id else 'secondary' }}" type="submit">{{ '✓ ' if active_collection_space and space.id==active_collection_space.id else '' }}{{ space.name }}</button></form>{% else %}<div class="shared-only-hint">Kein Zugriff zugewiesen</div>{% endfor %}</div>
         <div class="account-links">
-          <a href="{{ url_for('account') }}">⚙ Kontoeinstellungen</a>
-          {% if effective_role=='admin' %}<a href="{{ url_for('admin_users') }}">🛡 Nutzerverwaltung</a><a href="{{ url_for('admin_backup') }}">💾 Backup</a>{% endif %}
+          <a href="{{ url_for('account') }}">⚙ Kontoeinstellungen</a><a href="{{ url_for('collection_access_request') }}">🗃 Zugriff anfragen</a><a href="{{ url_for('offline_queue') }}">☁ Offline-Erfassungen</a><button type="button" id="pwa-install-button" class="account-install-button" hidden>⊕ App installieren</button>
+          {% if can_collection('manage_users') %}<a href="{{ url_for('collection_access') }}">🛡 Sammlungsrechte</a>{% endif %}{% if current_user.is_admin %}<a href="{{ url_for('admin_users') }}">⚙ Systemverwaltung</a><a href="{{ url_for('operations_center') }}">🩺 Systemdiagnose</a><a href="{{ url_for('admin_images') }}">🖼 Bildarchiv</a><a href="{{ url_for('admin_backup') }}">💾 Backup</a>{% endif %}
           <a class="logout-link" href="{{ url_for('logout') }}">↪ Abmelden</a>
         </div>
       </div>
     </details>
   </div>
   <nav class="desktop-nav">
-    <a href="{{ url_for('dashboard') }}">Übersicht</a>
-    <details class="desktop-nav-group"><summary>Sammlung</summary><div><a href="{{ url_for('collection') }}">Spiele</a><a href="{{ url_for('hardware') }}">Hardware</a><a href="{{ url_for('accessories') }}">Zubehör</a><a href="{{ url_for('wishlist') }}">Wunschliste</a></div></details>
-    <details class="desktop-nav-group"><summary>Katalog</summary><div><a href="{{ url_for('games') }}">Spielekatalog</a><a href="{{ url_for('franchises') }}">Serien</a><a href="{{ url_for('standalone_games') }}">Einzelspiele</a><a href="{{ url_for('consoles') }}">Plattformen</a><a href="{{ url_for('retro_lookup') }}">Retro-Suche</a></div></details>
-    <details class="desktop-nav-group"><summary>Auswertung</summary><div><a href="{{ url_for('price_history_page') }}">Wertentwicklung</a><a href="{{ url_for('price_activity') }}">Preisaktivität</a><a href="{{ url_for('timeline') }}">Timeline</a></div></details>
-    <details class="desktop-nav-group"><summary>Planung</summary><div><a href="{{ url_for('goals') }}">Ziele</a><a href="{{ url_for('collection_projects') }}">Projekte</a></div></details>
-    <details class="desktop-nav-group"><summary>Verwaltung</summary><div><a href="{{ url_for('quality') }}">Datenpflege</a><a href="{{ url_for('activity') }}">Aktivität</a><a href="{{ url_for('import_csv') }}">Import</a><a href="{{ url_for('collection_bulk') }}">Massenbearbeitung</a>{% if current_user.is_admin %}<a href="{{ url_for('data_health') }}">DB-Status</a>{% endif %}</div></details>
+    <a href="{{ url_for('collector_home') }}">Startseite</a>
+    <a href="{{ url_for('bibo_library') }}">Bibliothek</a>
+    <a href="{{ url_for('discovery_center') }}">Entdecken</a>
+    <a href="{{ url_for('dashboard') }}">Bewertungen</a>
+    <details class="desktop-nav-group"><summary>Sammlung</summary><div><a href="{{ url_for('collector_collections') }}">Reihen &amp; Sammlungen</a><a href="{{ url_for('capture_batches') }}">Stapel-Erfassung</a><a href="{{ url_for('storage_locations') }}">Lagerorte &amp; Inventur</a><a href="{{ url_for('loans') }}">Verliehen</a><a href="{{ url_for('collection') }}">Spiele</a><a href="{{ url_for('hardware') }}">Hardware</a><a href="{{ url_for('accessories') }}">Zubehör</a><a href="{{ url_for('wishlist') }}">Wunschliste</a></div></details>
+    <details class="desktop-nav-group"><summary>Katalog</summary><div><a href="{{ url_for('games') }}">Spielekatalog</a><a href="{{ url_for('standalone_games') }}">Einzelspiele</a><a href="{{ url_for('consoles') }}">Plattformen</a><a href="{{ url_for('retro_lookup') }}">Retro-Suche</a></div></details>
+    <details class="desktop-nav-group"><summary>Auswertung</summary><div><a href="{{ url_for('insights') }}">Sammlungsassistent</a><a href="{{ url_for('price_center') }}">Preiszentrum</a><a href="{{ url_for('price_history_page') }}">Wertentwicklung</a><a href="{{ url_for('price_activity') }}">Preisaktivität</a><a href="{{ url_for('timeline') }}">Timeline</a></div></details>
+    <details class="desktop-nav-group"><summary>Planung</summary><div><a href="{{ url_for('collection_planner') }}">Planungszentrale</a><a href="{{ url_for('goals') }}">Ziele</a><a href="{{ url_for('collection_projects') }}">Projekte</a></div></details>
+    <details class="desktop-nav-group"><summary>Verwaltung</summary><div><a href="{{ url_for('review_inbox') }}">Prüf-Inbox</a><a href="{{ url_for('quality') }}">Datenpflege</a><a href="{{ url_for('activity') }}">Aktivität</a>{% if can_collection('run_imports') %}<a href="{{ url_for('import_csv') }}">Import</a>{% endif %}<a href="{{ url_for('collection_bulk') }}">Massenbearbeitung</a>{% if current_user.is_admin %}<a href="{{ url_for('operations_center') }}">Systemdiagnose</a><a href="{{ url_for('admin_images') }}">Bildarchiv</a><a href="{{ url_for('data_health') }}">DB-Status</a>{% endif %}</div></details>
   </nav>
 </header>
+<aside id="offline-sync-status" class="offline-sync-status" hidden><span id="offline-sync-label">Verbindungsstatus wird geprüft …</span><a href="{{ url_for('offline_queue') }}">Warteschlange <strong id="offline-sync-count" hidden>0</strong></a></aside>
 {% endif %}
 <main class="container">
 {% for category, message in get_flashed_messages(with_categories=true) %}<div class="flash {{ category }}">{{ message }}</div>{% endfor %}
-{% if current_user.is_authenticated %}<div class="collection-context shared"><span>👥</span><strong>Gemeinsame Sammlung</strong><small>Alle Benutzer arbeiten am selben Bestand</small></div>{% endif %}
+{% if current_user.is_authenticated and active_collection_space %}<div class="collection-context shared"><span>🗃️</span><strong>{{ active_collection_label }}</strong><small>{% if current_user.is_admin %}Systemadministrator{% elif collection_permission_role=='manager' %}Verwalten{% elif collection_permission_role=='editor' %}Bearbeiten{% else %}Nur lesen{% endif %}</small></div>{% endif %}
 {% block content %}{% endblock %}
 </main>
-{% if current_user.is_authenticated %}<nav class="mobile-quickbar"><a href="{{ url_for('dashboard') }}">⌂<span>Übersicht</span></a><a href="{{ url_for('collection') }}">🎮<span>Sammlung</span></a><a href="{{ url_for('scanner') }}">📷<span>Scannen</span></a><a href="{{ url_for('games') }}">▦<span>Katalog</span></a><details class="mobile-more-menu"><summary>•••<span>Mehr</span></summary><div><strong>Sammlung</strong><a href="{{ url_for('hardware') }}">Hardware</a><a href="{{ url_for('accessories') }}">Zubehör</a><a href="{{ url_for('wishlist') }}">Wunschliste</a><strong>Katalog</strong><a href="{{ url_for('franchises') }}">Serien</a><a href="{{ url_for('standalone_games') }}">Einzelspiele</a><a href="{{ url_for('retro_lookup') }}">Retro-Suche</a><strong>Auswertung & Planung</strong><a href="{{ url_for('price_history_page') }}">Wertentwicklung</a><a href="{{ url_for('goals') }}">Ziele & Projekte</a><strong>Verwaltung</strong><a href="{{ url_for('quality') }}">Datenpflege</a><a href="{{ url_for('account') }}">Konto</a></div></details></nav>{% endif %}
-<footer><span>GameCollector v{{ app_version }}</span><span>·</span><span>{{ now.year }}</span><span>·</span><a href="https://retrobase-collection.com" rel="noreferrer">Retro-Daten: RetroBase Collection</a><span>·</span><a href="https://rawg.io" rel="noreferrer">Spiele-Metadaten: RAWG</a></footer>
+{% if current_user.is_authenticated %}<nav class="mobile-quickbar"><a href="{{ url_for('collector_home') }}">⌂<span>Start</span></a><a href="{{ url_for('bibo_library') }}">▤<span>Bibliothek</span></a><a href="{{ url_for('dashboard') }}">📊<span>Werte</span></a><a href="{{ url_for('scanner') }}">📷<span>Scannen</span></a><a href="{{ url_for('games') }}">▦<span>Katalog</span></a><details class="mobile-more-menu"><summary>•••<span>Mehr</span></summary><div><strong>Sammlung</strong><a href="{{ url_for('discovery_center') }}">✦ Ähnliche Titel entdecken</a><a href="{{ url_for('collector_collections') }}">Reihen &amp; Sammlungen</a><a href="{{ url_for('collection') }}">Spiele</a><a href="{{ url_for('hardware') }}">Hardware</a><a href="{{ url_for('accessories') }}">Zubehör</a><a href="{{ url_for('wishlist') }}">Wunschliste</a><strong>Katalog</strong><a href="{{ url_for('standalone_games') }}">Einzelspiele</a><a href="{{ url_for('retro_lookup') }}">Retro-Suche</a><strong>Auswertung & Planung</strong><a href="{{ url_for('price_center') }}">Preiszentrum</a><a href="{{ url_for('price_history_page') }}">Wertentwicklung</a><a href="{{ url_for('goals') }}">Ziele & Projekte</a><strong>Verwaltung</strong><a href="{{ url_for('quality') }}">Datenpflege</a><a href="{{ url_for('account') }}">Konto</a></div></details></nav>{% endif %}
+<footer><span>Bibo v{{ app_version }}</span>{% if current_user.is_authenticated %}<span>·</span><a href="{{ url_for('whats_new') }}">Was ist neu?</a>{% endif %}<span>·</span><span>{{ now.year }}</span><span>·</span><a href="https://retrobase-collection.com" rel="noreferrer">Retro-Daten: RetroBase Collection</a><span>·</span><a href="https://rawg.io" rel="noreferrer">Spiele-Metadaten: RAWG</a></footer>
 {% block scripts %}{% endblock %}
 <script>
-if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.serviceWorker.register('/static/service-worker.js?v={{ app_version }}').catch(()=>{}));}
+document.querySelectorAll('[data-discovery-strip-url]').forEach(async shell=>{try{const response=await fetch(shell.dataset.discoveryStripUrl,{headers:{'X-Requested-With':'fetch'}});if(!response.ok)throw new Error(String(response.status));const markup=await response.text();if(markup.trim())shell.innerHTML=markup;else shell.remove();}catch(_error){shell.remove();}});
+if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.serviceWorker.register('/static/service-worker.js?v={{ app_version }}').then(reg=>{reg.update();{% if not current_user.is_authenticated %}if(reg.active)reg.active.postMessage({type:'CLEAR_PRIVATE_CACHES'});{% endif %}}).catch(()=>{}));}
+let deferredPwaInstall=null;const pwaInstallButton=document.getElementById('pwa-install-button');window.addEventListener('beforeinstallprompt',event=>{event.preventDefault();deferredPwaInstall=event;if(pwaInstallButton)pwaInstallButton.hidden=false;});if(pwaInstallButton)pwaInstallButton.addEventListener('click',async()=>{if(!deferredPwaInstall)return;deferredPwaInstall.prompt();await deferredPwaInstall.userChoice;deferredPwaInstall=null;pwaInstallButton.hidden=true;});window.addEventListener('appinstalled',()=>{deferredPwaInstall=null;if(pwaInstallButton)pwaInstallButton.hidden=true;});
 document.querySelectorAll('.mobile-more-menu a').forEach(link=>link.addEventListener('click',()=>{link.closest('details').open=false;}));
 document.addEventListener('click',event=>{document.querySelectorAll('details.desktop-nav-group[open],details.mobile-more-menu[open]').forEach(menu=>{if(!menu.contains(event.target))menu.open=false;});});
+document.addEventListener('keydown',event=>{if((event.ctrlKey||event.metaKey)&&event.key.toLowerCase()==='k'){event.preventDefault();const input=document.querySelector('.header-universal-search input[name="q"]');if(input){input.focus();input.select();}}});
 // v0.9.3: warn before losing edited form data. Search/filter forms are excluded.
 document.querySelectorAll('form[method="post"]').forEach(form=>{let dirty=false; form.addEventListener('input',()=>dirty=true); form.addEventListener('change',()=>dirty=true); form.addEventListener('submit',()=>dirty=false); window.addEventListener('beforeunload',e=>{if(dirty){e.preventDefault();e.returnValue='';}});});
 </script>

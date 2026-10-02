@@ -1,2 +1,2 @@
-{% extends 'base.html' %}{% block title %}Login · GameCollector{% endblock %}
-{% block content %}<div class="login-card"><h1>🎮 GameCollector</h1><p>Deine Spielesammlung an einem Ort.</p><form method="post"><label>Benutzername<input name="username" required autofocus></label><label>Passwort<input type="password" name="password" required></label><button>Anmelden</button></form></div>{% endblock %}
+{% extends 'base.html' %}{% block title %}Login · Bibo{% endblock %}
+{% block content %}<div class="login-card bibo-login"><img src="{{ url_for('static', filename='branding/bibo-hero.png') }}?v={{ app_version }}" alt="Bibo"><h1>Willkommen bei Bibo</h1><p>Deine Sammlung aus Spielen und Medien an einem Ort.</p><form method="post"><label>Benutzername<input name="username" required autofocus></label><label>Passwort<input type="password" name="password" required></label><button>Anmelden</button></form></div>{% endblock %}

@@ -1,5 +1,5 @@
-{% extends 'base.html' %}{% block title %}Aktivität · GameCollector{% endblock %}{% block content %}
-<div class="page-head"><div><span class="eyebrow">Mehrbenutzer</span><h1>Aktivitätsprotokoll</h1><p class="muted">Nachvollziehbar, wer wann Änderungen an der gemeinsamen Sammlung vorgenommen hat.</p></div></div>
+{% extends 'base.html' %}{% block title %}Aktivität · Bibo{% endblock %}{% block content %}
+<div class="page-head"><div><span class="eyebrow">Mehrbenutzer</span><h1>Aktivitätsprotokoll</h1><p class="muted">Nachvollziehbar, wer wann Änderungen an der gemeinsamen Sammlung vorgenommen hat.</p></div><a class="button secondary" href="{{ url_for('activity_export') }}">CSV exportieren</a></div>
 <section class="panel activity-list">{% for row in rows %}<div class="activity-row"><span class="activity-icon">{% if 'added' in row.action or 'created' in row.action %}＋{% elif 'removed' in row.action or 'deleted' in row.action %}−{% else %}✎{% endif %}</span><div><strong>{{ row.message }}</strong><small>{{ row.actor.display_name or row.actor.username if row.actor else 'System' }} · {{ row.created_at|localdt }}</small></div></div>{% else %}<p class="muted">Noch keine protokollierten Aktivitäten.</p>{% endfor %}</section>
 <div class="pager">{% if page > 1 %}<a class="button secondary-link" href="{{ url_for('activity', page=page-1) }}">← Neuer</a>{% endif %}{% if has_next %}<a class="button secondary-link" href="{{ url_for('activity', page=page+1) }}">Älter →</a>{% endif %}</div>
 {% endblock %}

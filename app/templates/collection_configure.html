@@ -1,5 +1,5 @@
 {% extends 'base.html' %}
-{% block title %}Kopie erfassen · {{ game.title }} · GameCollector{% endblock %}
+{% block title %}Kopie erfassen · {{ game.title }} · Bibo{% endblock %}
 {% block content %}
 <div class="page-head">
   <div>
@@ -40,6 +40,15 @@
         </select>
       </label>
 
+      <label>Format
+        <select name="ownership_format" id="ownership-format">
+          <option value="physical" {% if not item or item.ownership_format != 'digital' %}selected{% endif %}>Physisch (Modul / Disc)</option>
+          <option value="digital" {% if item and item.ownership_format == 'digital' %}selected{% endif %}>Digital (Download)</option>
+        </select>
+        <small class="form-help">Digitale Exemplare bleiben in deiner Sammlung sichtbar, zählen aber nicht zur physischen Reihen-Vollständigkeit oder zum physischen Marktwert.</small>
+      </label>
+
+      <div id="physical-copy-fields">
       <div class="copy-checks">
         <label class="copy-check"><input type="checkbox" name="media_present" {% if not item or item.media_present %}checked{% endif %}><span><strong>Modul / Disc vorhanden</strong><small>Das eigentliche Spielmedium</small></span></label>
         <label class="copy-check"><input type="checkbox" name="box_present" {% if item and item.box_present %}checked{% endif %}><span><strong>OVP / Hülle vorhanden</strong><small>Originalverpackung bzw. Originalhülle</small></span></label>
@@ -51,15 +60,13 @@
         <label>Medium-Zustand 1–10<input type="number" name="media_condition" min="1" max="10" value="{{ item.media_condition if item else 8 }}"></label>
         <label>OVP/Hüllen-Zustand 1–10<input type="number" name="box_condition" min="1" max="10" value="{{ item.box_condition if item else 8 }}"></label>
       </div>
-      <div class="row three">
-        <label>Kaufpreis €<input type="text" inputmode="decimal" name="purchase_price" value="{{ item.purchase_price if item and item.purchase_price is not none else '' }}"></label>
-        <label>Kaufdatum<input type="date" name="purchase_date" value="{{ item.purchase_date.isoformat() if item and item.purchase_date else '' }}"></label>
-        <label>Seltenheit 1–5<input type="number" name="rarity" min="1" max="5" value="{{ item.rarity if item else 1 }}"></label>
-      </div>
+      <label>Seltenheit 1–5<input type="number" name="rarity" min="1" max="5" value="{{ item.rarity if item else 1 }}"></label>
       <label>Eigener Schätzwert €
         <input type="text" inputmode="decimal" name="estimated_value" value="{{ item.estimated_value if item and item.estimated_value is not none else '' }}" placeholder="z. B. 39,90">
         <small class="form-help">Akzeptiert 39,90 oder 39.90. Ein eigener Schätzwert hat Vorrang vor dem automatischen Referenzwert.</small>
       </label>
+      </div>
+      <div class="row"><label>Kaufpreis €<input type="text" inputmode="decimal" name="purchase_price" value="{{ item.purchase_price if item and item.purchase_price is not none else '' }}"></label><label>Kaufdatum<input type="date" name="purchase_date" value="{{ item.purchase_date.isoformat() if item and item.purchase_date else '' }}"></label></div>
       <label>Notizen<textarea name="notes" placeholder="z. B. kleine Druckstelle an der OVP, PAL-DE, Erstbesitz …">{{ (item.notes or '') if item else '' }}</textarea></label>
       <div class="row three"><label>Arbeitsmarkierung<select name="work_marker"><option value="">Keine</option><option value="favorite" {% if item and item.work_marker=='favorite' %}selected{% endif %}>★ Favorit</option><option value="cover" {% if item and item.work_marker=='cover' %}selected{% endif %}>Cover suchen</option><option value="price" {% if item and item.work_marker=='price' %}selected{% endif %}>Preis prüfen</option><option value="manual" {% if item and item.work_marker=='manual' %}selected{% endif %}>Anleitung fehlt</option></select></label><label>Lagerplatz<input name="storage_location" value="{{ (item.storage_location or '') if item else '' }}" placeholder="z. B. Regal 2 / Box A"></label><label>Tags<input name="tags" value="{{ (item.tags or '') if item else '' }}" placeholder="Kindheit, Import, Steelbook"></label><label>Spielstatus<select name="play_status"><option value="unplayed" {% if not item or item.play_status=='unplayed' %}selected{% endif %}>Unbespielt</option><option value="started" {% if item and item.play_status=='started' %}selected{% endif %}>Angefangen</option><option value="finished" {% if item and item.play_status=='finished' %}selected{% endif %}>Durchgespielt</option><option value="complete" {% if item and item.play_status=='complete' %}selected{% endif %}>100 %</option></select></label></div>
       <details class="subpanel"><summary>Wunschliste-Details</summary><div class="row three"><label>Priorität<select name="wishlist_priority"><option value="1" {% if item and item.wishlist_priority==1 %}selected{% endif %}>Niedrig</option><option value="2" {% if not item or item.wishlist_priority==2 %}selected{% endif %}>Normal</option><option value="3" {% if item and item.wishlist_priority==3 %}selected{% endif %}>Hoch</option></select></label><label>Wunschpreis €<input type="text" inputmode="decimal" name="wishlist_target_price" value="{{ item.wishlist_target_price if item and item.wishlist_target_price is not none else '' }}"></label><label>Gesuchter Zustand<select name="wishlist_condition"><option value="">Egal</option><option value="Loose" {% if item and item.wishlist_condition=='Loose' %}selected{% endif %}>Loose</option><option value="CIB" {% if item and item.wishlist_condition=='CIB' %}selected{% endif %}>CIB</option><option value="Sealed" {% if item and item.wishlist_condition=='Sealed' %}selected{% endif %}>Sealed</option></select></label></div><div class="row"><label>Händler / Quelle<input name="wishlist_shop" value="{{ (item.wishlist_shop or '') if item else '' }}"></label><label>Link<input type="url" name="wishlist_url" value="{{ (item.wishlist_url or '') if item else '' }}"></label></div><label>Wunschlisten-Notiz<textarea name="wishlist_notes">{{ (item.wishlist_notes or '') if item else '' }}</textarea></label></details>
@@ -71,15 +78,19 @@
     </form>
   </section>
 
-  <aside>
+  <aside id="physical-market-panels">
+    <div class="panel digital-copy-note" id="digital-copy-note" {% if not item or item.ownership_format != 'digital' %}hidden{% endif %}>
+      <span class="eyebrow">Digitales Exemplar</span><h2>Keine physische Marktwertbewertung</h2><p class="muted">Kaufpreis, Kaufdatum, Notizen, Tags und Spielstatus kannst du weiterhin pflegen. Zustands-, OVP- und physische Marktwertfelder entfallen.</p>
+    </div>
+    <div id="physical-market-content">
     <div class="panel market-panel">
       <span class="eyebrow">Kostenlose Bewertung</span>
       <h2>Automatischer EUR-Marktwert</h2>
-      <p class="muted">Für unterstützte Retro-Plattformen nutzt GameCollector PrixRetro.com als kostenlose Referenz. Die Werte basieren auf abgeschlossenen eBay-France-Verkäufen und werden passend zu Vollständigkeit und deinem Zustandswert angepasst.</p>
+      <p class="muted">Für unterstützte Retro-Plattformen nutzt Bibo PrixRetro.com als kostenlose Referenz. Die Werte basieren auf abgeschlossenen eBay-France-Verkäufen und werden passend zu Vollständigkeit und deinem Zustandswert angepasst.</p>
       {% if item %}
       <form method="post" action="{{ url_for('collection_auto_value', game_id=game.id) }}">{% if item %}<input type="hidden" name="item_id" value="{{ item.id }}">{% endif %}<button>↻ Jetzt kostenlos bewerten</button></form>
       {% else %}
-      <p class="form-help">Speichere zuerst deine konkrete Kopie, damit GameCollector Loose/CIB/Sealed und den Zustand berücksichtigen kann.</p>
+      <p class="form-help">Speichere zuerst deine konkrete Kopie, damit Bibo Loose/CIB/Sealed und den Zustand berücksichtigen kann.</p>
       {% endif %}
       {% if item and item.auto_value_eur is not none %}
       <div class="auto-value-card">
@@ -138,6 +149,7 @@
         <div class="market-saved"><span>Zuletzt gespeicherte Referenz</span><strong>${{ '%.2f'|format(item.market_value_usd) }}</strong>{% if item.market_value_updated_at %}<small>{{ item.market_value_updated_at|localdt }}</small>{% endif %}</div>
       {% endif %}
     </div>
+    </div>
   </aside>
 </div>
 {% if item %}<section class="panel danger-zone"><h2>Exemplar löschen</h2><p class="muted">Löscht nur dieses Exemplar. Der Spiele-Katalogeintrag und weitere Exemplare bleiben erhalten.</p><form method="post" action="{{ url_for('collection_item_delete', item_id=item.id) }}" onsubmit="return confirm('Exemplar #{{ item.id }} wirklich löschen?')">{% if return_to %}<input type="hidden" name="return_to" value="{{ return_to }}">{% endif %}<button class="danger">Exemplar endgültig löschen</button></form></section>{% endif %}
@@ -147,6 +159,18 @@
 (() => {
   const form = document.getElementById('copy-form');
   if (!form) return;
+  const format = document.getElementById('ownership-format');
+  const physicalFields = document.getElementById('physical-copy-fields');
+  const physicalMarket = document.getElementById('physical-market-content');
+  const digitalNote = document.getElementById('digital-copy-note');
+  const syncFormat = () => {
+    const digital = format && format.value === 'digital';
+    if (physicalFields) physicalFields.hidden = digital;
+    if (physicalMarket) physicalMarket.hidden = digital;
+    if (digitalNote) digitalNote.hidden = !digital;
+  };
+  if (format) format.addEventListener('change', syncFormat);
+  syncFormat();
   let dirty = false;
   form.addEventListener('input', () => { dirty = true; });
   form.addEventListener('change', () => { dirty = true; });

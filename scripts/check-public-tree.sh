@@ -20,7 +20,7 @@ while IFS= read -r path; do
   esac
 done < <(git ls-files)
 
-patterns='ichbinroot|tom-MS|PokeCollector|it-messer\.de|192\.168\.|/home/tom|/home/ichbinroot|BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY|AKIA[0-9A-Z]{16}'
+patterns='/home/[[:alnum:]_.-]+/Downloads|192\.168\.|BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY|AKIA[0-9A-Z]{16}'
 if git grep -nEI "$patterns" -- ':!scripts/check-public-tree.sh' ':!LICENSE'; then
   printf 'Mögliche persönliche Daten oder Geheimnisse gefunden.\n' >&2
   failed=1

@@ -1,5 +1,5 @@
 {% extends 'base.html' %}
-{% block title %}Zubehör bearbeiten · GameCollector{% endblock %}
+{% block title %}Zubehör bearbeiten · Bibo{% endblock %}
 {% block content %}
 <div class="page-head"><div><span class="eyebrow">Zubehör & Komponenten</span><h1>{{ item.name }}</h1><p class="muted">Eintrag, Lieferumfang und Bewertung bearbeiten.</p></div><div class="page-actions"><a class="button secondary-link" href="{{ return_to or url_for('accessories') }}">← Zurück</a></div></div>
 <form method="post" class="panel" enctype="multipart/form-data" id="accessory-edit-form">

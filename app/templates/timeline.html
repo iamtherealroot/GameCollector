@@ -1,4 +1,4 @@
-{% extends 'base.html' %}{% block title %}Timeline · GameCollector{% endblock %}{% block content %}
+{% extends 'base.html' %}{% block title %}Timeline · Bibo{% endblock %}{% block content %}
 <div class="page-head"><div><span class="eyebrow">Sammlung nach Zeit</span><h1>Erscheinungsjahre</h1><p class="muted">Katalogspiele chronologisch nach Veröffentlichungsjahr.</p></div></div>
 {% for year,games in years.items() %}<section class="panel timeline-year"><div class="section-head"><h2>{{ year }}</h2><span>{{ games|length }} Spiele</span></div><div class="compact-list">{% for g in games %}<a href="{{ url_for('game_detail', game_id=g.id) }}"><strong>{{ g.title }}</strong><span>{{ g.console.name }}</span></a>{% endfor %}</div></section>{% endfor %}
 {% endblock %}

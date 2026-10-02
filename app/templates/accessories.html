@@ -1,5 +1,5 @@
 {% extends 'base.html' %}
-{% block title %}Zubehör · GameCollector{% endblock %}
+{% block title %}Zubehör · Bibo{% endblock %}
 {% block content %}
 <div class="page-head">
   <div><span class="eyebrow">Hardware Collection</span><h1>Zubehör</h1><p class="muted">Physisches Zubehör, Datenträger und vollständige Sets verwalten und bewerten.</p></div>
@@ -15,7 +15,7 @@
   <label>Kategorie<select name="category"><option value="">Alle Kategorien</option>{% for key,label in categories.items() %}<option value="{{ key }}" {% if selected_category==key %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></label>
   <label>Plattform<select name="console_id"><option value="">Alle Plattformen</option>{% for c in consoles %}<option value="{{ c.id }}" {% if selected_console_id==c.id %}selected{% endif %}>{{ c.name }}</option>{% endfor %}</select></label>
   <label>Status<select name="status"><option value="">Alle</option><option value="owned" {% if selected_status=='owned' %}selected{% endif %}>Im Besitz</option><option value="wishlist" {% if selected_status=='wishlist' %}selected{% endif %}>Wunschliste</option></select></label>
-  <label>Sortierung<select name="sort"><option value="name" {% if selected_sort=='name' %}selected{% endif %}>Name</option><option value="value_desc" {% if selected_sort=='value_desc' %}selected{% endif %}>Wert absteigend</option><option value="newest" {% if selected_sort=='newest' %}selected{% endif %}>Neueste zuerst</option></select></label>
+  <label>Sortierung<select name="sort"><option value="name" {% if selected_sort=='name' %}selected{% endif %}>Name A–Z</option><option value="name_desc" {% if selected_sort=='name_desc' %}selected{% endif %}>Name Z–A</option><option value="value_desc" {% if selected_sort=='value_desc' %}selected{% endif %}>Stückwert absteigend</option><option value="value_asc" {% if selected_sort=='value_asc' %}selected{% endif %}>Stückwert aufsteigend</option><option value="total_desc" {% if selected_sort=='total_desc' %}selected{% endif %}>Gesamtwert absteigend</option><option value="total_asc" {% if selected_sort=='total_asc' %}selected{% endif %}>Gesamtwert aufsteigend</option><option value="newest" {% if selected_sort=='newest' %}selected{% endif %}>Neueste zuerst</option></select></label>
   <button>Filtern</button>
 </form>
 

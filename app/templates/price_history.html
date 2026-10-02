@@ -1,9 +1,9 @@
-{% extends 'base.html' %}{% block title %}Wertentwicklung · GameCollector{% endblock %}{% block content %}
-<div class="page-head"><div><span class="eyebrow">Sammlungswert</span><h1>Wertentwicklung der gesamten Sammlung</h1><p class="muted">Gesamtwert aller vorhandenen Exemplare. Dein eigener Schätzwert hat Vorrang; wenn keiner gesetzt ist, fließt der automatische Marktwert ein.</p></div></div>
+{% extends 'base.html' %}{% block title %}Wertentwicklung · Collector{% endblock %}{% block content %}
+<div class="page-head"><div><span class="eyebrow">Sammlungswert</span><h1>Wertentwicklung der gesamten Sammlung</h1><p class="muted">Gesamtwert von Games, Hardware, Zubehör, Filmen, Serien, Büchern, Musik und Sammelkarten.</p></div></div>
 <section class="panel">
 <div class="chart-head"><div><h2>Gesamtwert</h2><p class="muted">{{ collection_points|length }} Messpunkte · täglicher automatischer Scan um 03:00 Uhr</p></div><div class="chart-ranges"><button type="button" data-days="30">30T</button><button type="button" data-days="90">90T</button><button type="button" data-days="365">1J</button><button type="button" data-days="0" class="active">Alle</button></div></div>
 <div class="price-canvas-wrap"><canvas id="collectionChart" width="1200" height="440"></canvas></div><div id="chartSummary" class="chart-summary"></div>
-<p class="muted chart-note">Die historische Gesamtkurve beginnt mit v0.7.2. Frühere Gesamtwerte lassen sich nicht zuverlässig rekonstruieren, weil Zu- und Abgänge der Sammlung berücksichtigt werden müssen.</p>
+<p class="muted chart-note">Die Collector-weite Gesamtkurve beginnt mit v2.10.9; ältere modulübergreifende Werte lassen sich nicht zuverlässig rückwirkend rekonstruieren.</p>
 </section>
 {% endblock %}
 {% block scripts %}<script>

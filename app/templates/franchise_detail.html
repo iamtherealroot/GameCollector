@@ -1,8 +1,8 @@
-{% extends 'base.html' %}{% block title %}{{ name }} · Serien · GameCollector{% endblock %}
+{% extends 'base.html' %}{% block title %}{{ name }} · Serien · Bibo{% endblock %}
 {% block content %}
 {% macro game_card(entry) -%}
 {% if not only_missing or not entry.owned %}
-<article class="series-game-card {% if entry.owned %}series-owned{% endif %}">
+<article class="series-game-card {% if entry.owned %}series-owned{% endif %}{% if entry.manual_not_owned %} series-manual-excluded{% endif %}" id="series-{{ entry.override_anchor }}">
   {% if entry.local_games %}<a class="series-product-link" href="{{ url_for('game_detail', game_id=entry.local_games[0].id) }}">{% endif %}
   {% if entry.cover_url %}<img src="{{ entry.cover_url }}" alt="Cover {{ entry.title }}">{% else %}<div class="series-cover-empty">🎮</div>{% endif %}
   {% if entry.local_games %}</a>{% endif %}
@@ -14,12 +14,13 @@
     {% if entry.market_value %}<span class="mini-price-badge series-price"><small>Gesamtwert</small><strong>{{ eur(entry.market_value) }}</strong></span>{% endif %}
     {% if entry.price_rows %}<div class="series-platform-prices">{% for row in entry.price_rows %}<span><b>{{ row.platform }}</b><em>{{ row.copies }}× · {{ eur(row.value) }}</em></span>{% endfor %}</div>{% endif %}
     {% if entry.local_games %}<div class="series-local-links">{% for g in entry.local_games %}<a href="{{ url_for('game_detail', game_id=g.id) }}">✓ {{ g.title }} · {{ g.console.name }}</a>{% endfor %}</div>{% endif %}
+    {% if entry.local_games %}<form class="series-ownership-override" method="post" action="{{ url_for('franchise_ownership_override', name=name) }}"><input type="hidden" name="canonical_key" value="{{ entry.canonical_key }}">{% if entry.manual_not_owned %}<p class="muted">Automatische Zuordnung manuell ausgeschlossen.</p><button class="secondary compact-button" name="action" value="auto" type="submit">Automatische Erkennung wieder verwenden</button>{% elif entry.owned %}<button class="secondary compact-button" name="action" value="exclude" type="submit">Als nicht im Besitz markieren</button>{% endif %}</form>{% endif %}
   </div>
 </article>
 {% endif %}
 {%- endmacro %}
 
-<div class="page-head"><div><span class="eyebrow">Automatische Kollektion</span><h1>{{ name }}</h1><p class="muted">{{ owned }} von {{ total }} bekannten eigenständigen Titeln besitzt du.{% if synced %} Serienkatalog geladen.{% endif %}</p></div><div class="page-actions">{% if rawg_enabled and not curated %}<form method="post" action="{{ url_for('franchise_sync', name=name) }}"><button>↻ Reihe mit RAWG synchronisieren</button></form>{% elif curated %}<span class="source-pill">Lokaler Serienkatalog</span>{% endif %}{% if only_missing %}<a class="button" href="{{ url_for('franchise_detail', name=name) }}">Alle Titel</a>{% else %}<a class="button secondary-link" href="{{ url_for('franchise_detail', name=name, missing=1) }}">Nur fehlende anzeigen</a>{% endif %}<a class="button secondary-link" href="{{ url_for('franchise_manage', name=name) }}">Serie verwalten</a><a class="button secondary-link" href="{{ url_for('franchises') }}">Alle Serien</a></div></div>
+<div class="page-head"><div><span class="eyebrow">Automatische Kollektion</span><h1>{{ name }}</h1><p class="muted">{{ owned }} von {{ total }} bekannten eigenständigen Titeln besitzt du.{% if synced %} Serienkatalog geladen.{% endif %}</p></div><div class="page-actions">{% if rawg_enabled and not curated %}<form method="post" action="{{ url_for('franchise_sync', name=name) }}"><button>↻ Reihe mit RAWG synchronisieren</button></form>{% elif curated %}<span class="source-pill">Lokaler Serienkatalog</span>{% endif %}{% if only_missing %}<a class="button" href="{{ url_for('franchise_detail', name=name) }}">Alle Titel</a>{% else %}<a class="button secondary-link" href="{{ url_for('franchise_detail', name=name, missing=1) }}">Nur fehlende anzeigen</a>{% endif %}<a class="button secondary-link" href="{{ url_for('franchise_manage', name=name) }}">Serie verwalten</a><a class="button secondary-link" href="{{ url_for('collector_collections', type='games') }}">Alle Reihen</a></div></div>
 
 <div class="series-summary panel"><div><strong>{{ owned }}/{{ total }}</strong><span>gesammelt</span></div><div class="progress big-progress"><span style="width:{{ completion_pct }}%"></span></div><strong>{{ completion_pct }} %</strong></div>
 

@@ -1,14 +1,23 @@
 {
-  "name": "GameCollector",
-  "short_name": "GameCollector",
-  "description": "Deine persönliche Videospiel-Sammlung",
-  "start_url": "/",
+  "id": "/",
+  "name": "Bibo – Deine Sammlung",
+  "short_name": "Bibo",
+  "description": "Spiele, Filme, Konsolen und Sammlungen verwalten – mit Offline-Scanner.",
+  "lang": "de-DE",
+  "start_url": "/?source=pwa",
   "scope": "/",
   "display": "standalone",
+  "display_override": ["window-controls-overlay", "standalone", "minimal-ui"],
+  "orientation": "any",
   "background_color": "#090d18",
   "theme_color": "#0c1020",
+  "categories": ["utilities", "lifestyle"],
   "icons": [
-    {"src":"/static/icon-192-v3.png","sizes":"192x192","type":"image/png"},
-    {"src":"/static/icon-512-v3.png","sizes":"512x512","type":"image/png"}
+    {"src":"/static/icon-192-bibo.png","sizes":"192x192","type":"image/png","purpose":"any maskable"},
+    {"src":"/static/icon-512-bibo.png","sizes":"512x512","type":"image/png","purpose":"any maskable"}
+  ],
+  "shortcuts": [
+    {"name":"Bibliothek öffnen","short_name":"Bibliothek","url":"/library?source=pwa-shortcut","icons":[{"src":"/static/icon-192-bibo.png","sizes":"192x192"}]},
+    {"name":"Barcode scannen","short_name":"Scannen","url":"/scanner?source=pwa-shortcut","icons":[{"src":"/static/icon-192-bibo.png","sizes":"192x192"}]}
   ]
 }

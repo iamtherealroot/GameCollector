@@ -1,35 +1,15 @@
-name: gamecollector
-
-x-app-environment: &app-environment
-  TZ: ${TZ:-Europe/Berlin}
-  SECRET_KEY: ${SECRET_KEY:?SECRET_KEY fehlt in .env}
-  DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-gamecollector}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD fehlt in .env}@db:5432/${POSTGRES_DB:-gamecollector}
-  ADMIN_USERNAME: ${ADMIN_USERNAME:-admin}
-  ADMIN_PASSWORD: ${ADMIN_PASSWORD:-admin}
-  ADMIN_FORCE_PASSWORD_CHANGE: ${ADMIN_FORCE_PASSWORD_CHANGE:-1}
-  SESSION_DAYS: ${SESSION_DAYS:-30}
-  COOKIE_SECURE: ${COOKIE_SECURE:-0}
-  AUTOMATIC_REVALUE_HOUR: ${AUTOMATIC_REVALUE_HOUR:-3}
-  RAWG_API_KEY: ${RAWG_API_KEY:-}
-  EBAY_CLIENT_ID: ${EBAY_CLIENT_ID:-}
-  EBAY_CLIENT_SECRET: ${EBAY_CLIENT_SECRET:-}
-  EBAY_DEV_ID: ${EBAY_DEV_ID:-}
-  EBAY_MARKETPLACE: ${EBAY_MARKETPLACE:-EBAY_DE}
-  EBAY_ENVIRONMENT: ${EBAY_ENVIRONMENT:-production}
-
 services:
   db:
-    image: postgres:16-alpine
+    image: postgres:17-alpine
     restart: unless-stopped
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-gamecollector}
       POSTGRES_USER: ${POSTGRES_USER:-gamecollector}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD fehlt in .env}
-      TZ: ${TZ:-Europe/Berlin}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - gamecollector_db:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-gamecollector} -d ${POSTGRES_DB:-gamecollector}"]
       interval: 5s
       timeout: 5s
       retries: 20
@@ -40,29 +20,37 @@ services:
     depends_on:
       db:
         condition: service_healthy
-    environment: *app-environment
+    environment:
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-gamecollector}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-gamecollector}
+      SECRET_KEY: ${SECRET_KEY}
+      ADMIN_USERNAME: ${ADMIN_USERNAME:-admin}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD}
+      BARCODE_LOOKUP_URL: ${BARCODE_LOOKUP_URL:-https://levelcomplete.de/api/public/search.php?{barcode}}
+      RAWG_API_KEY: ${RAWG_API_KEY:-}
+      PRICECHARTING_TOKEN: ${PRICECHARTING_TOKEN:-}
+      VGPREISE_AUTH_CODE: ${VGPREISE_AUTH_CODE:-}
+      TZ: ${TZ:-Europe/Berlin}
+      AUTOMATIC_REVALUE_HOUR: ${AUTOMATIC_REVALUE_HOUR:-3}
     ports:
-      - "${APP_BIND:-0.0.0.0}:${APP_PORT:-8095}:8000"
+      - "${APP_PORT:-8095}:8000"
     volumes:
-      - ./uploads:/srv/gamecollector/app/static/uploads
-    healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=5)"]
-      interval: 10s
-      timeout: 5s
-      retries: 12
-      start_period: 30s
+      - ./uploads:/app/app/static/uploads
 
   scheduler:
     build: .
     restart: unless-stopped
     depends_on:
-      web:
+      db:
         condition: service_healthy
     command: ["python", "-m", "app.scheduler"]
-    environment: *app-environment
-    volumes:
-      - ./uploads:/srv/gamecollector/app/static/uploads
+    environment:
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-gamecollector}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-gamecollector}
+      SECRET_KEY: ${SECRET_KEY}
+      RAWG_API_KEY: ${RAWG_API_KEY:-}
+      PRICECHARTING_TOKEN: ${PRICECHARTING_TOKEN:-}
+      VGPREISE_AUTH_CODE: ${VGPREISE_AUTH_CODE:-}
+      TZ: ${TZ:-Europe/Berlin}
+      AUTOMATIC_REVALUE_HOUR: ${AUTOMATIC_REVALUE_HOUR:-3}
 
 volumes:
-  postgres_data:
-    name: ${POSTGRES_VOLUME_NAME:-gamecollector_postgres_data}
+  gamecollector_db:

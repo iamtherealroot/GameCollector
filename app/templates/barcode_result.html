@@ -1,4 +1,4 @@
-{% extends 'base.html' %}{% block title %}Barcode {{ barcode }} · GameCollector{% endblock %}
+{% extends 'base.html' %}{% block title %}Barcode {{ barcode }} · Bibo{% endblock %}
 {% block content %}
 <div class="page-head"><div><span class="eyebrow">EAN / UPC erkannt</span><h1>{{ barcode }}</h1><p class="muted">Der erkannte Code bleibt sichtbar und wird automatisch in die manuelle Anlage übernommen.</p></div><a class="button secondary-link" href="{{ url_for('scanner') }}">📷 Nächstes Spiel scannen</a></div>
 
@@ -9,7 +9,7 @@
     </label>
     <div class="barcode-quick-actions"><button>🔎 Erneut suchen</button><a class="button secondary-link" href="{{ url_for('scanner') }}">📷 Neu scannen</a></div>
   </form>
-  <p class="form-help">Code korrigieren oder einen anderen Barcode eintragen und Enter/„Erneut suchen“ drücken. GameCollector prüft zuerst lokal und sucht bei unbekannter EAN automatisch online.</p>
+  <p class="form-help">Code korrigieren oder einen anderen Barcode eintragen und Enter/„Erneut suchen“ drücken. Bibo prüft zuerst lokal und sucht bei unbekannter EAN automatisch online.</p>
 </div>
 
 {% if barcode_conflict %}<div class="status-banner warning"><strong>⚠ EAN/UPC mehrfach im Katalog</strong><span>Dieser Code ist {{ matches|length }} Katalogtiteln zugeordnet. Bitte im Qualitätscheck prüfen.</span><a class="button secondary-link compact-button" href="{{ url_for('quality', issue='barcode_duplicate') }}">Konflikt prüfen</a></div>{% endif %}

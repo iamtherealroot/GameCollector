@@ -1,12 +1,14 @@
-{% extends 'base.html' %}{% block title %}Scanner · GameCollector{% endblock %}
-{% block head %}<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>{% endblock %}
+{% extends 'base.html' %}{% block title %}Scanner · Collector{% endblock %}
+{% block head %}<script src="{{ url_for('static',filename='vendor/html5-qrcode-2.3.8.min.js') }}?v={{ app_version }}"></script>{% endblock %}
 {% block content %}
 <div class="scanner-page">
   <h1>📷 Barcode-Scanner</h1>
+  {% if capture_batch %}<div class="status-banner online"><strong>Stapel: {{ capture_batch.title }}</strong><span>Jeder bestätigte Barcode wird gesammelt, danach startet der Scanner erneut.</span><a class="button secondary-link" href="{{ url_for('capture_batch_detail',batch_id=capture_batch.id) }}">Stapel öffnen</a></div>{% endif %}
   <p class="muted">Scanne EAN-13, EAN-8, UPC-A oder UPC-E mit der Rückkamera. Der Scanbereich ist für 1D-Barcodes optimiert.</p>
 
   <div id="reader"></div>
   <div id="scan-status" class="scanner-status">Scanner bereit. Tippe auf „Kamera starten“.</div>
+  <div class="scanner-offline-hint"><strong>Offline-fähig:</strong> Ohne Verbindung wird der Barcode sicher auf diesem Gerät gespeichert und später synchronisiert. <a href="{{ url_for('offline_queue') }}">Warteschlange öffnen</a></div>
 
   <div class="barcode-manual-quick panel">
     <span class="eyebrow">EAN / UPC</span>
@@ -87,11 +89,31 @@
     return [8, 12, 13].includes(String(code || '').length);
   }
 
-  function openLookup(code) {
+  async function openLookup(code) {
     const cleaned = cleanCode(code);
-    if (!cleaned) return;
+    if (!plausibleBarcode(cleaned)) { setStatus('❌ Bitte eine gültige EAN/UPC mit 8, 12 oder 13 Ziffern eingeben.', 'danger'); return; }
     manualBarcode.value = cleaned;
-    const cont=document.getElementById('continuousMode').checked?'&continuous=1':''; localStorage.setItem('gc-continuous', document.getElementById('continuousMode').checked?'1':'0'); window.location.href = '/barcode/' + encodeURIComponent(cleaned) + '?scanned=1'+cont;
+    {% if capture_batch %}
+    try {
+      const response=await fetch('{{ url_for("capture_batch_scan_api",batch_id=capture_batch.id) }}',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({barcode:cleaned})});
+      const data=await response.json();
+      if(!response.ok||!data.ok)throw new Error(data.error||'Speichern fehlgeschlagen');
+      setStatus((data.duplicate?'✅ Menge erhöht: ':'✅ Zum Stapel hinzugefügt: ')+cleaned,'success');
+      recognizedBox.hidden=true;locked=false;setTimeout(startScanner,450);return;
+    } catch(error){setStatus('❌ Stapelerfassung fehlgeschlagen: '+(error.message||error),'danger');return;}
+    {% endif %}
+    if (!navigator.onLine) {
+      try {
+        const result = await window.GameCollectorOfflineQueue.addBarcode(cleaned, 'scanner');
+        setStatus(result.duplicate ? '☁ Dieser Barcode wartet bereits in der Offline-Warteschlange.' : '☁ Barcode wurde offline gespeichert und wird später synchronisiert.', 'success');
+        recognizedBox.hidden = true;
+        if (document.getElementById('continuousMode').checked) {
+          locked = false; setTimeout(startScanner, 500);
+        }
+      } catch (error) { setStatus('❌ Offline-Speicherung fehlgeschlagen: ' + (error.message || error), 'danger'); }
+      return;
+    }
+    const cont=document.getElementById('continuousMode').checked?'&continuous=1':''; localStorage.setItem('gc-continuous', document.getElementById('continuousMode').checked?'1':'0'); window.location.href = '/identify/' + encodeURIComponent(cleaned) + '?scanned=1'+cont;
   }
 
   function onScanFailure() {

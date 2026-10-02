@@ -1,13 +1,30 @@
 <section class="hardware-components">
   <div class="section-mini-head"><div><span class="eyebrow">{{ hardware_class_label }}</span><h2>Einzelteile und Setzustand</h2></div></div>
-  <p class="muted">Fehlende Teile beeinflussen Vollständigkeit und Marktwert; Defekte zusätzlich den Setzustand.</p>
+  <p class="muted">{% if hardware_class == 'pc' %}Erfasse die tatsächlich eingebauten Komponenten mit Hersteller, Modell und Kapazität. Ein Controller gehört nicht zum PC-Lieferumfang.{% else %}Fehlende Teile beeinflussen Vollständigkeit und Marktwert; Defekte zusätzlich den Setzustand.{% endif %}</p>
   <div class="component-editor">
   {% for component in component_profile %}{% set value=component_values.get(component.key,{}) %}
     <fieldset class="component-row"><legend>{{ component.label }} <small>{{ component.weight }} %</small></legend>
       <label>Vorhanden<select name="component_{{ component.key }}_availability"><option value="present" {% if value.get('availability','present')=='present' %}selected{% endif %}>Vorhanden</option><option value="missing" {% if value.get('availability')=='missing' %}selected{% endif %}>Fehlt</option><option value="na" {% if value.get('availability')=='na' %}selected{% endif %}>Nicht zutreffend</option></select></label>
       <label>Zustand<input type="number" min="1" max="10" name="component_{{ component.key }}_condition" value="{{ value.get('condition',8) }}"></label>
       <label>Funktion<select name="component_{{ component.key }}_function">{% for key,label in [('tested','Funktioniert'),('untested','Ungeprüft'),('partial','Teilweise defekt'),('defective','Defekt')] %}<option value="{{ key }}" {% if value.get('function','tested')==key %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></label>
-      <label class="check component-original"><input type="checkbox" name="component_{{ component.key }}_original" value="1" {% if value.get('original',true) %}checked{% endif %}> Originalteil</label>
+      {% if hardware_class == 'pc' %}
+      <div class="pc-component-fields">
+        {% for field in pc_component_fields.get(component.key, []) %}
+        {% set saved=value.get(field.key,'') %}
+        <label>{{ field.label }}
+          <select name="component_{{ component.key }}_{{ field.key }}" data-pc-component="{{ component.key }}" data-pc-field="{{ field.key }}">
+            <option value="">– bitte wählen –</option>
+            {% if saved and saved not in field.choices %}<option value="{{ saved }}" selected>{{ saved }} (vorhandener Wert)</option>{% endif %}
+            {% for option in field.choices %}<option value="{{ option }}" {% if saved==option %}selected{% endif %}>{{ option }}</option>{% endfor %}
+          </select>
+        </label>
+        {% endfor %}
+        <label class="component-details">Konkretes Modell / weitere Details
+          <input name="component_{{ component.key }}_details" value="{{ value.get('details','') }}" placeholder="z. B. Ryzen 7 7800X3D, 2 × 8 GB oder genaue Modellnummer">
+        </label>
+      </div>
+      {% endif %}
+      <label class="check component-original"><input type="checkbox" name="component_{{ component.key }}_original" value="1" {% if value.get('original',true) %}checked{% endif %}> {% if hardware_class == 'pc' %}Zum erfassten System gehörend{% else %}Originalteil{% endif %}</label>
       <label class="component-notes">Hinweis<input name="component_{{ component.key }}_notes" value="{{ value.get('notes','') }}" placeholder="z. B. Stickdrift, Pixelfehler, Kratzer"></label>
     </fieldset>
   {% endfor %}

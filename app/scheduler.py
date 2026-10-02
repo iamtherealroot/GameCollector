@@ -4,10 +4,11 @@ from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 
 from app.app import (
-    app, db, CollectionItem, HardwareItem, AccessoryItem, RevaluationRun,
+    app, db, CollectionItem, CollectorItem, HardwareItem, AccessoryItem, RevaluationRun,
     RevaluationLog, shared_collection_user, auto_value_item,
     hardware_auto_value, accessory_auto_value, collection_total_value_snapshot,
-    recover_stale_revaluation_runs, utc_now,
+    collector_total_value_snapshot, collector_scryfall_valuation, collector_ebay_valuation,
+    record_collector_price, recover_stale_revaluation_runs, utc_now,
 )
 
 
@@ -23,19 +24,20 @@ def seconds_until_run(hour: int, tz_name: str) -> float:
 def run_revaluation():
     with app.app_context():
         recover_stale_revaluation_runs()
-        active = RevaluationRun.query.filter(RevaluationRun.state.in_(["queued", "running", "cancel_requested"])).first()
-        if active:
-            print(f"[scheduler] valuation already active: run {active.id}; skipping", flush=True)
-            return
         shared = shared_collection_user()
         if not shared:
             print("[scheduler] Shared collection user not found", flush=True)
             return
         items = CollectionItem.query.filter_by(user_id=shared.id, status="owned").order_by(CollectionItem.id).all()
-        hardware_items = HardwareItem.query.filter_by(status="owned").order_by(HardwareItem.id).all()
-        accessory_items = AccessoryItem.query.filter_by(status="owned").order_by(AccessoryItem.id).all()
-        complete_count = len(items) + len(hardware_items) + len(accessory_items)
-        run = RevaluationRun(source="automatic", started_at=utc_now(), state="running", total_count=complete_count, heartbeat_at=utc_now(), message="Automatische Neubewertung läuft")
+        active = RevaluationRun.query.filter(RevaluationRun.collection_user_id == shared.id, RevaluationRun.state.in_(["queued", "running", "cancel_requested"])).first()
+        if active:
+            print(f"[scheduler] valuation already active: run {active.id}; skipping", flush=True)
+            return
+        hardware_items = HardwareItem.query.filter_by(user_id=shared.id, status="owned").order_by(HardwareItem.id).all()
+        accessory_items = AccessoryItem.query.filter_by(user_id=shared.id, status="owned").order_by(AccessoryItem.id).all()
+        collector_items = CollectorItem.query.filter_by(user_id=shared.id).order_by(CollectorItem.id).all()
+        complete_count = len(items) + len(hardware_items) + len(accessory_items) + len(collector_items)
+        run = RevaluationRun(collection_user_id=shared.id, source="automatic", started_at=utc_now(), state="running", total_count=complete_count, heartbeat_at=utc_now(), message="Automatische Neubewertung läuft")
         db.session.add(run)
         db.session.commit()
         updated = unsupported = failed = 0
@@ -101,7 +103,39 @@ def run_revaluation():
                 failed += 1
                 db.session.rollback()
                 print(f"[scheduler] accessory {item.id}: {exc}", flush=True)
+        # v2.10.9: movies, TV, books, music, cards and custom objects participate
+        # in the same scheduled market scan. One provider failure never aborts the run.
+        base_pos = len(items) + len(hardware_items) + len(accessory_items)
+        for offset, row in enumerate(collector_items, 1):
+            try:
+                # Pokémon is owned and valued exclusively by PokéCollector.
+                # The daily Collector market scan must never overwrite those values.
+                if row.category == "cards" and (row.tcg_game or "").strip().casefold() in {"pokémon", "pokemon"}:
+                    unsupported += 1
+                    continue
+                old_value = row.auto_value_eur
+                value = low = high = source = None
+                status = None
+                if row.category == "cards" and (row.tcg_game or "").strip().casefold() == "magic: the gathering":
+                    value, low, high, source = collector_scryfall_valuation(row)
+                    if value is not None: status = "ok"
+                if value is None:
+                    value, low, high, status = collector_ebay_valuation(row)
+                    source = "eBay-Angebote" if value is not None else source
+                row.auto_value_status = status or "no_price"
+                row.auto_value_updated_at = utc_now()
+                if value is not None:
+                    row.auto_value_eur=value; row.auto_value_low_eur=low; row.auto_value_high_eur=high; row.auto_value_source=source
+                    record_collector_price(row, old_value, value, low, high, source)
+                    updated += 1
+                else:
+                    unsupported += 1
+                db.session.commit()
+            except Exception as exc:
+                failed += 1; db.session.rollback()
+                print(f"[scheduler] collector {row.id}: {exc}", flush=True)
         collection_total_value_snapshot()
+        collector_total_value_snapshot(shared.id)
         run.finished_at = utc_now()
         run.success = True
         run.state = "finished"

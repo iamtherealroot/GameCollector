@@ -1,6 +1,85 @@
-{% extends 'base.html' %}{% block title %}Hardware-Modell bearbeiten{% endblock %}{% block content %}
-<div class="page-head"><div><span class="eyebrow">{{ model.console.name }}</span><h1>{{ model.name }} bearbeiten</h1></div></div>
-<form method="post" class="panel"><label>Modell<input name="name" value="{{ model.name }}" required></label><label>Sonderedition / Design<input name="edition" value="{{ model.edition or '' }}"></label><label>Modellklasse<select name="hardware_class">{% for key,label in hardware_classes.items() %}<option value="{{ key }}" {% if key==selected_hardware_class %}selected{% endif %}>{{ label }}</option>{% endfor %}</select><small>Bestimmt Einzelteile, Gewichtung und Zustandsberechnung.</small></label><div class="row"><label>Modellnummer<input name="model_number" value="{{ model.model_number or '' }}"></label><label>Technische Revision<input name="revision" value="{{ model.revision or '' }}"></label></div><div class="row"><label>Farbe<input name="color" value="{{ model.color or '' }}"></label><label>Region<input name="region" value="{{ model.region or '' }}"></label></div><label>Erscheinungsjahr<input name="release_year" type="number" value="{{ model.release_year or '' }}"></label><label>Referenzbild-URL<input name="reference_image" value="{{ model.reference_image or '' }}"></label><label>PriceCharting-Produkt-URL<input name="pricecharting_url" type="url" value="{{ model.pricecharting_url or '' }}"><small>Optionaler exakter Treffer für die Preisbewertung.</small></label><input type="hidden" name="pricecharting_name" value="{{ model.pricecharting_name or '' }}"><label>Notizen<textarea name="notes">{{ model.notes or '' }}</textarea></label><button>Modell speichern</button><a class="button secondary-link" href="{{ url_for('hardware_detail',model_id=model.id) }}">Abbrechen</a></form>
-<form method="post" action="{{ url_for('hardware_model_merge',model_id=model.id) }}" class="panel"><h2>Dublette zusammenführen</h2><label>Zielmodell<select name="target_id" required><option value="">Bitte wählen</option>{% for x in targets %}<option value="{{ x.id }}">{{ x.console.name }} · {{ x.name }}{% if x.edition %} · {{ x.edition }}{% endif %}</option>{% endfor %}</select></label><button>Modelle zusammenführen</button></form>
-{% if not model.items %}<form method="post" action="{{ url_for('hardware_model_delete',model_id=model.id) }}" class="panel danger-zone" onsubmit="return confirm('Hardware-Modell wirklich löschen?')"><button class="danger">Leeres Modell löschen</button></form>{% endif %}
+{% extends 'base.html' %}
+{% block title %}Hardware-Modell bearbeiten{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <span class="eyebrow">{{ model.console.name }}</span>
+    <h1>{{ model.name }} bearbeiten</h1>
+  </div>
+</div>
+
+<form method="post" class="panel" enctype="multipart/form-data">
+  <label>Modell<input name="name" value="{{ model.name }}" required></label>
+  <label>Sonderedition / Design<input name="edition" value="{{ model.edition or '' }}"></label>
+  <label>Modellklasse
+    <select name="hardware_class">
+      {% for key,label in hardware_classes.items() %}
+      <option value="{{ key }}" {% if key==selected_hardware_class %}selected{% endif %}>{{ label }}</option>
+      {% endfor %}
+    </select>
+    <small>Bestimmt Einzelteile, Gewichtung und Zustandsberechnung.</small>
+  </label>
+  <div class="row">
+    <label>Modellnummer<input name="model_number" value="{{ model.model_number or '' }}"></label>
+    <label>Technische Revision<input name="revision" value="{{ model.revision or '' }}"></label>
+  </div>
+  <div class="row">
+    <label>Farbe<input name="color" value="{{ model.color or '' }}"></label>
+    <label>Region<input name="region" value="{{ model.region or '' }}"></label>
+  </div>
+  <label>Erscheinungsjahr<input name="release_year" type="number" value="{{ model.release_year or '' }}"></label>
+
+  <fieldset class="model-image-editor">
+    <legend>Konsolenmodellbild</legend>
+    {% if model.reference_image %}
+    <div class="model-image-preview">
+      <img src="{{ model.reference_image }}" alt="Aktuelles Bild von {{ model.name }}">
+      <div>
+        <strong>Aktuelles Modellbild</strong>
+        <small>Ein neues Bild ersetzt dieses nach dem Speichern.</small>
+      </div>
+    </div>
+    {% else %}
+    <p class="muted">Für dieses Modell ist noch kein Bild hinterlegt.</p>
+    {% endif %}
+    <label>Bilddatei hochladen
+      <input name="reference_image_file" type="file" accept="image/jpeg,image/png,image/webp">
+      <small>JPEG, PNG oder WebP · maximal 8 MB · automatische Verkleinerung auf 1600 Pixel.</small>
+    </label>
+    <label>Oder externe Bild-URL
+      <input name="reference_image_url" type="url" value="{% if model.reference_image and not model.reference_image.startswith('/static/uploads/hardware-models/') %}{{ model.reference_image }}{% endif %}" placeholder="https://…">
+    </label>
+    {% if model.reference_image %}
+    <label class="check model-image-remove"><input type="checkbox" name="remove_reference_image" value="1"> Aktuelles Modellbild entfernen</label>
+    {% endif %}
+  </fieldset>
+
+  <label>PriceCharting-Produkt-URL
+    <input name="pricecharting_url" type="url" value="{{ model.pricecharting_url or '' }}">
+    <small>Optionaler exakter Treffer für die Preisbewertung.</small>
+  </label>
+  <input type="hidden" name="pricecharting_name" value="{{ model.pricecharting_name or '' }}">
+  <label>Notizen<textarea name="notes">{{ model.notes or '' }}</textarea></label>
+  <button>Modell speichern</button>
+  <a class="button secondary-link" href="{{ url_for('hardware_detail',model_id=model.id) }}">Abbrechen</a>
+</form>
+
+<form method="post" action="{{ url_for('hardware_model_merge',model_id=model.id) }}" class="panel">
+  <h2>Dublette zusammenführen</h2>
+  <label>Zielmodell
+    <select name="target_id" required>
+      <option value="">Bitte wählen</option>
+      {% for x in targets %}
+      <option value="{{ x.id }}">{{ x.console.name }} · {{ x.name }}{% if x.edition %} · {{ x.edition }}{% endif %}</option>
+      {% endfor %}
+    </select>
+  </label>
+  <button>Modelle zusammenführen</button>
+</form>
+
+{% if not model.items %}
+<form method="post" action="{{ url_for('hardware_model_delete',model_id=model.id) }}" class="panel danger-zone" onsubmit="return confirm('Hardware-Modell wirklich löschen?')">
+  <button class="danger">Leeres Modell löschen</button>
+</form>
+{% endif %}
 {% endblock %}
