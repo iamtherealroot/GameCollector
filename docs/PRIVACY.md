@@ -1,6 +1,6 @@
 # Datenschutz und Datenhaltung
 
-GameCollector ist selbst gehostet. Persönliche Sammlungsdaten verbleiben in der
+Bibo ist selbst gehostet. Persönliche Sammlungsdaten verbleiben in der
 eigenen PostgreSQL-Datenbank und in lokalen Upload-Verzeichnissen. Externe
 Anfragen entstehen nur für Funktionen, die eine Online-Metadaten- oder
 Preisquelle verwenden.

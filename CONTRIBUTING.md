@@ -1,11 +1,14 @@
-# Contributing
+# Zu Bibo beitragen
 
-Bug reports and pull requests are welcome.
+Fehlermeldungen, Verbesserungsvorschläge und Pull Requests sind willkommen.
 
-1. Fork the repository and create a focused branch.
-2. Never commit `.env`, database dumps, uploads or personal collection exports.
-3. Run `python3 -m py_compile app/app.py app/scheduler.py`.
-4. Run `docker compose config -q` and the smoke test described in the README.
-5. Explain database and migration effects in the pull request.
+1. Erstelle einen Fork und einen Branch für eine klar abgegrenzte Änderung.
+2. Halte `.env`, API-Zugangsdaten, Datenbankdumps, Uploads und persönliche Exporte aus dem Repository heraus.
+3. Prüfe die Python-Syntax: `python3 -m py_compile app/app.py app/scheduler.py`.
+4. Führe für Änderungen an Spielepreisen `python3 scripts/test_game_price_stability.py` aus. Weitere gezielte Regressionstests liegen unter `scripts/`.
+5. Für Anwendungstests installiere `requirements.txt` in einer eigenen Python-Umgebung und verwende eine separate Testdatenbank. Der CI-Ablauf in `.github/workflows/ci.yml` zeigt die Prüfungen für Seiten, Templates und Docker-Dienste.
+6. Beschreibe im Pull Request das Problem, das neue Verhalten und die durchgeführten Prüfungen. Erläutere Auswirkungen auf Schema und Migrationen, sofern vorhanden.
 
-By contributing, you agree that your contribution is licensed under GPL-3.0.
+Aktuelle Anleitungen liegen unter [docs/](docs/README.md), historische Notizen im [Dokumentationsarchiv](docs/archive/README.md). Behalte den Root-Pfad der aktuellen `RELEASE-NOTES-vX.Y.Z.md` bei: Der Release-Workflow verwendet ihn zur Veröffentlichung.
+
+Beiträge werden unter der [GPL-3.0](LICENSE) veröffentlicht.

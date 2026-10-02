@@ -1,77 +1,80 @@
-# Installation und Migration
+# Bibo installieren
 
-## Neue Installation
+## Voraussetzungen
 
-Benötigt werden Git, Docker Engine, Docker Compose v2 und `openssl`.
+- Linux mit Root-/sudo-Zugang
+- Docker Engine mit Docker Compose v2
+- `tar`, `flock` und `openssl`
+- `unzip` zum Entpacken des Release-Pakets
+- Python 3 für Updates
 
-```bash
-sudo git clone https://github.com/iamtherealroot/GameCollector.git /opt/gamecollector
-sudo bash /opt/gamecollector/install.sh
-```
+## Release herunterladen und starten
 
-Der Installer erstellt `/opt/gamecollector/.env` mit zufälligen Datenbank- und
-Anwendungsschlüsseln, startet PostgreSQL und wartet auf den tiefen Healthcheck.
-Die vorläufige Erstkennung lautet `admin` / `admin`. Nach dem ersten Login
-erzwingt GameCollector ein neues Passwort und sperrt bis dahin alle anderen
-Bereiche.
-
-Standardmäßig heißt der erste Benutzer `admin`. Für eine eigene Kennung bei
-einer frischen Datenbank:
+Lade das gemeinsame Installations-/Updatepaket aus den [GitHub-Releases](https://github.com/iamtherealroot/GameCollector/releases/latest) herunter. Entpacke es außerhalb des Zielverzeichnisses, zum Beispiel in deinem Downloadordner:
 
 ```bash
-sudo env ADMIN_USERNAME=meinadmin ADMIN_PASSWORD='Sicheres-Passwort-2026' \
-  bash /opt/gamecollector/install.sh
+unzip Bibo-v4.6.6.zip
+cd Bibo-v4.6.6
+sudo bash install.sh
 ```
 
-Das Passwort muss mindestens acht Zeichen lang sein und darf in dieser
-Bootstrap-Variable keine Leerzeichen enthalten. Bestehende Benutzer werden bei
-einer Installation oder einem Update niemals überschrieben.
+Bei einer Neuinstallation fragt der Installer Benutzername und Passwort für das erste Administratorkonto ab. Interaktiv muss das Passwort mindestens zehn Zeichen haben. Es gibt kein voreingestelltes `admin/admin`-Passwort.
 
-Wichtige Verzeichnisse:
+Der Installer erzeugt Datenbankpasswort und Anwendungsschlüssel, erstellt eine geschützte `.env` und startet PostgreSQL, Webanwendung und Scheduler. Abschließend prüft er den Deep-Healthcheck und die installierte Version.
 
-| Pfad | Inhalt | Von Git verändert? |
-|---|---|---:|
-| `/opt/gamecollector/app` | Anwendungscode | Ja |
-| `/opt/gamecollector/.env` | Geheimnisse und Konfiguration | Nein |
-| `/opt/gamecollector/uploads` | lokale Cover und Uploads | Nein |
-| Docker-Volume `gamecollector_postgres_data` | PostgreSQL-Datenbank | Nein |
-| `/opt/gamecollector/backups` | Updatebackups | Nein |
+Standardmäßig erreichst du Bibo unter `http://SERVER-IP:8095`.
 
-## Bestehende Installation übernehmen
-
-Die Übernahme ist ausdrücklich für eine vorhandene Installation unter
-`/opt/gamecollector` vorgesehen. Das Skript erkennt das tatsächlich vom
-laufenden Datenbankcontainer verwendete Docker-Volume und trägt dessen Namen
-in `.env` ein.
+## Anderen Pfad oder Port wählen
 
 ```bash
-git clone https://github.com/iamtherealroot/GameCollector.git /tmp/gamecollector-public
-cd /tmp/gamecollector-public
-sudo bash install.sh --adopt
+sudo BIBO_INSTALL_DIR=/opt/bibo BIBO_APP_PORT=8095 bash install.sh
 ```
 
-Vor dem Überschreiben der Programmdateien werden Code, `.env` und Datenbank
-unter `/opt/gamecollector/backups/adoption-*` gesichert. Uploads und das
-PostgreSQL-Volume bleiben an ihrem Ort. Die Übernahme bricht ab, wenn keine
-gültige bestehende Docker-Compose-Installation erkannt wird.
+Bei einer vorhandenen Installation muss `BIBO_INSTALL_DIR` auf deren tatsächliches Verzeichnis zeigen. Ohne Angabe bleibt es `/opt/gamecollector`.
+
+| Variable | Verwendung |
+|---|---|
+| `BIBO_INSTALL_DIR` | Zielpfad für Neuinstallation oder Update |
+| `BIBO_APP_PORT` | Port bei einer Neuinstallation; Standard `8095` |
+| `BIBO_TZ` | Zeitzone bei einer Neuinstallation; Standard `Europe/Berlin` |
+| `BIBO_ADMIN_USERNAME` | Erstbenutzer bei einer Neuinstallation; Standard `admin` |
+| `BIBO_ADMIN_PASSWORD` | Erstpasswort für eine unbeaufsichtigte Neuinstallation |
+
+Für unbeaufsichtigte Installationen muss das Erstpasswort gesetzt sein. Zugangsdaten gehören nicht in veröffentlichte Skripte oder Repository-Dateien.
+
+## Bestehende Installation
+
+Sind `.env` und `docker-compose.yml` im Ziel vorhanden, erkennt derselbe Installer den Update-Modus. Ein teilweise eingerichtetes oder anderweitig belegtes Zielverzeichnis wird abgewiesen.
+
+Das Paket wird separat entpackt und von dort ausgeführt. Ein Start direkt aus dem Zielverzeichnis ist nicht vorgesehen. Die Routine übernimmt die Dateien aus dem entpackten Paket; sie führt keinen `git pull` aus und benötigt kein `--adopt`.
+
+Details: [Update & Wiederherstellung](UPDATES.md).
+
+## Daten und Konfiguration
+
+| Ort | Inhalt |
+|---|---|
+| `/opt/gamecollector/app` | Anwendungscode und statische Dateien |
+| `/opt/gamecollector/.env` | Zugangsdaten und Konfiguration, Dateirechte `600` |
+| Docker-Volume für PostgreSQL | Datenbank; tatsächlicher Name hängt vom Compose-Projekt und seiner Konfiguration ab |
+| `/opt/gamecollector/uploads` und `app/static/uploads` | Uploadpfade, abhängig vom Bereich und der bestehenden Konfiguration |
+| `/opt/gamecollector/backups` | Updatebackups einschließlich Programmstand und Datenbankdump |
 
 ## Reverse Proxy und HTTPS
 
-Hinter Nginx Proxy Manager, Caddy oder einem anderen HTTPS-Reverse-Proxy:
+Bibo kann hinter Nginx Proxy Manager, Caddy oder einem anderen Reverse Proxy betrieben werden. Bei durchgängigem HTTPS kann in `.env` gesetzt werden:
 
 ```dotenv
 COOKIE_SECURE=1
 ```
 
-Danach anwenden:
+Danach die Anwendung neu erstellen:
 
 ```bash
 cd /opt/gamecollector
 sudo docker compose up -d --force-recreate web scheduler
 ```
 
-## Provider
+## Optionale Anbieter
 
-- eBay Browse API: Zugangsdaten im Nutzermanagement eintragen.
-- RAWG: optional `RAWG_API_KEY` in `.env` setzen.
-- Ohne optionale Schlüssel bleiben lokale Verwaltung und manuelle Werte nutzbar.
+Metadaten- und Preisquellen benötigen je nach Anbieter persönliche API-Zugänge. eBay wird über die Kontoeinstellungen konfiguriert, RAWG optional über `RAWG_API_KEY` in `.env`. Lokale Verwaltung und manuelle Schätzwerte bleiben ohne diese Zugänge nutzbar.

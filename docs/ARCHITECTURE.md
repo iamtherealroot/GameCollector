@@ -1,12 +1,12 @@
 # Architektur
 
-GameCollector besteht aus drei Docker-Compose-Diensten:
+Bibo besteht aus drei Docker-Compose-Diensten:
 
 | Dienst | Aufgabe |
 |---|---|
 | `web` | Flask/Gunicorn-Webanwendung und Schema-Migrationen beim Start |
-| `scheduler` | tägliche automatische Preisbewertung um 03:00 Uhr |
-| `db` | PostgreSQL 16 mit persistentem Docker-Volume |
+| `scheduler` | automatische Preisbewertung; Standardstunde 03:00, konfigurierbar |
+| `db` | PostgreSQL 17 mit persistentem Docker-Volume |
 
 Die Datenbank speichert Katalog, Sammlung, Nutzer, Einstellungen und
 Bewertungsverläufe. Lokale Bilder liegen getrennt in `uploads`. Zeitstempel

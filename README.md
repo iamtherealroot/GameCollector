@@ -1,208 +1,91 @@
 <p align="center">
-  <img src="app/static/branding/bibo-hero.png" alt="Bibo" width="720">
+  <img src="app/static/branding/bibo-hero.png" alt="Bibo – deine Sammlung an einem Ort" width="720">
 </p>
 
-# Bibo
+<h1 align="center">Bibo</h1>
+<p align="center"><strong>Deine Sammlung. Dein Server.</strong><br>Spiele, Filme, Bücher, Musik und mehr übersichtlich verwalten.</p>
+<p align="center">
+  <a href="https://github.com/iamtherealroot/GameCollector/releases/latest"><img src="https://img.shields.io/github/v/release/iamtherealroot/GameCollector?label=Release" alt="Aktuelles Release"></a>
+  <a href="https://github.com/iamtherealroot/GameCollector/actions/workflows/ci.yml"><img src="https://github.com/iamtherealroot/GameCollector/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/Lizenz-GPL--3.0-blue" alt="GPL-3.0"></a>
+</p>
+<p align="center">
+  <a href="https://github.com/iamtherealroot/GameCollector/releases/latest">Download</a> ·
+  <a href="docs/INSTALLATION.md">Installation</a> ·
+  <a href="docs/README.md">Dokumentation</a> ·
+  <a href="https://github.com/iamtherealroot/GameCollector/issues">Fehler melden</a>
+</p>
 
-**Bibo** ist eine self-hosted Sammlungsverwaltung für physische Spiele, Filme, Serien, Bücher, Musik, Sammelkarten, Konsolen, Hardware, Zubehör und eigene Sammlungskategorien.
+## Was kannst du sammeln?
 
-Statt nur Titel in einer Liste zu speichern, trennt Bibo bewusst zwischen **Katalogeintrag**, **konkretem Exemplar**, **Marktwert**, **persönlichen Angaben** und **Sammlungsfortschritt**. Mehrere physische Exemplare desselben Artikels – auch mit identischer EAN – bleiben deshalb eigenständige Datensätze mit eigenem Zustand, Kaufpreis, Lagerort, Notizen und Bewertung.
+| Bereich | Beispiele |
+|---|---|
+| 🎮 Spiele | Plattformen, Editionen, EAN, Produktcodes und Spielreihen |
+| 🎬 Filme & Serien | Einzelveröffentlichungen, Boxsets und Staffeln |
+| 📚 Bücher & 💿 Musik | ISBN, Autoren, CDs, Vinyl und weitere Formate |
+| 🃏 Sammelkarten | TCG-spezifische Angaben und Sammlungsdaten |
+| 🕹 Hardware & Zubehör | Konsolenmodelle, Varianten und konkrete Exemplare |
+| 🗂 Eigene Kategorien | Figuren, Brettspiele, Modelle oder Merchandise |
 
-> Das Projekt hieß ursprünglich **GameCollector**. Der interne Installationspfad `/opt/gamecollector` bleibt aus Update- und Backup-Kompatibilitätsgründen bestehen.
+**Jedes Exemplar zählt.** Mehrere Kopien mit derselben EAN können jeweils einen eigenen Zustand, Kaufpreis, Lagerort, Fotos und Notizen haben. Katalogdaten und persönlicher Besitz werden getrennt verwaltet.
 
-## Highlights
+## Das steckt drin
 
-- 🎮 Spielekatalog mit Plattformen, Editionen, Regionen, Produktcodes und Spielreihen
-- 📦 beliebig viele konkrete Exemplare pro Katalogtitel
-- 📷 mobiler EAN-/UPC-Scanner und Offline-Erfassungswarteschlange
-- 🎬 Filme & Serien inklusive Boxsets, Staffeln und Reihenfortschritt
-- 📚 Bücher mit ISBN, Autor, Verlag und Reihen
-- 💿 Musik auf CD, Vinyl und weiteren Formaten
-- 🃏 Sammelkarten inklusive TCG-spezifischer Daten
-- 🕹 Konsolen, Hardwaremodelle und Zubehör
-- 🗂 eigene Sammlungskategorien für Figuren, Modelle, Brettspiele usw.
-- 💶 automatische und manuelle Marktwerte mit Preisverlauf
-- 🧩 Serien-/Franchise-Fortschritt nur für die aktive Sammlung
-- 👥 mehrere Benutzer und logisch getrennte Sammlungen mit Rollen/Rechten
-- 🔐 Sammlungsverwalter sehen nur Mitglieder ihrer Sammlung und konkrete Zugriffsanfragen
-- 💾 automatische Backups beim Update und Healthcheck nach Installation
-- 📱 responsive Oberfläche und installierbare PWA
+- **Schnell erfassen:** EAN-/UPC-Scanner auf dem Smartphone, Suche und CSV-Import.
+- **Den Überblick behalten:** Reihenfortschritt, Marktwerte, Preisverlauf und Auswertungen für deine aktive Sammlung.
+- **Gemeinsam sammeln:** getrennte Sammlungen, Lese-/Bearbeitungsrechte und Zugriffsanfragen. Sammlungsverwalter sehen Mitglieder ihrer Sammlung und konkrete Anfragen.
+- **Mobil nutzen:** responsive Oberfläche und installierbare PWA.
+- **Selbst betreiben:** Docker Compose mit PostgreSQL, Webanwendung und Scheduler; automatische Backups beim Update.
 
-## Installation und Update
+### Preise mit vergleichbaren Exemplaren
 
-Jedes GitHub-Release enthält **ein einziges Paket**:
+Lose Spiele werden mit losen, komplette mit kompletten und versiegelte mit versiegelten Angeboten verglichen. Der eBay-Vergleich benötigt mindestens fünf passende Angebote. Große Preissprünge werden erst nach einem bestätigenden Abruf frühestens 24 Stunden später übernommen; bis dahin bleibt der bisherige Wert erhalten.
 
-```text
-Bibo-vX.Y.Z.zip
-```
+Metadaten und Preisquellen sind je nach Bereich optional, etwa eBay, PrixRetro, VGPreise, RAWG, TMDB und OpenLibrary. API-Zugänge und Verfügbarkeit unterscheiden sich je Anbieter.
 
-ZIP auf dem Server entpacken und aus dem entpackten Verzeichnis starten:
+## Installation & Update
+
+**Ein Paket, ein Installer:** Lade `Bibo-vX.Y.Z.zip` aus den [Releases](https://github.com/iamtherealroot/GameCollector/releases/latest) auf deinen Server und entpacke es **außerhalb des Installationsverzeichnisses**. Beispiel für v4.6.6:
 
 ```bash
+unzip Bibo-v4.6.6.zip
+cd Bibo-v4.6.6
 sudo bash install.sh
 ```
 
-Die Installationsroutine erkennt selbstständig, welcher Modus benötigt wird.
+Der Installer erkennt eine vorhandene Installation und führt ein Update durch. Bei einer Neuinstallation fragt er das erste Administratorkonto ab. Für Updates sichert er Programmstand, Konfiguration und Datenbank und prüft danach den Anwendungsstart.
 
-### Neuinstallation
+**Voraussetzungen:** Linux, Docker Engine mit Compose v2, `tar`, `flock`, `openssl`; für Updates außerdem Python 3. Standardport: **8095**.
 
-Wenn unter `/opt/gamecollector` noch keine Installation vorhanden ist, richtet der Installer Bibo vollständig ein:
+Der Standardpfad bleibt `/opt/gamecollector`, damit vorhandene Installationen weiter aktualisiert werden können. Das Projekt hieß zuvor **GameCollector**; der Repository-Name bleibt für bestehende Links erhalten.
 
-- erzeugt `.env`, Datenbankpasswort und `SECRET_KEY`
-- fragt das erste Administratorkonto ab
-- startet PostgreSQL, Web-Anwendung und Scheduler
-- prüft die Installation über den Deep-Healthcheck
+[Installationsanleitung](docs/INSTALLATION.md) · [Update & Wiederherstellung](docs/UPDATES.md)
 
-Standardmäßig ist Bibo danach über den in `.env` gesetzten `APP_PORT` erreichbar.
+## Dokumentation
 
-### Update einer vorhandenen Installation
-
-Sind `/opt/gamecollector/.env` und `/opt/gamecollector/docker-compose.yml` vorhanden, wechselt dieselbe Routine automatisch in den Update-Modus:
-
-1. Code-Backup erstellen
-2. PostgreSQL-Dump erstellen
-3. neue Version übernehmen
-4. Container neu bauen
-5. Healthcheck durchführen
-6. bei einem Fehler den vorherigen Programmstand wiederherstellen
-
-Ein unvollständiger oder fremder Inhalt im Zielverzeichnis wird **nicht überschrieben**.
-
-Ein anderer Installationspfad ist möglich:
-
-```bash
-sudo BIBO_INSTALL_DIR=/opt/bibo bash install.sh
-```
-
-Ausführliche Hinweise: [docs/INSTALLATION.md](docs/INSTALLATION.md)
-
-## Sammlungsmodell
-
-Bibo unterscheidet zwischen dem gemeinsamen Metadaten-Katalog und dem tatsächlichen Besitz einer Sammlung.
-
-Ein Spiel kann beispielsweise einmal im Katalog vorhanden sein, während drei physische Exemplare dieses Spiels existieren. Jedes Exemplar kann unabhängig voneinander enthalten:
-
-- Zustand und Vollständigkeit
-- Kaufpreis und Kaufdatum
-- automatischen Marktwert oder eigene Schätzung
-- Lagerort
-- Fotos
-- Notizen und Tags
-- Spielstatus
-
-Eine bereits bekannte EAN blockiert deshalb **kein weiteres Exemplar**. Bibo bietet in diesem Fall gezielt „Weiteres Exemplar erfassen“ an.
-
-## Benutzer, Sammlungen und Datenschutz
-
-Bibo unterstützt mehrere logisch getrennte Sammlungen innerhalb derselben Installation.
-
-Rollen innerhalb einer Sammlung:
-
-| Rolle | Rechte |
+| Thema | Anleitung |
 |---|---|
-| Lesen | Bestand und Auswertungen ansehen |
-| Bearbeiten | Einträge und Metadaten pflegen |
-| Verwalten | zusätzlich Benutzerrechte dieser Sammlung verwalten |
-| Systemadministrator | globale Benutzer-/Sammlungsverwaltung und Systemeinstellungen |
+| Installieren und konfigurieren | [Installation](docs/INSTALLATION.md) |
+| Aktualisieren und sichern | [Updates & Wiederherstellung](docs/UPDATES.md) |
+| Dienste und Datenhaltung | [Architektur](docs/ARCHITECTURE.md) |
+| Eigene Daten und externe Anbieter | [Datenschutz](docs/PRIVACY.md) |
+| Änderungen dieser Version | [Release-Notizen v4.6.6](RELEASE-NOTES-v4.6.6.md) |
+| Entwicklungsgeschichte | [Changelog](CHANGELOG.md) · [Dokumentationsarchiv](docs/archive/README.md) |
 
-Sammlungsverwalter erhalten **keine globale Benutzerliste**. Ein Benutzer kann stattdessen unter **Konto → Zugriff anfragen** eine konkrete Sammlung auswählen und um Lese- oder Bearbeitungszugriff bitten. Erst diese Anfrage wird dem jeweiligen Verwalter angezeigt.
+## Mitmachen
 
-## Eigene Sammlungskategorien
+Fehler oder Ideen? Öffne ein [Issue](https://github.com/iamtherealroot/GameCollector/issues). Hinweise für Beiträge stehen in [CONTRIBUTING.md](CONTRIBUTING.md), der Umgang mit Sicherheitsmeldungen in [SECURITY.md](SECURITY.md).
 
-Neben Games, Filmen, Serien, Büchern, Musik und Karten lassen sich eigene Bereiche anlegen, zum Beispiel:
-
-- Figuren
-- Brettspiele
-- Modelle
-- Steelbooks
-- Merchandise
-
-Nach dem Erstellen öffnet Bibo die neue Kategorie direkt und bietet dort **„Objekt anlegen“** an. Die Zuordnung wird am einzelnen Sammlungsobjekt gespeichert.
-
-## Spielreihen und Fortschritt
-
-Serien-Metadaten können global im Katalog vorhanden sein, die Fortschrittsanzeige ist jedoch sammlungsbezogen. Eine neue oder leere Sammlung sieht daher keine Reihen einer anderen Sammlung als künstliche `0/x`-Einträge.
-
-Für bekannte Reihen können lokale kuratierte Daten und optional RAWG-Metadaten kombiniert werden. Physischer Besitz und Marktwerte werden ausschließlich aus den Exemplaren der aktiven Sammlung ermittelt.
-
-## Bewertung und Datenquellen
-
-Je nach Medientyp kann Bibo verschiedene Quellen verwenden. Unterstützt bzw. vorbereitet sind unter anderem:
-
-- eBay Browse API
-- PriceCharting
-- PrixRetro
-- VGPreise
-- RAWG
-- RetroBase Collection
-- TMDB
-- OpenLibrary
-- TCGdex
-
-Spielepreise aus eBay-Angeboten vergleichen gleiche Vollständigkeit und benötigen mindestens fünf passende Angebote. Große Preissprünge bleiben bis zu einem bestätigenden Abruf frühestens 24 Stunden später zur Prüfung vorgemerkt.
-
-Externe Metadaten und Preise ersetzen keine sammlungsspezifischen Angaben wie Zustand, Kaufpreis, Lagerort oder persönliche Notizen.
-
-## Architektur
-
-- Python / Flask
-- Gunicorn
-- PostgreSQL 17
-- Docker Compose
-- separater Scheduler
-- PWA / mobiler Scanner
-- Reverse-Proxy-fähig, z. B. mit Nginx Proxy Manager
-
-Weitere Details: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
-
-## Screenshots
-
-Die README verwendet bereits das Bibo-Branding. Für die öffentliche GitHub-Seite sind zusätzlich echte Screenshots vorgesehen, idealerweise:
-
-1. Startseite / Sammlungsbereiche
-2. Bibliothek
-3. Spiele- oder Medien-Detailansicht mit mehreren Exemplaren
-4. Scanner auf dem Smartphone
-5. Reihen-/Fortschrittsansicht
-6. Bewertungsdashboard
-
-Die Bilder können unter `docs/images/` abgelegt und danach hier direkt eingebunden werden. So zeigen wir den tatsächlichen Release-Stand statt künstlicher Mockups.
-
-## Backup
-
-Updates erzeugen automatisch ein Backup des bisherigen Programmstands und einen PostgreSQL-Dump. Zusätzlich bietet Bibo eine eigene Backup-Funktion für vollständige Sicherungen.
-
-Vor größeren manuellen Änderungen sollte trotzdem ein externes Backup des Installationshosts vorhanden sein.
-
-## Entwicklung und Tests
-
-Wichtige Regressionstests liegen unter `scripts/`, darunter:
+Lokale Preisvergleichstests benötigen nur Python:
 
 ```bash
-python scripts/test_game_price_stability.py
-python scripts/test_duplicate_ean.py
-python scripts/test_collection_isolation.py
-python scripts/release_smoke.py
+python3 scripts/test_game_price_stability.py
 ```
 
-Für Release-Builds:
+Weitere Prüfungen laufen in [GitHub Actions](https://github.com/iamtherealroot/GameCollector/actions). Für ein Release mit passender `APP_VERSION`:
 
 ```bash
 bash scripts/build_release.sh 4.6.6
 ```
 
-Dadurch entstehen `Bibo-v4.6.6.zip` und die passende SHA256-Prüfsumme.
-
-## Datenschutz
-
-Bibo ist für Self-Hosting ausgelegt. Sammlungsdaten liegen in der eigenen PostgreSQL-Datenbank. Externe Dienste werden nur für die jeweils konfigurierten Metadaten-/Preisfunktionen angesprochen.
-
-Details: [docs/PRIVACY.md](docs/PRIVACY.md)
-
-## Lizenz
-
-Siehe [LICENSE](LICENSE).
-
-## Projektstatus
-
-Bibo wird aktiv weiterentwickelt. Release-Änderungen stehen im [CHANGELOG](CHANGELOG.md); größere technische Änderungen werden zusätzlich in versionsbezogenen Update-/Release-Notizen dokumentiert.
+Bibo steht unter der [GPL-3.0](LICENSE).
