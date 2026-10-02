@@ -1,3 +1,10 @@
+## v4.7.0 – Eigene Sammlungskategorien verwalten
+
+- Eigene Kategorien bearbeiten und mit Bestätigung entfernen; Objekte bleiben erhalten.
+- Mehrere Objekte gemeinsam einer anderen eigenen Kategorie zuordnen.
+- Aktive Sammlung, Bearbeitungsrechte und Formulartoken für alle neuen Aktionen prüfen.
+- Integrationstests, Kategorienanleitung und Release-Notizen ergänzt.
+
 ## v4.6.6 – Stabilere Spielebewertung
 
 - Vergleich nur gleicher Vollständigkeit, mindestens fünf plausible eBay-Angebote.

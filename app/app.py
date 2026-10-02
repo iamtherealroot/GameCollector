@@ -37,7 +37,7 @@ from pathlib import Path
 from html.parser import HTMLParser
 from itsdangerous import BadSignature, URLSafeSerializer
 
-APP_VERSION = "4.6.6"
+APP_VERSION = "4.7.0"
 APP_NAME = "Bibo"
 DISPLAY_TIMEZONE_NAME = os.environ.get("TZ", "Europe/Berlin")
 try:
@@ -4628,6 +4628,7 @@ def health_deep():
 @login_required
 def whats_new():
     releases = [
+        ("4.7.0", "Eigene Sammlungskategorien verwalten", "Eigene Dashboard-Bereiche bearbeiten oder entfernen und mehrere Objekte gemeinsam verschieben. Beim Entfernen einer Kategorie bleiben alle Objekte erhalten."),
         ("4.6.5", "Private Rechteverwaltung & sauberer Release-Workflow", "Sammlungsverwalter sehen nur Mitglieder und konkrete Zugriffsanfragen ihrer Sammlung. Eigene Kategorien führen direkt zum ersten Objekt und leere Sammlungen zeigen keine fremden Spielreihen mehr."),
         ("4.6.4", "Getrennte Spielreihen & eigene Dashboard-Bereiche", "Spielreihen erscheinen nur für die aktive Sammlung; zusätzlich lassen sich beliebig viele eigene Sammlungskategorien mit Name und Symbol direkt zum Start- und Bewertungsdashboard hinzufügen."),
         ("4.6.3", "Weitere Exemplare über vorhandene EAN", "Bekannte EANs zeigen eine Dublettenwarnung mit den getrennten Aktionen „vorhandenes Exemplar öffnen“ und „weiteres Exemplar erfassen“; Medien übernehmen Katalogdaten in den Fragenkatalog, ohne persönliche Exemplardaten zu kopieren."),
@@ -5697,6 +5698,87 @@ def custom_collection_category_create():
     db.session.commit()
     flash(f"Sammlungskategorie „{title}“ wurde angelegt. Du kannst jetzt direkt das erste Objekt hinzufügen.", "success")
     return redirect(url_for("collector_section", section="custom", custom_category=key))
+
+
+
+def custom_category_form_token(action):
+    key = f"custom_category_form:{active_collection_user_id()}:{action}"
+    if request.method == "POST":
+        expected = session.get(key)
+        supplied = request.form.get("category_token", "")
+        if not expected or not secrets.compare_digest(expected, supplied):
+            abort(400)
+    token = session.get(key) or secrets.token_urlsafe(32)
+    session[key] = token
+    return token
+
+
+@app.route("/collector/custom-categories/<category_id>/edit", methods=["GET", "POST"])
+@login_required
+def custom_collection_category_edit(category_id):
+    if not collection_capability("edit_items"):
+        abort(403)
+    owner_id = active_collection_user_id()
+    category = _custom_collection_category(owner_id, category_id)
+    if not category:
+        abort(404)
+    token = custom_category_form_token(f"edit:{category_id}")
+    if request.method == "POST":
+        title = " ".join((request.form.get("title") or "").split())[:120]
+        if len(title) < 2:
+            flash("Der Kategoriename muss mindestens zwei Zeichen enthalten.", "warning")
+            return render_template("custom_category_edit.html", category={**category, "title": title,
+                "icon": request.form.get("icon", category["icon"]),
+                "description": request.form.get("description", category["description"])}, category_token=token), 400
+        updated = {**category, "title": title,
+                   "icon": (request.form.get("icon") or "📦").strip()[:8] or "📦",
+                   "description": " ".join((request.form.get("description") or "").split())[:240]}
+        categories = [updated if row["id"] == category_id else row for row in custom_collection_categories(owner_id)]
+        app_setting_set(f"custom_collection_categories_{owner_id}", json.dumps(categories, ensure_ascii=False))
+        log_activity("custom_category_updated", "custom_category", None,
+                     f"Sammlungskategorie „{category['title']}“ wurde als „{title}“ gespeichert.")
+        db.session.commit()
+        flash("Sammlungskategorie gespeichert.", "success")
+        return redirect(url_for("collector_section", section="custom", custom_category=category_id))
+    return render_template("custom_category_edit.html", category=category, category_token=token)
+
+
+@app.route("/collector/custom-categories/move-items", methods=["POST"])
+@login_required
+def custom_collection_category_move_items():
+    if not collection_capability("edit_items"):
+        abort(403)
+    owner_id = active_collection_user_id()
+    custom_category_form_token("move-items")
+    target = (request.form.get("target_category") or "").strip()
+    category = _custom_collection_category(owner_id, target) if target else None
+    if target and not category:
+        abort(404)
+    raw_ids = request.form.getlist("item_ids")
+    if not raw_ids:
+        flash("Bitte mindestens ein Objekt auswählen.", "warning")
+        return redirect(url_for("collector_section", section="custom"))
+    if len(raw_ids) > 500 or any(not re.fullmatch(r"[0-9]{1,10}", value) for value in raw_ids):
+        abort(400)
+    ids = {int(value) for value in raw_ids}
+    rows = CollectorItem.query.filter(CollectorItem.user_id == owner_id,
+        CollectorItem.category == "custom", CollectorItem.id.in_(ids)).all()
+    # Reject the entire request if one ID is missing, foreign or another media type.
+    if {row.id for row in rows} != ids:
+        abort(404)
+    for row in rows:
+        metadata = collector_metadata(row)
+        if target:
+            metadata["custom_category"] = target
+        else:
+            metadata.pop("custom_category", None)
+        row.metadata_json = json.dumps(metadata, ensure_ascii=False)
+    label = category["title"] if category else "Ohne eigene Kategorie"
+    log_activity("custom_category_items_moved", "custom_category", None,
+                 f"{len(rows)} Objekte wurden „{label}“ zugeordnet.")
+    db.session.commit()
+    flash(f"{len(rows)} Objekte wurden „{label}“ zugeordnet.", "success")
+    return redirect(url_for("collector_section", section="custom", custom_category=target or None))
 
 
 @app.route("/collector/custom-categories/<category_id>/delete", methods=["GET", "POST"])
@@ -7562,7 +7644,8 @@ def collector_section(section):
                 counts[name] = counts.get(name, 0) + max(card.quantity or 1, 1)
         active_tcgs = sorted(counts.items(), key=lambda x: x[0].casefold())
     return render_template("collector_section.html", section=section, config=config, rows=rows, item_count=count, section_value=value, tcg_filter=tcg_filter, active_tcgs=active_tcgs, selected_sort=sort, query_text=query_text, view=view,
-                           custom_categories=custom_categories, selected_custom_category=selected_custom_category)
+                           custom_categories=custom_categories, selected_custom_category=selected_custom_category,
+                           category_move_token=custom_category_form_token("move-items") if section == "custom" and collection_capability("edit_items") else None)
 
 
 def collector_effective_value(row):

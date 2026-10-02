@@ -29,7 +29,7 @@
   {% for category in custom_category_tiles %}
   <div class="section-mini-head">
     <a href="{{ url_for('collector_section', section='custom', custom_category=category.id) }}">{{ category.icon }} {{ category.title }}</a>
-    <a class="button" href="{{ url_for('custom_collection_category_delete', category_id=category.id) }}">Kategorie löschen</a>
+    <div class="collector-actions"><a class="button" href="{{ url_for('custom_collection_category_edit', category_id=category.id) }}">Bearbeiten</a><a class="button" href="{{ url_for('custom_collection_category_delete', category_id=category.id) }}">Kategorie löschen</a></div>
   </div>
   {% endfor %}
 </section>

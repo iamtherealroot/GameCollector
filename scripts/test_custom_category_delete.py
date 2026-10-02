@@ -51,13 +51,50 @@ with m.app.app_context():
         return c
     edit=client('category-editor','editor-pass')
     read=client('category-viewer','viewer-pass')
+    # Editing keeps stable category IDs and all copy metadata.
+    edit_url='/collector/custom-categories/figuren/edit'
+    assert read.get(edit_url).status_code==403
+    page=edit.get(edit_url).get_data(as_text=True)
+    edit_token=re.search(r'name="category_token" value="([^"]+)"',page).group(1)
+    assert edit.post(edit_url,data={'title':'Neu'}).status_code==400
+    assert edit.post(edit_url,data={'category_token':edit_token,'title':'X'}).status_code==400
+    assert edit.post(edit_url,data={'category_token':edit_token,'title':'Meine Figuren','icon':'🧸','description':'Neue Beschreibung'}).status_code==302
+    config=m._custom_collection_category(owner.id,'figuren')
+    assert config['title']=='Meine Figuren' and config['icon']=='🧸' and config['description']=='Neue Beschreibung'
+    assert m.collector_metadata(own)['custom_category']=='figuren'
+    assert m._custom_collection_category(foreign.id,'figuren')['title']=='Fremde Figuren'
+    assert edit.get('/collector/custom-categories/movies/edit').status_code==404
+
+    # Bulk move is atomic, custom-only and scoped to the active collection.
+    extra=m.CollectorItem(user_id=owner.id,category='custom',title='Zweite Figur',metadata_json=json.dumps({'custom_category':'figuren','note':'preserve'}))
+    movie=m.CollectorItem(user_id=owner.id,category='movies',title='Film')
+    m.db.session.add_all([extra,movie]);m.db.session.commit()
+    section=edit.get('/collector/custom?custom_category=figuren').get_data(as_text=True)
+    move_token=re.search(r'name="category_token" value="([^"]+)"',section).group(1)
+    move_url='/collector/custom-categories/move-items'
+    data={'category_token':move_token,'target_category':'leer','item_ids':[str(own_id),str(extra.id)]}
+    assert read.post(move_url,data=data).status_code==403
+    assert edit.post(move_url,data={'target_category':'leer','item_ids':[str(own_id)]}).status_code==400
+    assert edit.post(move_url,data={**data,'target_category':'unknown'}).status_code==404
+    assert edit.post(move_url,data={**data,'item_ids':[str(own_id),str(other_id)]}).status_code==404
+    assert m.collector_metadata(own)['custom_category']=='figuren'
+    assert edit.post(move_url,data={**data,'item_ids':[str(own_id),str(movie.id)]}).status_code==404
+    assert edit.post(move_url,data={**data,'item_ids':['²']}).status_code==400
+    assert edit.post(move_url,data={**data,'item_ids':[]}).status_code==302
+    assert edit.post(move_url,data=data).status_code==302
+    assert m.collector_metadata(own)=={'custom_category':'leer','extra':'keep'}
+    assert m.collector_metadata(extra)=={'custom_category':'leer','note':'preserve'}
+    assert edit.post(move_url,data={**data,'target_category':''}).status_code==302
+    assert 'custom_category' not in m.collector_metadata(own)
+    assert edit.post(move_url,data={**data,'target_category':'figuren'}).status_code==302
+
     url='/collector/custom-categories/figuren/delete'
     assert read.get(url).status_code==403
     assert read.post(url,data={'confirm_delete':'1'}).status_code==403
     assert 'Diese Kategorie löschen' not in read.get('/collector/custom?custom_category=figuren').get_data(as_text=True)
     page=edit.get(url)
     assert page.status_code==200
-    assert '1 Objekte bleiben erhalten' in page.get_data(as_text=True)
+    assert '2 Objekte bleiben erhalten' in page.get_data(as_text=True)
     assert len(m.custom_collection_categories(owner.id))==2, 'GET cannot mutate categories'
     token=re.search(r'name="delete_token" value="([^"]+)"',page.get_data(as_text=True)).group(1)
     assert edit.post(url,data={'confirm_delete':'1'}).status_code==400
@@ -83,4 +120,4 @@ with m.app.app_context():
     assert edit.post(empty_url,data={'delete_token':token,'confirm_delete':'1'}).status_code==302
     assert m.custom_collection_categories(owner.id)==[]
     assert m.db.session.get(m.CollectorItem,own_id) is not None
-    print('OK: populated/empty category deletion, copy preservation, read-only access, confirmation, isolation and dashboard')
+    print('OK: category editing, atomic bulk move, deletion, copy preservation, permissions, confirmation, isolation and dashboard')

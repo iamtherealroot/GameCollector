@@ -13,8 +13,8 @@
 Lade das gemeinsame Installations-/Updatepaket aus den [GitHub-Releases](https://github.com/iamtherealroot/GameCollector/releases/latest) herunter. Entpacke es außerhalb des Zielverzeichnisses, zum Beispiel in deinem Downloadordner:
 
 ```bash
-unzip Bibo-v4.6.6.zip
-cd Bibo-v4.6.6
+unzip Bibo-v4.7.0.zip
+cd Bibo-v4.7.0
 sudo bash install.sh
 ```
 

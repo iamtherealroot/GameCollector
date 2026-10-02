@@ -5,8 +5,8 @@
 Lade das neue Release-Paket herunter und entpacke es außerhalb der laufenden Installation:
 
 ```bash
-unzip Bibo-v4.6.6.zip
-cd Bibo-v4.6.6
+unzip Bibo-v4.7.0.zip
+cd Bibo-v4.7.0
 sudo bash install.sh
 ```
 
