@@ -1,6 +1,6 @@
-# GameCollector
+# Bibo
 
-GameCollector ist eine selbst gehostete Webanwendung zur Verwaltung physischer
+Bibo ist eine selbst gehostete Webanwendung zur Verwaltung physischer
 Videospiele, Konsolen und Zubehörteile. Sammlung, Katalog, Serienfortschritt,
 Zustände, Cover, Marktwerte und Preisentwicklung bleiben auf dem eigenen
 Server. Die Oberfläche ist für Desktop, Tablet und Mobilgeräte ausgelegt.
