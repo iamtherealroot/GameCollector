@@ -5,7 +5,7 @@
 <form method="post" class="form-grid" action="{{ url_for('custom_collection_category_edit', category_id=category.id) }}">
   <input type="hidden" name="category_token" value="{{ category_token }}">
   <label>Name<input name="title" required minlength="2" maxlength="120" value="{{ category.title }}"></label>
-  <label>Symbol<input name="icon" maxlength="8" value="{{ category.icon }}"></label>
+  {% set selected_icon = category.icon %}{% include '_custom_category_icon_picker.html' %}
   <label class="wide">Beschreibung<input name="description" maxlength="240" value="{{ category.description }}"></label>
   <div class="collector-actions wide"><button class="button" type="submit">Änderungen speichern</button>
   <a class="button" href="{{ url_for('collector_section', section='custom', custom_category=category.id) }}">Abbrechen</a></div>

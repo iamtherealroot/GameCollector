@@ -47,11 +47,11 @@ Metadaten und Preisquellen sind je nach Bereich optional, etwa eBay, PrixRetro, 
 
 ## Installation & Update
 
-**Ein Paket, ein Installer:** Lade `Bibo-vX.Y.Z.zip` aus den [Releases](https://github.com/iamtherealroot/GameCollector/releases/latest) auf deinen Server und entpacke es **außerhalb des Installationsverzeichnisses**. Beispiel für v4.7.0:
+**Ein Paket, ein Installer:** Lade `Bibo-vX.Y.Z.zip` aus den [Releases](https://github.com/iamtherealroot/GameCollector/releases/latest) auf deinen Server und entpacke es **außerhalb des Installationsverzeichnisses**. Beispiel für v4.7.1:
 
 ```bash
-unzip Bibo-v4.7.0.zip
-cd Bibo-v4.7.0
+unzip Bibo-v4.7.1.zip
+cd Bibo-v4.7.1
 sudo bash install.sh
 ```
 
@@ -71,7 +71,7 @@ Der Standardpfad bleibt `/opt/gamecollector`, damit vorhandene Installationen we
 | Aktualisieren und sichern | [Updates & Wiederherstellung](docs/UPDATES.md) |
 | Dienste und Datenhaltung | [Architektur](docs/ARCHITECTURE.md) |
 | Eigene Daten und externe Anbieter | [Datenschutz](docs/PRIVACY.md) |
-| Änderungen dieser Version | [Release-Notizen v4.7.0](RELEASE-NOTES-v4.7.0.md) |
+| Änderungen dieser Version | [Release-Notizen v4.7.1](RELEASE-NOTES-v4.7.1.md) |
 | Entwicklungsgeschichte | [Changelog](CHANGELOG.md) · [Dokumentationsarchiv](docs/archive/README.md) |
 
 ## Mitmachen
@@ -87,7 +87,11 @@ python3 scripts/test_game_price_stability.py
 Weitere Prüfungen laufen in [GitHub Actions](https://github.com/iamtherealroot/GameCollector/actions). Für ein Release mit passender `APP_VERSION`:
 
 ```bash
-bash scripts/build_release.sh 4.7.0
+bash scripts/build_release.sh 4.7.1
 ```
 
 Bibo steht unter der [GPL-3.0](LICENSE).
+
+### Automatisch das neueste Paket installieren
+
+`scripts/bibo-update-latest.sh` vergleicht lokale Bibo-ZIPs in Downloads mit dem neuesten stabilen GitHub-Release. Die höchste Version wird installiert; bei gleicher Version wird das lokale Paket verwendet. Start: `sudo bash scripts/bibo-update-latest.sh`. Ein anderer Ordner kann über `BIBO_DOWNLOAD_DIR` angegeben werden. `BIBO_CHECK_ONLY=1` prüft nur das gewählte Paket.

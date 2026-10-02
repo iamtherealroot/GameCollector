@@ -33,6 +33,8 @@ jobs:
           sed -i 's/ADMIN_PASSWORD=admin/ADMIN_PASSWORD=ci-admin-password/' .env
           sed -i 's/ADMIN_FORCE_PASSWORD_CHANGE=1/ADMIN_FORCE_PASSWORD_CHANGE=0/' .env
           printf '\nAPP_BIND=127.0.0.1\n' >> .env
+      - name: Validate update starter syntax
+        run: bash -n scripts/bibo-update-latest.sh
       - name: Compile Python
         run: python3 -m py_compile app/app.py app/scheduler.py
       - name: Compile templates and route map

@@ -94,6 +94,9 @@ with m.app.app_context():
     assert 'Diese Kategorie löschen' not in read.get('/collector/custom?custom_category=figuren').get_data(as_text=True)
     page=edit.get(url)
     assert page.status_code==200
+    if os.environ.get('BIBO_UI_SNAPSHOTS'):
+        snapshots=Path(os.environ['BIBO_UI_SNAPSHOTS']);snapshots.mkdir(parents=True,exist_ok=True)
+        (snapshots/'delete.html').write_text(page.get_data(as_text=True))
     assert '2 Objekte bleiben erhalten' in page.get_data(as_text=True)
     assert len(m.custom_collection_categories(owner.id))==2, 'GET cannot mutate categories'
     token=re.search(r'name="delete_token" value="([^"]+)"',page.get_data(as_text=True)).group(1)
@@ -120,4 +123,21 @@ with m.app.app_context():
     assert edit.post(empty_url,data={'delete_token':token,'confirm_delete':'1'}).status_code==302
     assert m.custom_collection_categories(owner.id)==[]
     assert m.db.session.get(m.CollectorItem,own_id) is not None
+    # Preset and custom icons survive creation, edits and validation errors.
+    assert 'data-category-icon-select' in home
+    assert edit.post('/collector/custom-categories',data={'title':'Brettspiele','icon':'🎲'}).status_code==302
+    icon_category=m.custom_collection_categories(owner.id)[0]
+    assert icon_category['icon']=='🎲'
+    icon_url=f"/collector/custom-categories/{icon_category['id']}/edit"
+    icon_page=edit.get(icon_url).get_data(as_text=True)
+    assert 'value="🎲" selected' in icon_page
+    icon_token=re.search(r'name="category_token" value="([^"]+)"',icon_page).group(1)
+    assert edit.post(icon_url,data={'category_token':icon_token,'title':'Drachen','icon':'__custom__','custom_icon':'🐉'}).status_code==302
+    assert m._custom_collection_category(owner.id,icon_category['id'])['icon']=='🐉'
+    icon_page=edit.get(icon_url).get_data(as_text=True)
+    assert 'value="__custom__" selected' in icon_page and 'value="🐉"' in icon_page
+    invalid=edit.post(icon_url,data={'category_token':icon_token,'title':'X','icon':'__custom__','custom_icon':'🐲'})
+    assert invalid.status_code==400 and 'value="🐲"' in invalid.get_data(as_text=True)
+    if os.environ.get('BIBO_UI_SNAPSHOTS'):
+        (snapshots/'edit.html').write_text(icon_page)
     print('OK: category editing, atomic bulk move, deletion, copy preservation, permissions, confirmation, isolation and dashboard')

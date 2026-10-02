@@ -37,7 +37,7 @@ from pathlib import Path
 from html.parser import HTMLParser
 from itsdangerous import BadSignature, URLSafeSerializer
 
-APP_VERSION = "4.7.0"
+APP_VERSION = "4.7.1"
 APP_NAME = "Bibo"
 DISPLAY_TIMEZONE_NAME = os.environ.get("TZ", "Europe/Berlin")
 try:
@@ -1175,6 +1175,7 @@ def inject_globals():
         "available_collection_spaces": accessible_collection_spaces(current_user) if owner else [],
         "collection_permission_role": active_collection_permission_role() if owner else None,
         "can_collection": collection_capability,
+        "custom_category_icons": CUSTOM_CATEGORY_ICONS,
         "effective_role": effective_role() if current_user.is_authenticated else None,
         "eur": format_eur,
         "game_price": game_price_info,
@@ -5645,6 +5646,28 @@ COLLECTOR_SECTIONS = {
 }
 
 
+
+CUSTOM_CATEGORY_ICONS = [
+    ("📦", "Allgemeine Sammlung"), ("🧸", "Figuren & Spielzeug"),
+    ("🎲", "Brettspiele"), ("🧩", "Puzzle & Bausteine"),
+    ("🚗", "Modellautos"), ("✈️", "Modellbau"),
+    ("🎮", "Gaming"), ("💻", "Computer & Technik"),
+    ("📱", "Handys & Geräte"), ("🎬", "Filme & Steelbooks"),
+    ("📚", "Bücher & Comics"), ("💿", "Musik & Tonträger"),
+    ("🃏", "Sammelkarten"), ("🪙", "Münzen"),
+    ("💎", "Schmuck"), ("⌚", "Uhren"),
+    ("👕", "Kleidung & Trikots"), ("🏆", "Sport & Erinnerungsstücke"),
+    ("📸", "Kameras"), ("🖼️", "Kunst & Dekoration"),
+]
+
+
+def custom_category_icon_from_form():
+    selected = (request.form.get("icon") or "📦").strip()
+    if selected == "__custom__":
+        selected = (request.form.get("custom_icon") or "").strip()
+    return selected[:8] or "📦"
+
+
 def custom_collection_categories(owner_id):
     """Return collection-scoped user-defined dashboard categories."""
     raw = app_setting_get(f"custom_collection_categories_{int(owner_id)}", "[]")
@@ -5690,7 +5713,7 @@ def custom_collection_category_create():
         suffix += 1
     rows.append({
         "id": key, "title": title,
-        "icon": (request.form.get("icon") or "📦").strip()[:8] or "📦",
+        "icon": custom_category_icon_from_form(),
         "description": " ".join((request.form.get("description") or "").split())[:240],
     })
     app_setting_set(f"custom_collection_categories_{int(owner_id)}", json.dumps(rows, ensure_ascii=False))
@@ -5728,10 +5751,10 @@ def custom_collection_category_edit(category_id):
         if len(title) < 2:
             flash("Der Kategoriename muss mindestens zwei Zeichen enthalten.", "warning")
             return render_template("custom_category_edit.html", category={**category, "title": title,
-                "icon": request.form.get("icon", category["icon"]),
+                "icon": custom_category_icon_from_form(),
                 "description": request.form.get("description", category["description"])}, category_token=token), 400
         updated = {**category, "title": title,
-                   "icon": (request.form.get("icon") or "📦").strip()[:8] or "📦",
+                   "icon": custom_category_icon_from_form(),
                    "description": " ".join((request.form.get("description") or "").split())[:240]}
         categories = [updated if row["id"] == category_id else row for row in custom_collection_categories(owner_id)]
         app_setting_set(f"custom_collection_categories_{owner_id}", json.dumps(categories, ensure_ascii=False))

@@ -1,3 +1,10 @@
+## v4.7.1 – Symbolauswahl und flexibler Installer
+
+- Symbolauswahl mit 20 Standardicons und eigenem Emoji beim Anlegen und Bearbeiten eigener Kategorien.
+- Löschbestätigung mit ausgerichteter Checkbox, Kategoriename und Hinweis zum Objekterhalt; angepasste Schaltflächen auf kleinen Bildschirmen.
+
+- Startskript vergleicht lokale Pakete aus Downloads mit GitHub und installiert die höchste Version; lokale Pakete funktionieren auch offline.
+
 ## v4.7.0 – Eigene Sammlungskategorien verwalten
 
 - Eigene Kategorien bearbeiten und mit Bestätigung entfernen; Objekte bleiben erhalten.

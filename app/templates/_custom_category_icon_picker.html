@@ -1,0 +1,14 @@
+{% set preset_values = custom_category_icons|map(attribute=0)|list %}
+<div class="category-icon-field" data-category-icon-picker>
+  <label>Symbol
+    <select name="icon" data-category-icon-select>
+      {% for icon, label in custom_category_icons %}<option value="{{ icon }}"{% if selected_icon == icon %} selected{% endif %}>{{ icon }} {{ label }}</option>{% endfor %}
+      <option value="__custom__"{% if selected_icon not in preset_values %} selected{% endif %}>✏️ Eigenes Emoji</option>
+    </select>
+  </label>
+  <label data-category-custom-field>Eigenes Emoji
+    <input name="custom_icon" maxlength="8" value="{{ selected_icon if selected_icon not in preset_values else '' }}" placeholder="z. B. 🐉" data-category-custom-input>
+    <small class="muted">Wird bei „Eigenes Emoji“ verwendet.</small>
+  </label>
+</div>
+<script src="{{ url_for('static', filename='custom-category-icons.js') }}?v={{ app_version }}" defer></script>
