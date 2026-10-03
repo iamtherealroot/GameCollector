@@ -1,0 +1,61 @@
+name: bibo-release-test
+services:
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: bibo_test
+      POSTGRES_USER: bibo_test
+      POSTGRES_PASSWORD: ${BIBO_TEST_DB_PASSWORD:?Testpasswort fehlt}
+    volumes:
+      - test_db:/var/lib/postgresql/data
+    healthcheck:
+      test: [CMD-SHELL, "pg_isready -U bibo_test -d bibo_test"]
+      interval: 3s
+      timeout: 3s
+      retries: 30
+  init:
+    build: .
+    command: [python, -m, app.bootstrap]
+    depends_on:
+      db:
+        condition: service_healthy
+    environment: &test_environment
+      BIBO_SKIP_BOOTSTRAP: "1"
+      BIBO_TEST_MODE: "1"
+      BIBO_TEST_PASSWORDLESS: "1"
+      DATABASE_URL: postgresql+psycopg://bibo_test:${BIBO_TEST_DB_PASSWORD}@db:5432/bibo_test
+      SECRET_KEY: ${BIBO_TEST_SECRET:?Testschlüssel fehlt}
+      ADMIN_USERNAME: test-admin
+      ADMIN_PASSWORD: ${BIBO_TEST_ADMIN_PASSWORD:?Admin-Testpasswort fehlt}
+      FEEDBACK_UPLOAD_DIR: /app/feedback-uploads
+      TZ: Europe/Berlin
+    volumes:
+      - test_images:/app/app/static/uploads
+      - test_feedback:/app/feedback-uploads
+  web:
+    build: .
+    depends_on:
+      init:
+        condition: service_completed_successfully
+    ports:
+      - "127.0.0.1:18095:8000"
+    environment: *test_environment
+    volumes:
+      - test_images:/app/app/static/uploads
+      - test_feedback:/app/feedback-uploads
+  scheduler:
+    build: .
+    command: [python, -m, app.scheduler]
+    environment: *test_environment
+    depends_on:
+      init:
+        condition: service_completed_successfully
+  tests:
+    build:
+      context: .
+      dockerfile: Dockerfile.test
+    command: [bash, scripts/run_regressions.sh]
+volumes:
+  test_db:
+  test_images:
+  test_feedback:

@@ -70,10 +70,10 @@ fresh_install(){
 
   log "Neuinstallation nach $INSTALL_DIR"
   mkdir -p "$INSTALL_DIR"
-  tar --exclude='.git' --exclude='.env' --exclude='backups' --exclude='updates' --exclude='releases' \
+  tar --exclude='.git' --exclude='.env' --exclude='backups' --exclude='updates' --exclude='releases' --exclude='feedback-uploads' \
       --exclude='__pycache__' --exclude='*.pyc' --exclude='*.zip' \
       -cf - -C "$SOURCE_DIR" . | tar -xf - -C "$INSTALL_DIR"
-  mkdir -p "$INSTALL_DIR/uploads" "$INSTALL_DIR/backups" "$INSTALL_DIR/updates"
+  mkdir -p "$INSTALL_DIR/uploads" "$INSTALL_DIR/backups" "$INSTALL_DIR/updates" "$INSTALL_DIR/feedback-uploads"
 
   cat > "$INSTALL_DIR/.env" <<ENV
 POSTGRES_DB=gamecollector
@@ -126,7 +126,7 @@ update_install(){
   make_code_backup(){
     log "Programmstand sichern"
     tar --exclude='.git' --exclude='backups' --exclude='updates' --exclude='data' \
-        --exclude='uploads' --exclude='app/static/uploads' --exclude='__pycache__' --exclude='*.pyc' \
+        --exclude='uploads' --exclude='app/static/uploads' --exclude='feedback-uploads' --exclude='__pycache__' --exclude='*.pyc' \
         -czf "$BACKUP_DIR/code.tar.gz" -C "$INSTALL_DIR" .
     cp -a "$INSTALL_DIR/.env" "$BACKUP_DIR/env.backup"
   }
@@ -165,7 +165,7 @@ update_install(){
   make_database_backup
 
   log "Release v$TARGET_VERSION als Update übernehmen"
-  tar --exclude='.git' --exclude='.env' --exclude='uploads' --exclude='app/static/uploads' \
+  tar --exclude='.git' --exclude='.env' --exclude='uploads' --exclude='app/static/uploads' --exclude='feedback-uploads' \
       --exclude='backups' --exclude='updates' --exclude='data' --exclude='releases' \
       --exclude='__pycache__' --exclude='*.pyc' --exclude='*.before-*' --exclude='*.debug-backup' \
       -cf - -C "$SOURCE_DIR" . | tar -xf - -C "$INSTALL_DIR"
@@ -175,8 +175,16 @@ update_install(){
   docker compose config -q
 
   log "Web und Scheduler neu bauen"
-  docker compose build web scheduler
-  docker compose up -d --force-recreate web scheduler
+  docker compose build init web scheduler
+  docker compose stop web scheduler
+  log "Datenbank vor den neuen Workern initialisieren"
+  docker compose up -d --force-recreate init
+  init_container="$(docker compose ps -aq init)"
+  [[ -n "$init_container" ]] || { log 'Init-Container fehlt'; false; }
+  init_result="$(docker wait "$init_container")"
+  docker compose logs --tail=60 init
+  [[ "$init_result" == 0 ]] || { log 'Datenbankinitialisierung fehlgeschlagen'; false; }
+  docker compose up -d --no-deps --force-recreate web scheduler
 
   log "Healthcheck ausführen"
   tries=30

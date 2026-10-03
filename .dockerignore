@@ -4,6 +4,9 @@
 data
 uploads
 backups
+feedback-uploads
+instance
+test-runtime
 updates
 __pycache__
 *.pyc

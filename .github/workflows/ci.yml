@@ -23,6 +23,12 @@ jobs:
         run: python3 scripts/test_game_price_stability.py
       - name: Custom category deletion regression tests
         run: python3 scripts/test_custom_category_delete.py
+      - name: Private feedback and navigation regression tests
+        run: python3 scripts/test_feedback_portal.py
+      - name: Opt-in global Top 10 regression tests
+        run: python3 scripts/test_top10.py
+      - name: Once-per-user release notice regression tests
+        run: python3 scripts/test_release_news.py
       - name: Check public repository contents
         run: bash scripts/check-public-tree.sh
       - name: Create test configuration
@@ -67,4 +73,10 @@ jobs:
           test "$(docker inspect -f '{{.State.Status}}' gamecollector-scheduler-1)" = "running"
       - name: Stop containers
         if: always()
-        run: docker compose down
+        run: |
+          docker compose down
+      - name: Isolated reusable Docker release tests
+        run: bash scripts/docker-test.sh check
+      - name: Stop isolated test containers
+        if: always()
+        run: bash scripts/docker-test.sh down

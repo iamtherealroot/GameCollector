@@ -7,7 +7,7 @@ cd "$ROOT"
 failed=0
 while IFS= read -r path; do
   case "$path" in
-    .env|*.db|*.sqlite|*.sqlite3|*.sql|*.zip|*.tar.gz|backups/*|data/*|updates/*)
+    .env|*.db|*.sqlite|*.sqlite3|*.sql|*.zip|*.tar.gz|backups/*|data/*|updates/*|feedback-uploads/*|instance/*|test-runtime/*)
       printf 'Nicht veröffentlichen: %s\n' "$path" >&2
       failed=1
       ;;

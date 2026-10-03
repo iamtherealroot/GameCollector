@@ -12,6 +12,9 @@ htmlcov/
 uploads/*
 !uploads/.gitkeep
 backups/
+feedback-uploads/
+instance/
+test-runtime/
 data/
 updates/
 *.zip

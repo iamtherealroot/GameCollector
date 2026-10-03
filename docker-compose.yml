@@ -14,13 +14,32 @@ services:
       timeout: 5s
       retries: 20
 
-  web:
+  init:
     build: .
-    restart: unless-stopped
+    command: ["python", "-m", "app.bootstrap"]
     depends_on:
       db:
         condition: service_healthy
     environment:
+      BIBO_SKIP_BOOTSTRAP: "1"
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-gamecollector}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-gamecollector}
+      SECRET_KEY: ${SECRET_KEY}
+      ADMIN_USERNAME: ${ADMIN_USERNAME:-admin}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD}
+      FEEDBACK_UPLOAD_DIR: /app/feedback-uploads
+      TZ: ${TZ:-Europe/Berlin}
+    volumes:
+      - ./uploads:/app/app/static/uploads
+      - ./feedback-uploads:/app/feedback-uploads
+
+  web:
+    build: .
+    restart: unless-stopped
+    depends_on:
+      init:
+        condition: service_completed_successfully
+    environment:
+      BIBO_SKIP_BOOTSTRAP: "1"
       DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-gamecollector}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-gamecollector}
       SECRET_KEY: ${SECRET_KEY}
       ADMIN_USERNAME: ${ADMIN_USERNAME:-admin}
@@ -31,19 +50,22 @@ services:
       VGPREISE_AUTH_CODE: ${VGPREISE_AUTH_CODE:-}
       TZ: ${TZ:-Europe/Berlin}
       AUTOMATIC_REVALUE_HOUR: ${AUTOMATIC_REVALUE_HOUR:-3}
+      FEEDBACK_UPLOAD_DIR: /app/feedback-uploads
     ports:
       - "${APP_PORT:-8095}:8000"
     volumes:
       - ./uploads:/app/app/static/uploads
+      - ./feedback-uploads:/app/feedback-uploads
 
   scheduler:
     build: .
     restart: unless-stopped
     depends_on:
-      db:
-        condition: service_healthy
+      init:
+        condition: service_completed_successfully
     command: ["python", "-m", "app.scheduler"]
     environment:
+      BIBO_SKIP_BOOTSTRAP: "1"
       DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-gamecollector}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-gamecollector}
       SECRET_KEY: ${SECRET_KEY}
       RAWG_API_KEY: ${RAWG_API_KEY:-}

@@ -1,3 +1,27 @@
+## v5.0.4 – freigegebener Release
+
+- Enthält die Prüfentwürfe 5.0.0 bis 5.0.4: Feedbackportal, freiwillige globale Top 10, nutzerbezogene Release-Hinweise und interaktive Dashboard-Tour.
+- Farbiger Bücherregal-Button, verständliche Navigation und Leerzustände.
+- Serialisierte Datenbankinitialisierung vor Web und Scheduler.
+- Isolierte Docker-TU mit gesichertem Import, Desktop-Starter und ausschließlich dort passwortlosem test-admin.
+- Vollständige Änderungen und bekannte Grenzen: RELEASE-NOTES-v5.0.4.md.
+
+## v5.0.1 – zweiter Prüfentwurf
+
+- Menübuttons, globale Top 10 je Bereich mit Freigabe und persönlichem Schalter.
+- Top 10 erst ab zwei angelegten Sammlungsdatenbanken verfügbar.
+- Einmaliger „Was ist neu?“-Hinweis je Nutzer und Version.
+- Separate Docker-Testumgebung und SQL-Wiederherstellungsprüfung vorbereitet.
+- 4.8-/4.9-Restarbeiten ausdrücklich dokumentiert; noch kein Release.
+
+## v5.0.0 – Prüfentwurf: Navigation und Feedback
+
+- Gemeinsames erklärtes Desktop-/Mobilmenü, aktive Bereiche, Funktionensuche und Dashboard-Schnellaktionen.
+- Privates Feedback mit Bildern, Nutzerantworten, Status und geplanter Version.
+- Systemadmin-Verwaltung mit Prioritäten und geschützten internen Notizen.
+- Private Uploads, Formular- und Revisionsprüfung, Grenzen und Integrationstests.
+- Nicht veröffentlicht; Freigabe nach Prüfung erforderlich.
+
 ## v4.7.1 – Symbolauswahl und flexibler Installer
 
 - Symbolauswahl mit 20 Standardicons und eigenem Emoji beim Anlegen und Bearbeiten eigener Kategorien.

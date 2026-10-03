@@ -37,7 +37,7 @@ from pathlib import Path
 from html.parser import HTMLParser
 from itsdangerous import BadSignature, URLSafeSerializer
 
-APP_VERSION = "4.7.1"
+APP_VERSION = "5.0.4"
 APP_NAME = "Bibo"
 DISPLAY_TIMEZONE_NAME = os.environ.get("TZ", "Europe/Berlin")
 try:
@@ -96,6 +96,8 @@ def format_local_datetime(value, fmt="%d.%m.%Y %H:%M"):
 app.jinja_env.finalize = lambda value: "" if value is None else value
 
 db = SQLAlchemy(app)
+from .test_environment import setup_test_environment
+test_passwordless_enabled = setup_test_environment(app, db)
 login_manager = LoginManager(app)
 login_manager.login_view = "login"
 
@@ -1468,9 +1470,13 @@ def enforce_viewer_read_only():
     if not current_user.is_authenticated or request.method not in {"POST", "PUT", "PATCH", "DELETE"}:
         return None
     # Viewer may update their own display name/password and log out, but cannot alter shared data.
-    if request.endpoint in {"account", "logout", "collection_switch", "personal_review_edit"}:
+    if request.endpoint in {"account", "logout", "collection_switch", "personal_review_edit", "collection_access_request"}:
         return None
     endpoint = request.endpoint or ""
+    # Feedback is personal, not a mutation of the active collection. Its own
+    # routes check login, ownership, admin rights and form tokens.
+    if endpoint.startswith("feedback.") or endpoint.startswith("top10.") or endpoint.startswith("release_news."):
+        return None
     if endpoint == "collection_access" and not collection_capability("manage_users"):
         abort(403)
     if endpoint.startswith("import_csv") and not collection_capability("run_imports"):
@@ -4616,10 +4622,11 @@ def health_deep():
         db.session.execute(text("SELECT 1"))
         tables = set(inspect(db.engine).get_table_names())
         required = {"user", "collection_space", "collection_permission", "collection_access_request", "game", "collection_item", "collector_item", "hardware_item", "accessory_item", "application_error", "capture_batch", "release_coverage", "personal_review", "bibo_work", "bibo_edition", "bibo_copy", "bibo_series", "bibo_series_membership", "storage_location", "loan_record", "inventory_session"}
+        required.update({'release_acknowledgement', 'dashboard_tutorial_acknowledgement', 'feedback_ticket', 'top10_consent', 'top10_user_preference'})
         missing = sorted(required - tables)
         if missing:
             return {"status":"error","name":APP_NAME,"version":APP_VERSION,"database":"ok","schema":"incomplete","missing_tables":missing}, 503
-        return {"status":"ok","name":APP_NAME,"version":APP_VERSION,"database":"ok","schema":"ok","games":Game.query.count(),"collection_items":CollectionItem.query.count(),"library_copies":BiboCopy.query.filter_by(active=True).count()}, 200
+        return {"status":"ok","name":APP_NAME,"version":APP_VERSION,"test_mode":app.config['BIBO_TEST_MODE'],"database":"ok","schema":"ok","games":Game.query.count(),"collection_items":CollectionItem.query.count(),"library_copies":BiboCopy.query.filter_by(active=True).count()}, 200
     except Exception as exc:
         app.logger.exception("deep healthcheck failed")
         return {"status":"error","version":APP_VERSION,"database":"error","message":str(exc)[:160]}, 503
@@ -4629,6 +4636,12 @@ def health_deep():
 @login_required
 def whats_new():
     releases = [
+        ("5.0.4", "Prüfentwurf: Dashboard-Tour & einfacher Testzugang", "Farbiges Bücherregal, geführte Einführung direkt im Dashboard, Testbanner, passwortloser Test-admin und Desktop-Bash-Starter."),
+        ("5.0.3", "Prüfentwurf: zuverlässiger Docker-Start", "Einmalige Datenbankinitialisierung vor Web-Workern und Scheduler; sichtbare Healthcheck-Wartephase und frühzeitige Fehlerausgabe."),
+        ("5.0.2", "Prüfentwurf: Einführung & Testmigration", "Robustere Release-Bestätigung, überspringbares Einführungstutorial und Kopieren von Produktionsdaten in die isolierte Docker-Testumgebung."),
+        ("5.0.1", "Zweiter Prüfentwurf: globale Top 10 & Release-Hinweise", "Menübuttons, freiwillige globale Ranglisten mit persönlichem Schalter ab zwei Sammlungen, einmaliger Hinweis pro Nutzer/Version und separate Docker-Testumgebung."),
+        ("5.0.0", "Prüfentwurf: verständliche Navigation & privates Feedback", "Menüs erklären Funktionen und bieten eine Suche. Nutzer können Meldungen mit Bildern senden; Systemadministratoren verwalten Status, Zielversion, Antworten und interne Notizen."),
+        ("4.7.1", "Symbolauswahl & flexibler Installer", "Eigene Kategorien erhalten Standardicons oder ein eigenes Emoji. Die Löschbestätigung ist kompakter, das Startskript findet Pakete lokal und auf GitHub."),
         ("4.7.0", "Eigene Sammlungskategorien verwalten", "Eigene Dashboard-Bereiche bearbeiten oder entfernen und mehrere Objekte gemeinsam verschieben. Beim Entfernen einer Kategorie bleiben alle Objekte erhalten."),
         ("4.6.5", "Private Rechteverwaltung & sauberer Release-Workflow", "Sammlungsverwalter sehen nur Mitglieder und konkrete Zugriffsanfragen ihrer Sammlung. Eigene Kategorien führen direkt zum ersten Objekt und leere Sammlungen zeigen keine fremden Spielreihen mehr."),
         ("4.6.4", "Getrennte Spielreihen & eigene Dashboard-Bereiche", "Spielreihen erscheinen nur für die aktive Sammlung; zusätzlich lassen sich beliebig viele eigene Sammlungskategorien mit Name und Symbol direkt zum Start- und Bewertungsdashboard hinzufügen."),
@@ -4698,7 +4711,8 @@ def login():
         return redirect(url_for("collector_home"))
     if request.method == "POST":
         user = User.query.filter_by(username=request.form.get("username", "").strip(), is_system=False).first()
-        if user and check_password_hash(user.password_hash, request.form.get("password", "")):
+        test_login = user and user.username == 'test-admin' and test_passwordless_enabled()
+        if user and (test_login or check_password_hash(user.password_hash, request.form.get("password", ""))):
             session.permanent = True
             login_user(user, remember=True, duration=timedelta(days=SESSION_DAYS))
             return redirect(url_for("collector_home"))
@@ -5670,6 +5684,8 @@ def custom_category_icon_from_form():
 
 def custom_collection_categories(owner_id):
     """Return collection-scoped user-defined dashboard categories."""
+    if owner_id is None:
+        return []
     raw = app_setting_get(f"custom_collection_categories_{int(owner_id)}", "[]")
     try:
         payload = json.loads(raw) if raw else []
@@ -17876,7 +17892,12 @@ def admin_backup_archive():
             for path in uploads.rglob("*"):
                 if path.is_file() and path.name != ".gitkeep":
                     z.write(path, str(Path("uploads") / path.relative_to(uploads)))
-        z.writestr("README.txt", f"Bibo {APP_VERSION} Komplettbackup\nErstellt: {datetime.now().isoformat()}\nEnthält database.sql und uploads/.\n")
+        feedback_uploads = Path(app.config.get('FEEDBACK_UPLOAD_DIR') or os.environ.get('FEEDBACK_UPLOAD_DIR') or Path(app.instance_path) / 'feedback-uploads')
+        if feedback_uploads.exists():
+            for path in feedback_uploads.glob('*.jpg'):
+                if path.is_file() and not path.is_symlink():
+                    z.write(path, str(Path('feedback-uploads') / path.name))
+        z.writestr("README.txt", f"Bibo {APP_VERSION} Komplettbackup\nErstellt: {datetime.now().isoformat()}\nEnthält database.sql, uploads/ und private feedback-uploads/.\n")
     out.seek(0)
     log_activity("backup_archive_created", "database", None, "Administrator hat ein Komplettbackup erstellt.")
     db.session.commit()
@@ -17968,38 +17989,53 @@ def repair_v116_franchise_aliases():
         app.logger.exception("v1.1.6 Pokémon alias repair skipped after an unexpected error")
         return 0
 
-with app.app_context():
-    db.create_all()
-    ensure_schema()
-    recover_stale_revaluation_runs(force=True)
-    ensure_default_consoles()
-    normalize_existing_consoles()
-    admin_user = os.environ.get("ADMIN_USERNAME", "admin")
-    admin_password = os.environ.get("ADMIN_PASSWORD")
-    if admin_password and not User.query.filter_by(username=admin_user).first():
-        db.session.add(User(username=admin_user, display_name=admin_user, password_hash=generate_password_hash(admin_password), is_admin=True, is_system=False))
-        db.session.commit()
-    shared = User.query.filter_by(username=SHARED_COLLECTION_USERNAME).first()
-    if not shared:
-        shared = User(username=SHARED_COLLECTION_USERNAME, display_name="Gemeinsame Sammlung",
-                      password_hash=generate_password_hash(os.urandom(32).hex()), is_admin=False, is_system=True)
-        db.session.add(shared)
-        db.session.commit()
-    ensure_single_shared_collection()
-    ensure_collection_spaces()
-    repair_pc_hardware_profiles()
-    try:
-        refresh_bibo_registry()
-    except Exception:
-        db.session.rollback()
-        app.logger.exception("Bibo registry refresh skipped during startup")
-    split_grouped_video_copies()
-    repair_pokemon_card_valuation_artifacts()
-    # Alias collisions must be merged before curated/online series data is
-    # touched; otherwise legacy Pokemon/Pokémon rows can violate the unique key.
-    repair_v116_franchise_aliases()
-    repair_lego_franchise_metadata()
-    repair_series_v102_metadata()
-    ensure_curated_series_entries()
-    repair_series_v103_metadata()
-    repair_series_v104_metadata()
+from .feedback import setup_feedback
+from .navigation import setup_navigation
+from .top10 import setup_top10
+from .release_news import setup_release_news
+ReleaseAcknowledgement = setup_release_news(app, db, APP_VERSION, utc_now)
+Top10Consent, Top10UserPreference, top10_user_enabled = setup_top10(app, db, globals())
+app.config['TOP10_USER_ENABLED'] = top10_user_enabled
+FeedbackTicket, FeedbackMessage, FeedbackAttachment = setup_feedback(app, db, User, utc_now, APP_VERSION, admin_required)
+setup_navigation(app, collection_capability, lambda: custom_collection_categories(active_collection_user_id()) if active_collection_user_id() else [])
+
+def initialize_database():
+    with app.app_context():
+        db.create_all()
+        ensure_schema()
+        recover_stale_revaluation_runs(force=True)
+        ensure_default_consoles()
+        normalize_existing_consoles()
+        admin_user = os.environ.get("ADMIN_USERNAME", "admin")
+        admin_password = os.environ.get("ADMIN_PASSWORD")
+        if admin_password and not User.query.filter_by(username=admin_user).first():
+            db.session.add(User(username=admin_user, display_name=admin_user, password_hash=generate_password_hash(admin_password), is_admin=True, is_system=False))
+            db.session.commit()
+        shared = User.query.filter_by(username=SHARED_COLLECTION_USERNAME).first()
+        if not shared:
+            shared = User(username=SHARED_COLLECTION_USERNAME, display_name="Gemeinsame Sammlung",
+                          password_hash=generate_password_hash(os.urandom(32).hex()), is_admin=False, is_system=True)
+            db.session.add(shared)
+            db.session.commit()
+        ensure_single_shared_collection()
+        ensure_collection_spaces()
+        repair_pc_hardware_profiles()
+        try:
+            refresh_bibo_registry()
+        except Exception:
+            db.session.rollback()
+            app.logger.exception("Bibo registry refresh skipped during startup")
+        split_grouped_video_copies()
+        repair_pokemon_card_valuation_artifacts()
+        # Alias collisions must be merged before curated/online series data is
+        # touched; otherwise legacy Pokemon/Pokémon rows can violate the unique key.
+        repair_v116_franchise_aliases()
+        repair_lego_franchise_metadata()
+        repair_series_v102_metadata()
+        ensure_curated_series_entries()
+        repair_series_v103_metadata()
+        repair_series_v104_metadata()
+
+
+if os.environ.get('BIBO_SKIP_BOOTSTRAP') != '1':
+    initialize_database()

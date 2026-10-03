@@ -3,6 +3,8 @@
 </p>
 
 <h1 align="center">Bibo</h1>
+> **5.0.4 – freigegebener Release.** Feedbackportal, freiwillige globale Top 10, einmalige Release-Hinweise, Dashboard-Tour, farbiges Bücherregal und isolierte Docker-Testumgebung mit Desktop-Starter. Der passwortlose test-admin gilt ausschließlich in der TU. [Aktuelle Release-Notizen](RELEASE-NOTES-v5.0.4.md). Noch offene 4.8-/4.9-Punkte: [5.0.1](RELEASE-NOTES-v5.0.1.md). [Docker-Testumgebung](docs/DOCKER-TESTUMGEBUNG.md).
+
 <p align="center"><strong>Deine Sammlung. Dein Server.</strong><br>Spiele, Filme, Bücher, Musik und mehr übersichtlich verwalten.</p>
 <p align="center">
   <a href="https://github.com/iamtherealroot/GameCollector/releases/latest"><img src="https://img.shields.io/github/v/release/iamtherealroot/GameCollector?label=Release" alt="Aktuelles Release"></a>
@@ -47,11 +49,11 @@ Metadaten und Preisquellen sind je nach Bereich optional, etwa eBay, PrixRetro, 
 
 ## Installation & Update
 
-**Ein Paket, ein Installer:** Lade `Bibo-vX.Y.Z.zip` aus den [Releases](https://github.com/iamtherealroot/GameCollector/releases/latest) auf deinen Server und entpacke es **außerhalb des Installationsverzeichnisses**. Beispiel für v4.7.1:
+**Ein Paket, ein Installer:** Lade `Bibo-vX.Y.Z.zip` aus den [Releases](https://github.com/iamtherealroot/GameCollector/releases/latest) auf deinen Server und entpacke es **außerhalb des Installationsverzeichnisses**. Beispiel für v5.0.4:
 
 ```bash
-unzip Bibo-v4.7.1.zip
-cd Bibo-v4.7.1
+unzip Bibo-v5.0.4.zip
+cd Bibo-v5.0.4
 sudo bash install.sh
 ```
 
@@ -71,7 +73,7 @@ Der Standardpfad bleibt `/opt/gamecollector`, damit vorhandene Installationen we
 | Aktualisieren und sichern | [Updates & Wiederherstellung](docs/UPDATES.md) |
 | Dienste und Datenhaltung | [Architektur](docs/ARCHITECTURE.md) |
 | Eigene Daten und externe Anbieter | [Datenschutz](docs/PRIVACY.md) |
-| Änderungen dieser Version | [Release-Notizen v4.7.1](RELEASE-NOTES-v4.7.1.md) |
+| Änderungen dieser Version | [Release-Notizen v5.0.4](RELEASE-NOTES-v5.0.4.md) |
 | Entwicklungsgeschichte | [Changelog](CHANGELOG.md) · [Dokumentationsarchiv](docs/archive/README.md) |
 
 ## Mitmachen
@@ -87,7 +89,7 @@ python3 scripts/test_game_price_stability.py
 Weitere Prüfungen laufen in [GitHub Actions](https://github.com/iamtherealroot/GameCollector/actions). Für ein Release mit passender `APP_VERSION`:
 
 ```bash
-bash scripts/build_release.sh 4.7.1
+bash scripts/build_release.sh 5.0.4
 ```
 
 Bibo steht unter der [GPL-3.0](LICENSE).

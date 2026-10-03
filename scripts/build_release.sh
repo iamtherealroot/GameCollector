@@ -15,7 +15,7 @@ mkdir -p "$base"
 
 rsync -a \
   --exclude '.git/' --exclude 'work/' --exclude 'instance/' --exclude '__pycache__/' \
-  --exclude '*.pyc' --exclude '*.zip' --exclude '.env' --exclude 'releases/' \
+  --exclude '*.pyc' --exclude '*.zip' --exclude '.env' --exclude 'releases/' --exclude 'feedback-uploads/' --exclude 'test-runtime/' \
   --exclude 'scripts/install_fresh.sh' \
   --exclude 'app/*.before-*' --exclude 'app/*.debug-backup' --exclude 'gamecollector-before*.sql' \
   "$root/" "$base/"

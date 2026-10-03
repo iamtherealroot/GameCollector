@@ -1,0 +1,10 @@
+<div id="dashboard-tour" class="dashboard-tour" hidden>
+  <div id="tour-spotlight" class="tour-spotlight" aria-hidden="true"></div>
+  <section id="tour-panel" class="tour-panel" role="dialog" aria-modal="true" aria-labelledby="tour-title" aria-describedby="tour-description" tabindex="-1">
+    <p id="tour-progress" class="tour-progress" aria-live="polite"></p>
+    <h2 id="tour-title"></h2><p id="tour-description"></p><ul id="tour-items"></ul>
+    <p id="tour-error" role="alert" hidden>Die Bestätigung konnte nicht gespeichert werden. Du kannst die Einführung jetzt schließen; sie kann später erneut erscheinen.</p>
+    <div class="tutorial-actions"><button type="button" id="tour-back">Zurück</button><button type="button" id="tour-next">Weiter</button><button type="button" id="tour-skip">Tutorial überspringen</button></div>
+  </section>
+</div>
+<script defer src="{{ url_for('static',filename='dashboard-tour.js') }}?v={{ app_version }}"></script>

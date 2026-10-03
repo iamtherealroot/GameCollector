@@ -6,6 +6,8 @@ import sys
 import tempfile
 from pathlib import Path
 from werkzeug.security import generate_password_hash
+from flask import g
+from flask.testing import FlaskClient
 
 _sandbox = tempfile.TemporaryDirectory(prefix="bibo-access-privacy-")
 os.environ["DATABASE_URL"] = "sqlite:///" + str(Path(_sandbox.name) / "access.db")
@@ -13,6 +15,12 @@ os.environ["ADMIN_USERNAME"] = "root-admin"
 os.environ["ADMIN_PASSWORD"] = "root-password"
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 module = importlib.import_module("app.app")
+class IsolatedClient(FlaskClient):
+    def open(self, *args, **kwargs):
+        # Separate logged-in clients share the fixture's long app context.
+        g.pop('_login_user', None)
+        return super().open(*args, **kwargs)
+module.app.test_client_class = IsolatedClient
 
 with module.app.app_context():
     owner = module.shared_collection_user()
