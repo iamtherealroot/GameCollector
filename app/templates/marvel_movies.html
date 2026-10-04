@@ -9,13 +9,22 @@
 <label>Umfang<select name="branch">{% for key,label in [('films','Filme ohne Kurzfilme'),('all','Alle Katalogtitel'),('MCU','MCU'),('Kino','Weitere Kinofilme'),('TV','Fernsehfilme / Specials'),('Animation','Animationsfilme'),('Icon','Icon Comics'),('Malibu','Malibu Comics'),('Kurzfilm','Kurzfilme'),('Serial','Serials'),('Angekündigt','Angekündigt'),('Unveröffentlicht','Unveröffentlicht')] %}<option value="{{ key }}" {% if key==selected_branch %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></label><button type="submit" class="button">Anzeigen</button></form>
 <a class="button secondary-link" href="{{ url_for('collector_collections',type='movies') }}">Zu meinen Filmreihen</a></section>
 {% if selected_order=='timeline' %}<p class="muted">Die Hauptfilmhandlungen bestimmen die Reihenfolge; Rückblicke und Abspannszenen können an anderer Stelle spielen. Weitere Universen, Serien, Specials und Kurzfilme stehen separat. Orientierung: <a href="https://www.kino.de/film/avengers-4-endgame-2019/news/marvel-filme-und-serien-in-chronologischer-reihenfolge-mcu-timeline/" target="_blank" rel="noopener noreferrer">Kino.de</a> und <a href="https://blog.teufel.de/alle-marvel-filme-in-der-richtigen-reihenfolge-schauen/" target="_blank" rel="noopener noreferrer">Teufel</a>, Stand 04.10.2026.</p>{% else %}<p class="muted">MCU-Kinofilme folgen ihrer <a href="https://de.wikipedia.org/wiki/Marvel_Cinematic_Universe#Filmreihe" target="_blank" rel="noopener noreferrer">Kinostart-Reihenfolge</a>. Weitere Marvel-Titel werden nach Erscheinungsjahr und Titel sortiert.</p>{% endif %}
+<section class="panel collection-compact-list-panel">
+<div class="collection-compact-head"><span>Film / Teil</span><span>Besitz</span><span>Preis</span></div>
+<div class="collection-compact-list">
 {% set groups=namespace(previous=none) %}
 {% for item in rows %}
-{% if selected_order=='timeline' and item.order_group != groups.previous %}<h2>{{ timeline_groups[item.order_group] }}</h2>{% set groups.previous=item.order_group %}{% endif %}
-<article class="panel collector-item-row"><div>{% if item.cover %}<img src="{{ item.cover }}" alt="" width="64" loading="lazy">{% endif %}<h2>{{ item.entry.title }} <small>{{ item.entry.year }}</small></h2>
-{% if item.order_position %}<p class="muted">{% if selected_order=='timeline' %}MCU-Timeline{% else %}MCU-Kinostart{% endif %} · {{ item.order_position }}</p>{% elif selected_order=='timeline' %}<p class="muted">{{ item.order_label }}</p>{% endif %}
-<p>{{ item.entry.branch }} · {% if item.owned %}Physisch vorhanden{% elif not item.entry.released %}{{ item.entry.branch }}{% else %}Nicht physisch in deiner Sammlung{% endif %}</p>
-<div class="collector-actions">{% for family in item.families %}<a href="{{ url_for('marvel_movies',series=family,branch=selected_branch,order=selected_order) }}">{{ family }}</a>{% endfor %}</div>
-{% if item.detail_url %}<a class="button" href="{{ item.detail_url }}">Meine Exemplare öffnen</a>{% elif item.entry.released and can_collection('edit_items') %}<a class="button" href="{{ url_for('collector_media_questionnaire',category='movies',title=item.entry.aliases[0] if item.entry.aliases else item.entry.title,release_year=item.entry.year) }}">Exemplar anlegen</a>{% endif %}</div></article>{% endfor %}
+{% if selected_order=='timeline' and item.order_group != groups.previous %}<h2 class="mcu-order-heading">{{ timeline_groups[item.order_group] }}</h2>{% set groups.previous=item.order_group %}{% endif %}
+<div class="collection-compact-line">
+<div class="collection-copy-title-cell">
+<div class="collection-compact-name">{% if item.cover %}<img src="{{ item.cover }}" alt="" loading="lazy">{% endif %}<span><h2>{{ item.entry.title }} <small>{{ item.entry.year }}</small></h2><small>{% if item.order_position %}{% if selected_order=='timeline' %}MCU-Timeline{% else %}MCU-Kinostart{% endif %} · {{ item.order_position }}{% else %}{{ item.order_label }}{% endif %}</small></span></div>
+<div class="collection-editions">{% for family in item.families %}<a href="{{ url_for('marvel_movies',series=family,branch=selected_branch,order=selected_order) }}">{{ family }}</a>{% endfor %}</div>
+<details class="mcu-copy-actions"><summary>Exemplare / Anlegen</summary><div class="collector-actions">
+{% if item.detail_url %}<a class="button secondary" href="{{ item.detail_url }}">Meine Exemplare öffnen</a>{% endif %}
+{% if item.entry.released and can_collection('edit_items') %}<a class="button" href="{{ url_for('collector_media_questionnaire',category='movies',title=item.entry.aliases[0] if item.entry.aliases else item.entry.title,release_year=item.entry.year) }}">Exemplar anlegen</a>{% endif %}
+</div></details></div>
+<div class="collection-compact-owned">{% if item.owned %}<span class="compact-status owned">✓ Physisch vorhanden</span>{% elif not item.entry.released %}<span class="compact-status unknown">{{ item.entry.branch }}</span>{% else %}<span class="compact-status missing">✗ Nicht physisch in deiner Sammlung</span>{% endif %}</div>
+<strong class="collection-compact-price">{% if item.owned %}{{ eur(item.value) }}{% else %}—{% endif %}</strong>
+</div>{% endfor %}</div></section>
 {% include '_collection_pagination.html' %}
 {% endblock %}

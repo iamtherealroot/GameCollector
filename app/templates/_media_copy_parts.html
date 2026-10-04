@@ -3,7 +3,7 @@
   <input type="hidden" name="copy_parts_submitted" value="1">
   <div class="media-copy-parts-grid">
   {% for key,label in [('has_original_packaging','OVP / Originalverpackung'),('disc_present','Disc(s) / Tonträger'),('booklet_present','Booklet / Beilagen'),('slipcover_present','Schuber'),('bonus_disc_present','Bonus-Disc'),('sealed','Versiegelt')] %}
-    {% set present = prefill.get(key)=='1' if prefill.get('copy_parts_submitted') else prefill.get(key,True) not in [False,'0',0] %}
+    {% set present = prefill.get(key)=='1' if prefill.get('copy_parts_submitted') else prefill.get(key,key!='sealed') not in [False,'0',0] %}
     <label><input type="checkbox" name="{{ key }}" value="1" {% if present %}checked{% endif %}>{{ label }}</label>
   {% endfor %}
   </div>

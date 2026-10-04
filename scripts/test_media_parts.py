@@ -28,7 +28,12 @@ with m.app.app_context():
             page=response.get_data(as_text=True)
             assert ('name="purchase_date"' in page)==bool(advanced)
             assert ('name="purchase_price_eur"' in page)==bool(advanced)
-            assert Inputs(response.get_data(as_text=True)).checks==dict.fromkeys(keys,True)
+            assert '>Versiegelt</option>' in page
+            if advanced:
+                assert '>Kauf</button>' not in page and 'data-step="5"' not in page
+                assert page.index('name="completeness"') < page.index('data-copy-parts')
+                assert '<details class="media-purchase-details"' in page
+            assert Inputs(response.get_data(as_text=True)).checks=={key:key!='sealed' for key in keys}
         form=dict(category=category,title='Parts '+category,media_type=media,ownership_format='physical',copy_parts_submitted='1',has_original_packaging='1',disc_present='1',slipcover_present='1')
         bad=client.post('/add/media',data={**form,'purchase_price_eur':'invalid'})
         assert bad.status_code==400

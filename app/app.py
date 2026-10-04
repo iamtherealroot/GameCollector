@@ -38,7 +38,7 @@ from pathlib import Path
 from html.parser import HTMLParser
 from itsdangerous import BadSignature, URLSafeSerializer
 
-APP_VERSION = "5.1.2"
+APP_VERSION = "5.1.3"
 APP_NAME = "Bibo"
 DISPLAY_TIMEZONE_NAME = os.environ.get("TZ", "Europe/Berlin")
 try:
@@ -6294,8 +6294,9 @@ def inferred_release_coverages(row):
     return result
 
 
-def sync_inferred_release_coverages(row):
-    entries = ReleaseCoverage.query.filter_by(owner_id=row.user_id, source_kind="collector", source_id=str(row.id)).all()
+def sync_inferred_release_coverages(row, entries=None):
+    if entries is None:
+        entries = ReleaseCoverage.query.filter_by(owner_id=row.user_id, source_kind="collector", source_id=str(row.id)).all()
     existing = {(entry.target_kind, entry.target_key) for entry in entries}
     inferred = inferred_release_coverages(row)
     desired = {(kind, key) for kind, key, _title, _sequence in inferred}
@@ -7410,7 +7411,7 @@ def franchise_ownership_override(name):
 
 def _game_franchise_overview_rows(user_id):
     """Canonical game-series cards visible only in the selected collection."""
-    all_games = [g for g in Game.query.filter(Game.franchise.isnot(None), Game.franchise != "").order_by(Game.id).all() if game_is_physical_candidate(g)]
+    all_games = [g for g in Game.query.filter(Game.franchise.isnot(None), Game.franchise != "").options(joinedload(Game.console)).order_by(Game.id).all() if game_is_physical_candidate(g)]
     all_entries = SeriesEntry.query.order_by(SeriesEntry.id).all()
     owned_by_game = {}
     owned_items = CollectionItem.query.filter_by(user_id=user_id, status="owned").filter(CollectionItem.ownership_format != "digital").all()
@@ -7601,8 +7602,15 @@ def collector_collections():
         labels = {"books": "Buchreihen", "tv": "TV-Serien", "movies": "Filmreihen"}
         icons = {"books": "📚", "tv": "📺", "movies": "🎬"}
         query = CollectorItem.query.filter(CollectorItem.user_id == user_id, CollectorItem.category.in_(["books", "tv", "movies"]))
-        source_rows = [r for r in query.all() if kind == "all" or r.category == kind]
-        inferred_added = sum(sync_inferred_release_coverages(row) for row in source_rows)
+        if kind != "all":
+            query = query.filter(CollectorItem.category == kind)
+        source_rows = query.all()
+        coverage_by_source = {}
+        source_ids = [str(row.id) for row in source_rows]
+        if source_ids:
+            for entry in ReleaseCoverage.query.filter(ReleaseCoverage.owner_id == user_id, ReleaseCoverage.source_kind == "collector", ReleaseCoverage.source_id.in_(source_ids)).all():
+                coverage_by_source.setdefault(entry.source_id, []).append(entry)
+        inferred_added = sum(sync_inferred_release_coverages(row, coverage_by_source.get(str(row.id), [])) for row in source_rows)
         if inferred_added:
             db.session.commit()
 
@@ -8875,9 +8883,15 @@ def tmdb_json(path, params=None):
     if params:
         url += "?" + urlencode(params)
     req = Request(url, headers=headers)
-    try:
+    from .provider_cache import cached_json
+    cache_key = url + "|" + headers.get("Authorization", "")
+    def fetch_json():
         with urlopen(req, timeout=12) as response:
             return json.loads(response.read().decode("utf-8"))
+    try:
+        if path.lstrip("/") == "configuration":
+            return fetch_json()
+        return cached_json(Path(current_app.instance_path) / "provider-cache", cache_key, fetch_json, ttl=3600)
     except (HTTPError, URLError, TimeoutError, ValueError):
         current_app.logger.exception("TMDB request failed: %s", path)
         return None

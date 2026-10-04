@@ -11,4 +11,4 @@
 | [Datenschutz](PRIVACY.md) | Eigene Daten und externe Dienste |
 | [Archiv](archive/README.md) | Frühere Update-, Release- und Testnotizen |
 
-[Aktuelle Release-Notizen](../RELEASE-NOTES-v5.1.2.md) · [Changelog](../CHANGELOG.md) · [Zur Startseite](../README.md)
+[Aktuelle Release-Notizen](../RELEASE-NOTES-v5.1.3.md) · [Changelog](../CHANGELOG.md) · [Zur Startseite](../README.md)

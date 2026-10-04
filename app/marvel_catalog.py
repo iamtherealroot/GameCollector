@@ -251,7 +251,7 @@ def setup_marvel_catalog(app, db, ns):
         if session.get("marvel_catalog_order") != selected_order:
             session["marvel_catalog_order"] = selected_order
         owner = ns["active_collection_user_id"]()
-        copies = ns["BiboCopy"].query.join(ns["BiboEdition"]).join(ns["BiboWork"]).filter(ns["BiboCopy"].active.is_(True), ns["BiboCopy"].owner_id == owner, ns["BiboWork"].media_kind == "movies").all()
+        copies = ns["BiboCopy"].query.options(ns["joinedload"](ns["BiboCopy"].edition).joinedload(ns["BiboEdition"].work)).join(ns["BiboEdition"]).join(ns["BiboWork"]).filter(ns["BiboCopy"].active.is_(True), ns["BiboCopy"].owner_id == owner, ns["BiboWork"].media_kind == "movies").all()
         owned = {}
         for copy in copies:
             owned.setdefault(copy.edition.work.canonical_key, []).append(copy)
@@ -279,6 +279,7 @@ def setup_marvel_catalog(app, db, ns):
                          "order_label":order_label,"order_position":order_position,
                          "order_group":order_key[0] if selected_order == "timeline" else None,
                          "families":sorted(families),"cover":work.cover_url if work else None,
+                         "value":sum((c.effective_value_eur or 0)*max(c.quantity or 1,1) for c in physical),
                          "detail_url":url_for("bibo_work_detail",work_id=work.id) if work and copies_for_work else None})
         total_owned=sum(r["owned"] for r in rows)
         rows,pagination=ns["collection_page"](rows)

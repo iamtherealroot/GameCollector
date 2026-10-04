@@ -10,13 +10,21 @@
       parts.hidden=!physical;
       parts.querySelectorAll('input').forEach(input=>{input.disabled=!physical;});
     };
+    const completeness=form.elements.completeness;
+    const preset=()=>{
+      if(!completeness || !['Komplett','Versiegelt'].includes(completeness.value))return;
+      parts.querySelectorAll('input[type="checkbox"]').forEach(input=>{
+        input.checked=input.name!=='sealed' || completeness.value==='Versiegelt';
+      });
+    };
+    completeness?.addEventListener('change',preset);
     form.addEventListener('change',sync);sync();
   });
   const key='bibo-scroll:'+location.pathname+location.search;
   const save=()=>{try{sessionStorage.setItem(key,String(window.scrollY));}catch(_){}};
   const restore=()=>{try{const y=Number(sessionStorage.getItem(key));if(y>0)requestAnimationFrame(()=>window.scrollTo(0,y));}catch(_){}};
-  const makeFeedback=(className,label)=>{const shell=document.createElement('div');shell.className=className;shell.setAttribute('role','status');shell.setAttribute('aria-live','polite');const runner=document.createElement('span');runner.className='bibo-loading-runner';runner.setAttribute('aria-hidden','true');const text=document.createElement('span');text.textContent=label;shell.append(runner,text);document.body.appendChild(shell);return {shell,text,runner};};
-  const dockMetadataFeedback=shell=>{const slot=document.querySelector('[data-metadata-feedback-slot]');if(slot){shell.classList.add('is-inline','flash');slot.appendChild(shell);}};
+  const makeFeedback=(className,label,animated=true)=>{const shell=document.createElement('div');shell.className=className;shell.setAttribute('role','status');shell.setAttribute('aria-live','polite');const runner=animated?document.createElement('span'):null;if(runner){runner.className='bibo-loading-runner';runner.setAttribute('aria-hidden','true');}const text=document.createElement('span');text.textContent=label;if(runner)shell.append(runner);shell.append(text);document.body.appendChild(shell);return {shell,text,runner};};
+  const dockMetadataFeedback=shell=>{if(shell.classList.contains('is-inline'))return;const slot=document.querySelector('[data-metadata-feedback-slot]');if(slot){shell.classList.add('is-inline','flash');slot.appendChild(shell);}};
   const {shell:loader,runner:pageRunner,text:loaderText}=makeFeedback('page-loading','Seite wird geladen …');loader.hidden=true;
   const finishRunner=(runner,done=()=>{},duration=4070)=>{
     if(!runner || window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches){if(runner)runner.hidden=true;done();return;}
@@ -57,7 +65,7 @@
   let edited=false;document.addEventListener('input',()=>{edited=true;});document.addEventListener('change',()=>{edited=true;});
   if(jobsNode){
     const jobs=JSON.parse(jobsNode.dataset.autoMetadataJobs);
-    const feedback=makeFeedback('metadata-loading','Zusatzinfos werden gesucht …');
+    const feedback=makeFeedback('metadata-loading','Zusatzinfos werden gesucht …',false);dockMetadataFeedback(feedback.shell);
     feedback.shell.hidden=true;
     const feedbackTimer=setTimeout(()=>{feedback.shell.hidden=false;},800);
     (async()=>{let changed=false;let status='not_found';
@@ -69,5 +77,5 @@
       if(changed&&!edited){try{sessionStorage.setItem(receiptKey,messages[status]);location.reload();}catch(_){finishRunner(feedback.runner); /* Keep the saved page usable without storage. */}}
       else if(changed){const link=document.createElement('a');link.href=location.href;link.textContent='Aktualisierte Ansicht öffnen';feedback.shell.append(link);}
     })();
-  }else{try{const receipt=sessionStorage.getItem(receiptKey);if(receipt){sessionStorage.removeItem(receiptKey);const feedback=makeFeedback('metadata-loading is-complete',receipt);dockMetadataFeedback(feedback.shell);finishRunner(feedback.runner);setTimeout(()=>feedback.shell.remove(),6000);}}catch(_){}}
+  }else{try{const receipt=sessionStorage.getItem(receiptKey);if(receipt){sessionStorage.removeItem(receiptKey);const feedback=makeFeedback('metadata-loading is-complete',receipt,false);dockMetadataFeedback(feedback.shell);finishRunner(feedback.runner);setTimeout(()=>feedback.shell.remove(),6000);}}catch(_){}}
 })();
