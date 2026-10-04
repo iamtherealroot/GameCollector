@@ -1,0 +1,11 @@
+#!/bin/bash
+set -Eeuo pipefail
+# Upgrades are handled by postinst, with the existing installer backup/rollback.
+[[ "${1:-}" == remove && -f /var/lib/bibo-apt/managed-version ]] || exit 0
+BIBO_INSTALL_DIR=/opt/gamecollector
+[[ ! -f /etc/bibo-apt.conf ]] || source /etc/bibo-apt.conf
+[[ "$BIBO_INSTALL_DIR" == /* && "$BIBO_INSTALL_DIR" != / ]] || exit 1
+[[ -f "$BIBO_INSTALL_DIR/docker-compose.yml" ]] || exit 0
+cd "$BIBO_INSTALL_DIR"
+docker compose stop web scheduler
+# Database, images, configuration and backups are retained.

@@ -1,0 +1,32 @@
+#!/bin/bash
+set -Eeuo pipefail
+[[ "${1:-}" == configure ]] || exit 0
+BIBO_INSTALL_DIR=/opt/gamecollector
+[[ ! -f /etc/bibo-apt.conf ]] || source /etc/bibo-apt.conf
+[[ "$BIBO_INSTALL_DIR" == /* && "$BIBO_INSTALL_DIR" != / ]] || { echo 'Ungültiger Bibo-Pfad.' >&2;exit 1; }
+[[ -f "$BIBO_INSTALL_DIR/.env" && -f "$BIBO_INSTALL_DIR/docker-compose.yml" ]] || {
+  echo 'Zuerst Bibo mit dem normalen Installer einrichten; bestehenden Pfad in /etc/bibo-apt.conf eintragen.' >&2
+  exit 1
+}
+docker compose version >/dev/null || { echo 'Docker Compose v2 fehlt.' >&2;exit 1; }
+payload=/usr/share/bibo/release
+target="$(python3 - "$payload/app/app.py" <<'PY'
+import ast,sys
+t=ast.parse(open(sys.argv[1]).read())
+print(next(ast.literal_eval(n.value) for n in t.body if isinstance(n,ast.Assign) and any(isinstance(a,ast.Name) and a.id=='APP_VERSION' for a in n.targets)))
+PY
+)"
+current="$(cd "$BIBO_INSTALL_DIR" && docker compose exec -T web python -c \
+  'import json,urllib.request; print(json.load(urllib.request.urlopen("http://127.0.0.1:8000/health/deep",timeout=5))["version"])' 2>/dev/null)" || current=""
+if [[ -n "$current" ]] && dpkg --compare-versions "$current" gt "$target";then
+  echo "Container meldet $current; automatisches Downgrade auf $target abgebrochen." >&2
+  exit 1
+fi
+if [[ "$current" != "$target" ]];then
+  export BIBO_INSTALL_DIR
+  bash "$payload/install.sh"
+else
+  echo "Bibo $target läuft bereits; APT übernimmt die Versionsverwaltung."
+fi
+install -d -m 700 /var/lib/bibo-apt
+printf '%s\n' "$target" > /var/lib/bibo-apt/managed-version

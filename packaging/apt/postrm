@@ -1,0 +1,6 @@
+#!/bin/bash
+set -eu
+case "${1:-}" in
+  remove|purge) rm -f /var/lib/bibo-apt/managed-version ;;
+esac
+# Never delete /opt/gamecollector, its .env, backups or Docker volumes.

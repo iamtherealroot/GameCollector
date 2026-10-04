@@ -1,0 +1,77 @@
+name: Bibo APT
+on:
+  workflow_dispatch:
+  workflow_run:
+    workflows: ["Bibo release"]
+    types: [completed]
+    branches: [main]
+  schedule:
+    - cron: "17 4 * * 1"
+permissions:
+  contents: read
+  pages: read
+concurrency:
+  group: bibo-apt-pages
+  cancel-in-progress: false
+jobs:
+  build:
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: main
+          fetch-depth: 0
+      - uses: actions/configure-pages@v5
+      - name: Check packages, update hooks and APT signatures
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq apt-utils rsync gnupg
+          python3 packaging/apt/test-packaging.py
+      - name: Build and sign stable APT repository
+        env:
+          GH_TOKEN: ${{ github.token }}
+          APT_PRIVATE_KEY: ${{ secrets.BIBO_APT_SIGNING_KEY }}
+          APT_FINGERPRINT: ${{ secrets.BIBO_APT_SIGNING_FINGERPRINT }}
+        run: |
+          set -Eeuo pipefail
+          test -n "$APT_PRIVATE_KEY"
+          test -n "$APT_FINGERPRINT"
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq apt-utils rsync gnupg
+          bibo_work="$RUNNER_TEMP/bibo-apt"
+          mkdir -p "$bibo_work/download" "$bibo_work/gpg"
+          chmod 700 "$bibo_work/gpg"
+          gh release view --repo "$GITHUB_REPOSITORY" --json tagName,isPrerelease,isDraft > "$bibo_work/release.json"
+          bibo_tag="$(python3 - "$bibo_work/release.json" <<'PY'
+          import json,re,sys
+          r=json.load(open(sys.argv[1]));tag=r["tagName"]
+          assert not r["isPrerelease"] and not r["isDraft"] and re.fullmatch(r"v\d+\.\d+\.\d+",tag)
+          print(tag)
+          PY
+          )"
+          gh release download "$bibo_tag" --repo "$GITHUB_REPOSITORY" \
+            --pattern "Bibo-$bibo_tag.zip" --pattern "Bibo-$bibo_tag-SHA256SUMS.txt" \
+            --dir "$bibo_work/download"
+          python3 packaging/apt/verify-release.py "$bibo_work/download" "$bibo_tag" "$bibo_work/payload"
+          export SOURCE_DATE_EPOCH="$(git show -s --format=%ct "$bibo_tag")"
+          bash packaging/apt/build-deb.sh "$bibo_work/payload/Bibo-$bibo_tag" "$bibo_work/deb"
+          printf '%s' "$APT_PRIVATE_KEY" | gpg --homedir "$bibo_work/gpg" --batch --import
+          gpg --homedir "$bibo_work/gpg" --batch --with-colons --list-secret-keys "$APT_FINGERPRINT" | grep -q "^fpr:::::::::$APT_FINGERPRINT:"
+          bash packaging/apt/build-repository.sh "$bibo_work/deb/bibo_${bibo_tag#v}-1_all.deb" "$RUNNER_TEMP/apt-site" "$bibo_work/gpg" "$APT_FINGERPRINT"
+          rm -rf "$bibo_work/gpg"
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          path: ${{ runner.temp }}/apt-site
+  deploy:
+    runs-on: ubuntu-latest
+    needs: build
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/deploy-pages@v4
+        id: deployment
