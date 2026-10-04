@@ -13,7 +13,7 @@ Eine globale Top-10-Preisübersicht je Bereich mit Produkt, Einzelwert und freig
 
 Der aktuelle Umfang bezieht sich auf Sammlungen derselben Bibo-Installation. Keine Vernetzung getrennter Server. Unterschiedliche Varianten und Zustände sind keine gleichartigen Preisvergleiche.
 
-Einmaliges „Was ist neu?“-Fenster pro Konto und Version; getrennte Docker-Testumgebung vorbereitet. Verbleibende ursprüngliche 4.8-/4.9-Arbeiten stehen in RELEASE-NOTES-v5.0.1.md.
+Einmaliges „Was ist neu?“-Fenster pro Konto und Version; getrennte Docker-Testumgebung vorbereitet. Verbleibende ursprüngliche 4.8-/4.9-Arbeiten stehen in [den archivierten Release-Notizen](archive/releases/RELEASE-NOTES-v5.0.1.md).
 
 ## Freigabe
 

@@ -22,3 +22,7 @@ updates/
 .DS_Store
 .idea/
 .vscode/
+
+# Temporäre Sicherungen gehören nicht in das Repository.
+*.before-*
+*.debug-backup

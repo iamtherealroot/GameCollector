@@ -3,7 +3,7 @@
 </p>
 
 <h1 align="center">Bibo</h1>
-> **Bibo 5.1.0** – persönlich wählbare Dashboardansichten, animierte Regalhelfer, Musikbestimmung und verbesserte Pokémon-Titelzuordnung. [Release-Notizen](RELEASE-NOTES-v5.1.0.md).
+> **Bibo 5.1.2** – vereinfachte Mediensuche, automatische Zusatzinfos, MCU-Filmreihe mit wählbarer Reihenfolge und Angaben zum Lieferumfang beim Anlegen. [Release-Notizen](RELEASE-NOTES-v5.1.2.md).
 
 <p align="center"><strong>Deine Sammlung. Dein Server.</strong><br>Spiele, Filme, Bücher, Musik und mehr übersichtlich verwalten.</p>
 <p align="center">
@@ -49,11 +49,11 @@ Metadaten und Preisquellen sind je nach Bereich optional, etwa eBay, PrixRetro, 
 
 ## Installation & Update
 
-**Ein Paket, ein Installer:** Lade `Bibo-vX.Y.Z.zip` aus den [Releases](https://github.com/iamtherealroot/GameCollector/releases/latest) auf deinen Server und entpacke es **außerhalb des Installationsverzeichnisses**. Beispiel für v5.0.4:
+**Ein Paket, ein Installer:** Lade `Bibo-vX.Y.Z.zip` aus den [Releases](https://github.com/iamtherealroot/GameCollector/releases/latest) auf deinen Server und entpacke es **außerhalb des Installationsverzeichnisses**. Beispiel für v5.1.2:
 
 ```bash
-unzip Bibo-v5.0.4.zip
-cd Bibo-v5.0.4
+unzip Bibo-v5.1.2.zip
+cd Bibo-v5.1.2
 sudo bash install.sh
 ```
 
@@ -71,9 +71,11 @@ Der Standardpfad bleibt `/opt/gamecollector`, damit vorhandene Installationen we
 |---|---|
 | Installieren und konfigurieren | [Installation](docs/INSTALLATION.md) |
 | Aktualisieren und sichern | [Updates & Wiederherstellung](docs/UPDATES.md) |
+| Updates mit APT | [APT-Paketquelle](docs/APT.md) |
+| Fehlerseite am Reverse Proxy | [Nginx Proxy Manager](packaging/proxy/README.md) |
 | Dienste und Datenhaltung | [Architektur](docs/ARCHITECTURE.md) |
 | Eigene Daten und externe Anbieter | [Datenschutz](docs/PRIVACY.md) |
-| Änderungen dieser Version | [Release-Notizen v5.0.4](RELEASE-NOTES-v5.0.4.md) |
+| Änderungen dieser Version | [Release-Notizen v5.1.2](RELEASE-NOTES-v5.1.2.md) |
 | Entwicklungsgeschichte | [Changelog](CHANGELOG.md) · [Dokumentationsarchiv](docs/archive/README.md) |
 
 ## Mitmachen
@@ -89,7 +91,7 @@ python3 scripts/test_game_price_stability.py
 Weitere Prüfungen laufen in [GitHub Actions](https://github.com/iamtherealroot/GameCollector/actions). Für ein Release mit passender `APP_VERSION`:
 
 ```bash
-bash scripts/build_release.sh 5.0.4
+bash scripts/build_release.sh 5.1.2
 ```
 
 Bibo steht unter der [GPL-3.0](LICENSE).

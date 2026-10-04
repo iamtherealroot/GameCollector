@@ -10,7 +10,7 @@ Noch nicht veröffentlicht. Die Versionsnummer ist höher als beim ersten Entwur
 - Freigabe von Sammlungsdaten ist ein separater Schalter für Sammlungsverwalter. Öffentliche Sammler-/Sammlungsnamen sind frei wählbar; echte Kontonamen, Notizen, Kaufpreise, Lagerorte, Bilder und private Objektlinks bleiben verborgen. Widerruf entfernt die Sammlung sofort.
 - Rangliste nach Einzelwert des physischen Exemplars, nicht nach Mengen-Gesamtwert. Fixierte Werte bleiben wie in Bibo vorrangig und werden markiert; sonst automatischer Marktwert vor eigener Schätzung. Wunschlisten, digitale Spiele und Zubehörkomponenten mit bereits im Elternobjekt enthaltenem Wert werden ausgeschlossen.
 - „Was ist neu?“-Dialog: Bestätigung je Konto und Anwendungsversion in der Datenbank. Nach „Verstanden“ auch auf anderen Geräten nicht erneut sichtbar. Beim nächsten Versionswechsel erscheint er wieder. Auch Leser ohne Sammlungszugriff dürfen ihren eigenen Hinweis bestätigen.
-- Isolierte Docker-Testumgebung für zukünftige Releases: siehe [Anleitung](docs/DOCKER-TESTUMGEBUNG.md). Separate Testvolumes, localhost-Port 18095, Regressionstests und SQL-Wiederherstellung. In dieser Arbeitsumgebung noch nicht ausgeführt, da Docker nicht verfügbar ist.
+- Isolierte Docker-Testumgebung für zukünftige Releases: siehe [Anleitung](../../DOCKER-TESTUMGEBUNG.md). Separate Testvolumes, localhost-Port 18095, Regressionstests und SQL-Wiederherstellung. In dieser Arbeitsumgebung noch nicht ausgeführt, da Docker nicht verfügbar ist.
 
 Feedback-Portal und übrige Navigation aus dem ersten Entwurf bleiben enthalten. Neue Tabellen werden beim Start automatisch angelegt; bestehende Bestände werden nicht umgeschrieben. Vor der Installation vollständiges Backup erstellen und vorzugsweise separat testen.
 

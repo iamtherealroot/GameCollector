@@ -148,7 +148,7 @@
 - Persönlicher Meldungsabschluss ohne Erledigung der Admin-Aufgabe, getrennte Zähler und Übersichten.
 - Dauerhaftes, geräte- und versionsübergreifendes Abschalten automatischer Tutorials mit manuellem Neustart.
 - Persönliche Update-Übersicht seit dem vorherigen Login, einschließlich übersprungener Versionen und noch unbestätigter Hinweise.
-- Rechte-, Persistenz- und UI-Vertragstests ergänzt; Details: RELEASE-NOTES-v5.1.0-rc.2.md.
+- Rechte-, Persistenz- und UI-Vertragstests ergänzt; Details: docs/archive/releases/RELEASE-NOTES-v5.1.0-rc.2.md.
 
 ## v5.1.0-rc.1 – unveröffentlichter Prüfentwurf
 
@@ -156,7 +156,7 @@
 - Dauerhafter Admin-Zähler offener Meldungen; privater Nachrichteneingang für öffentliche Antworten und Statusänderungen.
 - Dokumentierte TU-Freigabe, Rücknahme und validierter Produktionsbefehl ohne automatischen Transfer.
 - Einheitliche X.Y.Z-/rc.N-Versionierung, Schutz vor automatischer RC-Installation und älteren Stable-Downgrades.
-- Details: RELEASE-NOTES-v5.1.0-rc.1.md.
+- Details: docs/archive/releases/RELEASE-NOTES-v5.1.0-rc.1.md.
 
 ## v5.0.4 – freigegebener Release
 
