@@ -6,4 +6,5 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY app ./app
 COPY scripts ./scripts
 COPY install.sh docker-compose.yml docker-compose.test.yml Dockerfile Dockerfile.test requirements.txt ./
+COPY .github/workflows/release.yml ./.github/workflows/release.yml
 CMD ["bash", "scripts/run_regressions.sh"]
