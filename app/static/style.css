@@ -761,3 +761,5 @@ html,body{max-width:100%;overflow-x:hidden}.desktop-nav{display:flex!important;j
 .media-purchase-details{margin-top:1.25rem;padding:1rem;border:1px solid var(--line);border-radius:12px}.media-purchase-details[open]>summary{margin-bottom:1rem}.media-copy-parts{margin-top:.75rem}
 
 .collection-compact-name h2{font-size:1rem;margin:0}.mcu-copy-actions{margin-top:.5rem}.mcu-copy-actions[open]>.collector-actions{margin-top:.5rem}.mcu-order-heading{padding:1rem;font-size:1.1rem}.collection-editions>a{margin-right:.5rem}
+
+.dashboard-recent-games .recent-entry-meta{display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:.4rem 1rem;margin-top:.5rem}.dashboard-recent-games .recent-entry-meta>strong{white-space:nowrap}

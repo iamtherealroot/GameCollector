@@ -50,8 +50,8 @@ with m.app.app_context():
     link=next(link for link in parsed.links if link.get('aria-label')=='Blue Film öffnen')
     assert link['href']==route_url('collector_item_detail',item_id=film.id)
     assert client.get(link['href']).status_code==200
-    category_links=[link for link in parsed.links if 'regal-category-spine' in link.get('class','')]
-    assert category_links and all('title' in link and ' öffnen' in link['aria-label'] for link in category_links)
+    category_links=[link for link in parsed.links if 'regal-caption' in link.get('class','')]
+    assert category_links and all(' öffnen' in link['aria-label'] for link in category_links)
     assert all('regal-spine-title' not in link.get('class','') for link in category_links)
     console=m.Console.query.first()
     game=m.Game(title='FIFA 98',console_id=console.id)
@@ -149,8 +149,8 @@ from app.shelf import case_style,shelf_cases
 for media,style in [('Nintendo Switch','switch'),('Xbox 360','xbox360'),('PlayStation 2','dvd-game'),('PlayStation 1','ps1'),('PlayStation 3','ps3')]:
     assert case_style('games',media)==style
 assert case_style('movies','4K UHD')=='uhd' and case_style('music','Vinyl')=='vinyl'
-cases=shelf_cases('movies',[('Only real title','Blu-ray')]);assert len(cases)==7
-assert sum(bool(case['title']) for case in cases)==1
+cases=shelf_cases('movies',[('Only real title','Blu-ray')]);assert len(cases)==8
+assert all(case['title']=='Only real title' for case in cases)
 mixed=shelf_cases('games',[('Small','PlayStation'),('Medium','PlayStation 3'),('Large','Xbox 360')])
 assert [case['height'] for case in mixed]==sorted(case['height'] for case in mixed)
 
@@ -158,3 +158,9 @@ assert case_style('games','Game Boy',False)=='gb-cartridge'
 assert case_style('games','Game Boy',True)=='retro-box'
 assert case_style('games','Nintendo 64',False)=='n64-cartridge'
 assert case_style('games','Super Nintendo',False)=='snes-cartridge'
+
+films=shelf_cases('movies', [('DVD title','DVD')]+[(f'Blu-ray {i}','Blu-ray') for i in range(60)])
+assert len(films)==48 and any(case['style']=='dvd' for case in films[:8])
+assert all(case['title'] for case in films)
+assert len(shelf_cases('movies',[]))==8
+print('OK: eight filled spines, real-title decoration and mixed formats in first visible group')

@@ -1,13 +1,13 @@
 {% macro compartment(key, title, icon, format, href, count, value, images=[], subtitle='', identifier='', cases=[]) -%}
 <article {% if identifier %}id="{{ identifier }}"{% endif %} class="collector-module collector-module-{{ key }} shelf-compartment" aria-label="{{ title }}, {{ count }} Objekte, {{ eur(value) }}">
   <div class="regal-spine-wrap" data-shelf-cases='{{ cases|tojson }}' data-category-href="{{ href }}" data-category-title="{{ title }}">
-    {% for case in cases[:7] %}
+    {% for case in cases[:8] %}
     <a class="regal-media regal-item case-{{ case.style }}{% if loop.index == 4 %} regal-pull-default{% endif %}" style="--case-height:{{ case.height }}px" href="{{ case.href or href }}" aria-label="{{ (case.title ~ ' öffnen') if case.title else (title ~ ' öffnen') }}"{% if case.title %} title="{{ case.title }}"{% endif %}>
       <span class="regal-case-body"><span class="regal-case-side" aria-hidden="true"><img class="regal-side-cover"{% if case.cover %} src="{{ case.cover }}"{% else %} hidden{% endif %} alt="" loading="lazy"></span><span class="regal-case-top" aria-hidden="true"></span>
       <span class="regal-case-spine" aria-hidden="true"><span class="regal-case-brand">{{ case.format or format }}</span><span class="regal-spine-title">{{ case.title }}</span><span class="regal-spine-mark">{{ icon }}</span></span></span>
     </a>
     {% endfor %}
-    <a class="regal-media regal-category-spine case-{{ cases[-1].style if cases else 'archive' }}" style="--case-height:{{ cases[-1].height if cases else 220 }}px" href="{{ href }}" aria-label="{{ title }} öffnen" title="{{ title }} öffnen"><span class="regal-case-body"><span class="regal-case-side" aria-hidden="true"></span><span class="regal-case-top" aria-hidden="true"></span><span class="regal-case-spine" aria-hidden="true"></span></span></a>
+
   </div>
   <span class="regal-shelf-board" aria-hidden="true"></span>
   {% if key=='cards' %}<div class="regal-entry-slot"><span class="regal-helper-door" aria-hidden="true"></span>{% endif %}

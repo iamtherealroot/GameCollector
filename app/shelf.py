@@ -49,13 +49,30 @@ def shelf_cases(category, entries, slots=48):
             cases.append({'title': str(title).strip(), 'style': case_style(category, media, details[2] if len(details)>2 else None),
                           'format': str(media or ''), 'href': details[0] if details else '',
                           'cover': details[1] if len(details) > 1 else ''})
-    selected = secrets.SystemRandom().sample(cases, min(slots, len(cases)))
-    # Unlabelled decoration fills the shelf without inventing owned products.
-    while len(selected) < min(7, slots):
-        selected.append({'title': '', 'style': cases[len(selected) % len(cases)]['style']
-                         if cases else case_style(category), 'href': '', 'cover': '', 'format': ''})
+    random = secrets.SystemRandom()
+    # Spread formats across the visible shelf instead of putting every short
+    # Blu-ray before every tall DVD. The inventory count remains independent.
+    by_style = {}
+    for case in cases:
+        by_style.setdefault(case['style'], []).append(case)
+    for group in by_style.values():
+        random.shuffle(group)
+    selected = []
+    styles = list(by_style)
+    random.shuffle(styles)
+    while len(selected) < slots and any(by_style.values()):
+        for style in styles:
+            if by_style[style] and len(selected) < slots:
+                selected.append(by_style[style].pop())
+    # Repeat existing titles only for the decorative display when fewer than
+    # eight copies exist; no product or inventory row is created.
+    originals = list(selected)
+    while len(selected) < min(8, slots):
+        selected.append(dict(originals[len(selected) % len(originals)]) if originals else
+                        {'title': '', 'style': case_style(category), 'href': '', 'cover': '', 'format': ''})
     for case in selected:
         case['height'] = CASE_HEIGHTS.get(case['style'],218)
         if case['style']=='book':
             case['height']=(217,228,239)[sum(map(ord,case['title']))%3]
-    return sorted(selected,key=lambda case:case['height'])
+    return [case for start in range(0, len(selected), 8)
+            for case in sorted(selected[start:start+8], key=lambda case:case['height'])]

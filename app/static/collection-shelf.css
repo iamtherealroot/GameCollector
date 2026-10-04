@@ -46,7 +46,6 @@
 .collection-regal .regal-caption{text-decoration:none}.regal-caption:hover .regal-category-label{color:#ffd38f;text-decoration:underline}
 .regal-media:focus-visible,.regal-caption:focus-visible{outline:2px solid #ffd38f;outline-offset:3px}
 .regal-media:focus-visible{transform:translate3d(0,-14px,95px) rotateX(-12deg)}
-.regal-category-spine .regal-case-spine{background:linear-gradient(90deg,#0009,#ffffff38 32%,transparent 65%,#0008),var(--case-color)}
 @media(prefers-reduced-motion:reduce){.regal-media:focus-visible{transform:none}}
 /* The entire case moves; its fixed viewing angle reveals the cover face. */
 .regal-media{--case-depth:145px}

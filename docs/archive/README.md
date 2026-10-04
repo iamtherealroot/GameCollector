@@ -119,7 +119,7 @@ Historische Notizen bleiben zur Nachvollziehbarkeit erhalten. Sie beschreiben de
 
 ## Release-Notizen
 
-Die aktuelle Version steht im [Hauptverzeichnis](../../RELEASE-NOTES-v5.1.3.md). Frühere stabile Versionen und Testkandidaten sind hier archiviert.
+Die aktuelle Version steht im [Hauptverzeichnis](../../RELEASE-NOTES-v5.1.4.md). Frühere stabile Versionen und Testkandidaten sind hier archiviert.
 
 - [RELEASE-NOTES-v4.7.0](releases/RELEASE-NOTES-v4.7.0.md)
 - [RELEASE-NOTES-v4.7.1](releases/RELEASE-NOTES-v4.7.1.md)
@@ -167,6 +167,8 @@ Die aktuelle Version steht im [Hauptverzeichnis](../../RELEASE-NOTES-v5.1.3.md).
 - [RELEASE-NOTES-v5.1.2-rc.5](releases/RELEASE-NOTES-v5.1.2-rc.5.md)
 
 - [RELEASE-NOTES-v5.1.2](releases/RELEASE-NOTES-v5.1.2.md)
+
+- [RELEASE-NOTES-v5.1.3](releases/RELEASE-NOTES-v5.1.3.md)
 
 ## Frühere Planung
 
