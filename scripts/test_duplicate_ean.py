@@ -61,9 +61,9 @@ with module.app.app_context():
     assert login.status_code in {302, 303}
 
     search = client.get("/find?q=4000000000001")
-    assert search.status_code in {302, 303}
-    assert search.headers["Location"].endswith("/identify/4000000000001")
-    identify = client.get(search.headers["Location"])
+    assert search.status_code == 200
+    assert "Medienart" in search.get_data(as_text=True)
+    identify = client.get("/identify/4000000000001")
     page = identify.get_data(as_text=True)
     assert identify.status_code == 200
     assert "Diese EAN ist bereits bekannt" in page

@@ -1,4 +1,4 @@
-{% extends 'base.html' %}
+{% extends 'search_fragment_base.html' if request.args.get('fragment')=='1' else 'base.html' %}
 {% block title %}Spiel suchen · Bibo{% endblock %}
 {% block content %}
 <div class="page-head">
@@ -6,7 +6,7 @@
   <div class="page-actions"><a class="button secondary-link" href="{{ url_for('games') }}">Zum Spielekatalog</a></div>
 </div>
 {% if source_ean %}<div class="status-banner online"><strong>Suche ohne EAN gestartet</strong><span>Für {{ source_ean }} wurde kein Treffer gefunden. Suche jetzt nach Titel und Plattform; die unbekannte EAN wird dem Spiel dabei nicht automatisch zugeordnet.</span></div>{% endif %}
-<form method="get" class="panel identify-search">
+<form action="{{ request.path }}" method="get" class="panel identify-search">
   {% if source_ean %}<input type="hidden" name="source_ean" value="{{ source_ean }}">{% endif %}
   <label>Spieltitel oder Suchbegriff<input name="q" value="{{ q }}" placeholder="z. B. Microsoft Flight Simulator 2024" autofocus required></label>
   <label>Plattform <span class="muted">(optional, verbessert die Treffer)</span>

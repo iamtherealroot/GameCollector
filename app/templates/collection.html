@@ -1,6 +1,6 @@
 {% extends 'base.html' %}{% block title %}{{ active_collection_label }} · Bibo{% endblock %}
 {% block content %}
-<div class="page-head"><div><span class="eyebrow">Bibliothek</span><h1>{% if status=='wishlist' %}Wunschliste{% else %}{{ active_collection_label }}{% endif %}</h1><p class="muted">{{ items|length }} Treffer</p></div>{% if status=='owned' %}<form method="post" action="{{ url_for('collection_revalue') }}"><button>↻ Sammlung neu bewerten</button></form>{% endif %}</div>
+<div class="page-head"><div><span class="eyebrow">Bibliothek</span><h1>{% if status=='wishlist' %}Wunschliste{% else %}{{ active_collection_label }}{% endif %}</h1><p class="muted">{{ pagination.total }} Treffer</p></div>{% if status=='owned' %}<form method="post" action="{{ url_for('collection_revalue') }}"><button>↻ Sammlung neu bewerten</button></form>{% endif %}</div>
 <div class="tabs"><a class="{% if status=='owned' %}active{% endif %}" href="{{ url_for('collection', status='owned') }}">Besitze ich</a><a class="{% if status=='wishlist' %}active{% endif %}" href="{{ url_for('collection', status='wishlist') }}">Wunschliste</a></div>
 <div class="collection-format-tabs"><a class="{% if not selected_format %}active{% endif %}" href="{{ url_for('collection', status=status, view=view) }}">Alle <span>{{ format_counts.all }}</span></a><a class="{% if selected_format=='physical' %}active{% endif %}" href="{{ url_for('collection', status=status, format='physical', view=view) }}">💿 Physisch <span>{{ format_counts.physical }}</span></a><a class="{% if selected_format=='digital' %}active{% endif %}" href="{{ url_for('collection', status=status, format='digital', view=view) }}">☁ Digital <span>{{ format_counts.digital }}</span></a></div>
 
@@ -17,7 +17,7 @@
     <button type="submit" class="collection-search-button">Suchen</button>
   </div>
 
-  <details class="collection-more-filters" open>
+  <details class="collection-more-filters">
     <summary>Weitere Filter{% set active_filter_count = (1 if selected_console else 0) + (1 if selected_franchise else 0) + (1 if region else 0) + (1 if completeness else 0) + (1 if valuation else 0) %}{% if active_filter_count %} <span>{{ active_filter_count }} aktiv</span>{% endif %}</summary>
     <div class="collection-filter-grid">
       <label><span>Konsole</span><select name="console_id"><option value="">Alle Konsolen</option>{% for c in consoles %}<option value="{{ c.id }}" {% if selected_console==c.id %}selected{% endif %}>{{ c.name }}</option>{% endfor %}</select></label>
@@ -55,7 +55,7 @@
 <div class="collection-grid">
 {% for i in items %}
   <article class="collection-card">
-    <a class="collection-cover-link" href="{{ url_for('game_detail', game_id=i.game.id, return_to=request.full_path.rstrip('?')) }}">{% if i.game.cover_url %}<img class="collection-cover" src="{{ i.game.cover_url }}" alt="Cover {{ i.game.title }}">{% else %}<div class="collection-cover collection-cover-empty">🎮</div>{% endif %}</a>
+    <a class="collection-cover-link" href="{{ url_for('game_detail', game_id=i.game.id, return_to=request.full_path.rstrip('?')) }}">{% if i.game.cover_url %}<img class="collection-cover" src="{{ i.game.cover_url }}" alt="Cover {{ i.game.title }}" loading="lazy" decoding="async">{% else %}<div class="collection-cover collection-cover-empty">🎮</div>{% endif %}</a>
     <div class="collection-card-body">
       <div class="collection-badges"><span class="platform-pill">{{ i.game.console.name }}</span><span class="copy-pill {% if i.ownership_format=='digital' %}digital-copy-pill{% endif %}">{% if i.ownership_format=='digital' %}☁ Digital{% else %}{{ i.completeness }}{% endif %}</span></div>
       <h3><a href="{{ url_for('game_detail', game_id=i.game.id, return_to=request.full_path.rstrip('?')) }}">{{ i.game.title }}</a></h3>
@@ -70,6 +70,7 @@
 {% else %}
 <table class="collection-list"><thead><tr><th>Spiel</th><th>Konsole</th><th>Format</th><th>Zustand</th><th>Marktwert</th><th>Quelle</th><th></th></tr></thead><tbody>{% for i in items %}<tr><td data-label="Spiel"><a href="{{ url_for('game_detail', game_id=i.game.id, return_to=request.full_path.rstrip('?')) }}"><strong>{{ i.game.title }}</strong></a><br><small>{{ i.game.region }}{% if i.game.barcode %} · {{ i.game.barcode }}{% endif %}</small></td><td data-label="Konsole">{{ i.game.console.name }}</td><td data-label="Format">{% if i.ownership_format=='digital' %}☁ Digital{% else %}💿 {{ i.completeness }}{% endif %}</td><td data-label="Zustand">{% if i.ownership_format=='digital' %}–{% else %}{{ i.media_condition }}/10{% if i.box_present %} · OVP {{ i.box_condition }}/10{% endif %}{% endif %}</td><td data-label="Marktwert">{% if i.ownership_format=='digital' %}<small>Nicht physisch bewertet</small>{% elif i.auto_value_eur is not none %}<strong>{{ eur(i.auto_value_eur) }}</strong>{% if i.auto_value_low_eur is not none %}<br><small>{{ eur(i.auto_value_low_eur) }}–{{ eur(i.auto_value_high_eur) }}</small>{% endif %}{% elif i.estimated_value is not none %}<strong>{{ eur(i.estimated_value) }}</strong><br><small>Eigene Schätzung</small>{% else %}–{% endif %}</td><td data-label="Quelle">{% if i.ownership_format=='digital' %}<span class="source-pill source-pill-muted">Digital ausgeschlossen</span>{% elif i.auto_value_source %}<span class="source-pill">{{ i.auto_value_source }}</span>{% if i.auto_value_updated_at %}<br><small>{{ i.auto_value_updated_at|localdt('%d.%m.%Y') }}</small>{% endif %}{% elif i.auto_value_status and i.auto_value_status != "ok" %}<span class="source-pill">{{ i.auto_value_status }}</span><br><small>{{ i.auto_value_message }}</small>{% else %}–{% endif %}</td><td class="collection-list-action"><a class="button secondary-link compact-button" href="{{ url_for('collection_configure', game_id=i.game.id, item_id=i.id, return_to=request.full_path.rstrip('?')) }}">Bearbeiten</a></td></tr>{% else %}<tr class="collection-list-empty"><td colspan="7">Noch keine Einträge.</td></tr>{% endfor %}</tbody></table>
 {% endif %}
+{% include '_collection_pagination.html' %}
 {% endblock %}
 {% block scripts %}<script>
 document.querySelectorAll('.collection-list td[data-label="Spiel"] a[href]').forEach(link=>{

@@ -1,4 +1,4 @@
-{% extends 'base.html' %}
+{% extends 'search_fragment_base.html' if request.args.get('fragment')=='1' else 'base.html' %}
 {% block title %}{{ config.title }} suchen · Collector{% endblock %}
 {% block content %}
 <section class="collector-section-hero">
@@ -10,7 +10,7 @@
 <section class="panel media-title-search">
   <div class="collector-actions media-kind-switch"><a class="button {% if section=='movies' %}active{% endif %}" href="{{ url_for('collector_media_search', section='movies') }}">🎬 Filme</a><a class="button {% if section=='tv' %}active{% endif %}" href="{{ url_for('collector_media_search', section='tv') }}">📺 Serien</a><a class="button" href="{{ url_for('collector_collections', type=section) }}">🗂️ Reihenübersicht</a></div>
   <h2>Titel suchen</h2>
-  <form method="get" class="media-title-search-form">
+  <form action="{{ request.path }}" method="get" class="media-title-search-form">
     <input type="hidden" name="section" value="{{ section }}">
     <label>Titel<input name="q" value="{{ query }}" placeholder="z. B. Batman" required></label>
     <label>Jahr (optional)<input name="year" value="{{ year_filter|default('') }}" inputmode="numeric" maxlength="4" placeholder="2022"></label>
@@ -18,7 +18,7 @@
     <button class="button" type="submit">🔎 Suchen</button>
   </form>
   <h2>EAN / UPC suchen</h2>
-  <form method="get" class="collector-actions"><input type="hidden" name="section" value="{{ section }}"><input name="ean" value="{{ ean }}" inputmode="numeric" placeholder="EAN / UPC" required><button class="button" type="submit">▥ EAN suchen</button></form>
+  <form action="{{ request.path }}" method="get" class="collector-actions"><input type="hidden" name="section" value="{{ section }}"><input name="ean" value="{{ ean }}" inputmode="numeric" placeholder="EAN / UPC" required><button class="button" type="submit">▥ EAN suchen</button></form>
   {% if not tmdb_configured %}<p class="warning">TMDB ist noch nicht konfiguriert.</p>{% endif %}
   {% if query %}<p class="muted">{{ results|length }} Treffer geladen{% if total_available|default(0) > results|length %} · {{ total_available }} Treffer bei TMDB verfügbar{% endif %}. Verfeinere bei Bedarf über Jahr oder Sortierung.</p>{% endif %}
   {% if ean %}<p class="muted">EAN {{ ean }} · Barcode-Provider: {{ barcode_products|length }} Treffer · TMDB: {{ results|length }} Kandidaten</p>{% endif %}

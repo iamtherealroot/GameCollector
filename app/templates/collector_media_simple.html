@@ -1,0 +1,27 @@
+{% extends 'base.html' %}{% block title %}{{ sections[selected_category].singular }} hinzufügen · Bibo{% endblock %}
+{% block content %}
+<div class="page-head"><div><span class="eyebrow">{{ sections[selected_category].title }}</span><h1>Neues Objekt hinzufügen</h1><p>Ein Titel genügt. Weitere Angaben kannst du später ergänzen.</p></div></div>
+<form method="post" class="panel form-grid">
+  <input type="hidden" name="category" value="{{ selected_category }}">
+  <label class="wide">Titel<input name="title" value="{{ prefill.get('title','') }}" required maxlength="255" autofocus></label>
+  <label>EAN / ISBN<input name="barcode" value="{{ prefill.get('barcode','') }}" inputmode="numeric"></label>
+  <label>Medium<select name="media_type">{% set formats={'movies':['DVD','Blu-ray','4K UHD Blu-ray','VHS'],'tv':['DVD','Blu-ray','4K UHD Blu-ray'],'books':['Hardcover','Taschenbuch','Manga','Comic'],'music':['CD','Vinyl','Kassette'],'cards':['Einzelkarte','Booster','Deck'],'custom':['Sonstiges']} %}{% for format in formats[selected_category] %}<option {% if prefill.get('media_type')==format %}selected{% endif %}>{{ format }}</option>{% endfor %}</select></label>
+  <label>Zustand<select name="condition"><option value="">Noch nicht angegeben</option><option {% if prefill.get('condition')=='Neu' %}selected{% endif %}>Neu</option><option {% if prefill.get('condition')=='Wie neu' %}selected{% endif %}>Wie neu</option><option {% if prefill.get('condition')=='Sehr gut' %}selected{% endif %}>Sehr gut</option><option {% if prefill.get('condition')=='Gut' %}selected{% endif %}>Gut</option><option {% if prefill.get('condition')=='Akzeptabel' %}selected{% endif %}>Akzeptabel</option><option {% if prefill.get('condition')=='Mangelhaft' %}selected{% endif %}>Mangelhaft</option></select></label>
+  {% if selected_category!='books' %}<label>Vollständigkeit<select name="completeness"><option value="">Noch nicht angegeben</option><option {% if prefill.get('completeness')=='Komplett' %}selected{% endif %}>Komplett</option><option {% if prefill.get('completeness')=='Ohne OVP' %}selected{% endif %}>Ohne OVP</option><option {% if prefill.get('completeness')=='Unvollständig' %}selected{% endif %}>Unvollständig</option><option {% if prefill.get('completeness')=='Nur Medium' %}selected{% endif %}>Nur Medium</option></select></label>{% endif %}
+  {% if selected_category=='custom' %}<label>Kategorie<select name="custom_category"><option value="">Weitere Sammlungen</option>{% for category in custom_categories %}<option value="{{ category.id }}" {% if prefill.get('custom_category')==category.id %}selected{% endif %}>{{ category.title }}</option>{% endfor %}</select></label>{% endif %}
+  <details class="wide"><summary>Weitere Angaben (optional)</summary><div class="form-grid">
+    <label>Format<select name="ownership_format"><option value="physical">Physisch</option><option value="digital" {% if prefill.get('ownership_format')=='digital' %}selected{% endif %}>Digital</option></select></label>
+    <label>Physisch in Deutschland?<select name="de_physical_release_status">{% for value,label in [('physical','Ja, physisch erschienen'),('never_physical_de','Nie physisch in DE erschienen'),('digital','Nur digital'),('unknown','Noch ungeklärt')] %}<option value="{{ value }}" {% if prefill.get('de_physical_release_status','physical')==value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></label>
+    <label>Kaufdatum<input name="purchase_date" type="date" value="{{ prefill.get('purchase_date','') }}"></label>
+    <label>Kaufpreis<input name="purchase_price_eur" inputmode="decimal" value="{{ prefill.get('purchase_price_eur','') }}"></label>
+    <label>Eigene Schätzung<input name="estimated_value_eur" inputmode="decimal" value="{{ prefill.get('estimated_value_eur','') }}"></label>
+    <label>Lagerort<input name="storage_location" value="{{ prefill.get('storage_location','') }}"></label>
+    <label>Jahr<input name="release_year" type="number" min="1800" max="2200" value="{{ prefill.get('release_year','') }}"></label>
+    <label>Ausgabe<input name="edition" value="{{ prefill.get('edition','') }}"></label>
+    <label>Cover-URL<input name="cover_url" value="{{ prefill.get('cover_url','') }}"></label>
+    {% if selected_category not in ['movies','tv'] %}<label>Anzahl<input name="quantity" type="number" min="1" max="999" value="{{ prefill.get('quantity',1) }}"></label>{% endif %}
+    <label class="wide">Notizen<textarea name="notes">{{ prefill.get('notes','') }}</textarea></label>
+  </div></details>
+  <div class="wide collector-actions"><button type="submit">Speichern und öffnen</button><a class="button secondary" href="{{ url_for('collector_media_questionnaire',category=selected_category,title=prefill.get('title',''),barcode=prefill.get('barcode',''),advanced=1) }}">Boxset oder erweiterte Angaben</a><a href="{{ url_for('collector_home') }}">Abbrechen</a></div>
+</form>
+{% endblock %}

@@ -1,0 +1,16 @@
+{% extends 'base.html' %}
+{% block title %}Suchen und hinzufügen · Bibo{% endblock %}
+{% block content %}
+<section class="panel dashboard-search">
+  <h1>Suchen und hinzufügen</h1>
+  <form action="{{ url_for('universal_search') }}" method="get" class="dashboard-search-form">
+    <label>EAN oder Titel<input type="search" name="q" value="{{ query }}" required maxlength="500" placeholder="EAN scannen oder Titel eingeben" autofocus></label>
+    <button type="submit">Weiter</button><a class="button secondary" href="{{ url_for('scanner') }}">📷 Scannen</a>
+  </form>
+</section>
+{% if query %}
+<section class="panel"><h2>Was ist „{{ query }}“?</h2><p>Wähle die Medienart, um passende Treffer zu sehen.</p>
+  <div class="media-choice-grid">{% for key,label in media_choices.items() %}<a class="button" href="{{ url_for('universal_search',q=query,type=key) }}">{{ label }}</a>{% endfor %}</div>
+</section>
+{% endif %}
+{% endblock %}

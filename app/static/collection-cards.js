@@ -11,4 +11,4 @@
 })();
 
 const empty=document.querySelector('.dashboard-add-category');
-empty?.addEventListener('click',()=>window.requestAnimationFrame(()=>document.querySelector('#custom-category-create input[name=title]')?.focus({preventScroll:true})));
+empty?.addEventListener('click',()=>{const field=document.querySelector('#custom-category-create input[name=title]');const options=field?.closest('details');if(options)options.open=true;window.requestAnimationFrame(()=>field?.focus({preventScroll:true}));});

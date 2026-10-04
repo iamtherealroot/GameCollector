@@ -1,8 +1,8 @@
-{% extends 'base.html' %}
+{% extends 'search_fragment_base.html' if request.args.get('fragment')=='1' else 'base.html' %}
 {% block title %}Zubehör suchen · Bibo{% endblock %}
 {% block content %}
 <div class="page-head"><div><span class="eyebrow">Zubehörkatalog</span><h1>Zubehör suchen</h1><p class="muted">Zuerst wird dein Bestand geprüft, anschließend werden physische Angebote über eBay gesucht.</p></div><a class="button secondary-link" href="{{ url_for('accessories') }}">← Zum Zubehör</a></div>
-<form method="get" class="panel accessory-search-form">
+<form action="{{ request.path }}" method="get" class="panel accessory-search-form">
   <label>Suchbegriff<input name="q" value="{{ q }}" placeholder="z. B. Game Boy Player Startup Disc" autofocus></label>
   <label>Plattform<select name="console_id"><option value="">Alle Plattformen</option>{% for c in consoles %}<option value="{{ c.id }}" {% if selected_console_id==c.id %}selected{% endif %}>{{ c.name }}</option>{% endfor %}</select></label>
   <label>Kategorie<select name="category"><option value="">Alle Kategorien</option>{% for key,label in categories.items() %}<option value="{{ key }}" {% if selected_category==key %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></label>

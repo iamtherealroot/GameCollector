@@ -99,28 +99,19 @@ with m.app.app_context():
     assert 'dashboard-appearance' in client.get('/account').get_data(as_text=True)
     saved=client.post('/dashboard/style',data={'token':token,'style':'glass','return_to':'account'})
     assert saved.status_code==302 and saved.headers['Location'].endswith('/account')
-    for character in ['mario','luigi','hitman','walter','ash','detective-blue','detective-red','detective-cap','detective-green','detective-purple','detective-blond','rapper-tracksuit','rapper-cap','rapper-hoodie','rapper-bucket','rapper-shades']:
-        assert f'data-character="{character}"' in glass
-    assert 'helper-pokeball' in glass
-    from xml.etree import ElementTree
-    for vector in re.findall(r'<svg\b.*?</svg>',glass,re.S):ElementTree.fromstring(vector)
-    assert 'helper-shin-left' in glass and 'helper-forearm' in glass
-    assert 'href="/static/shelf-sports.png"' in glass and 'shelf-sports.png#' not in glass
-    assert not re.search(r'<use\b[^>]*shelf-sport-',glass)
-    assert glass.count('class="regal-security-template"')==4
-    assert 'href="/static/shelf-security.png"' in glass and 'security-4-clip-' in glass
-    assert 'href="/static/shelf-pirates.png"' in glass
-    assert 'href="/static/shelf-detectives.png"' in glass and 'href="/static/shelf-rappers.png"' in glass
-    assert 'regal-helper-name' not in glass and '>Türwächterin</span>' not in glass
-    assert 'regal-entry-board' not in glass and 'pirate-consistent-hat' in glass
-    assert glass.count('class="regal-shelf-board"')==glass.count('class="regal-spine-wrap"')+1
+    payload=client.get('/dashboard/easter-helpers').get_json()
+    figures=''.join(payload['helpers'].values())+payload['guard']
+    for character in ['sport-blue','pirate-captain','detective-blue','rapper-tracksuit','profession-baker','profession-diver','class-miner','falconer-ranger']:
+        assert f'data-character="{character}"' in figures
+    for character in ['mario','luigi','hitman','walter','ash','actor','wizard','adventurer']:
+        assert f'data-character="{character}"' not in figures
+    assert figures.count('class="regal-security-template"')==4
+    assert 'href="/static/shelf-security.png"' in figures
+    assert 'regal-shake-status' not in glass
     assert glass.count('class="regal-helper-door"')==1
+    assert glass.count('class="regal-shelf-board"')==glass.count('class="regal-spine-wrap"')+1
     card_tile=glass.split('collector-module-cards shelf-compartment')[1].split('</article>')[0]
-    assert 'regal-entry-slot' in card_tile and 'regal-door-panel' in card_tile
-    assert 'Sammelkarten' in card_tile and 'section=cards' not in card_tile  # The direct route remains a native anchor.
-    assert 'href="/collector/cards"' in card_tile
-    for pirate in ['captain','swordsman','navigator','sharpshooter','cook','medic']:
-        assert f'data-character="pirate-{pirate}"' in glass
+    assert 'href="/collector/cards"' in card_tile and 'regal-door-panel' in card_tile
     # Named music fields must become literal clauses; edition barcode/count survive.
     mb_calls=[]
     old_mb=m.musicbrainz_json

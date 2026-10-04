@@ -1,6 +1,6 @@
 (() => {
   document.querySelectorAll('[data-nav-search]').forEach(input => {
-    const scope = input.closest('.bibo-mobile-panel, .panel');
+    const scope = input.closest('.bibo-menu-panel, .bibo-mobile-panel, .panel');
     const sections = scope.querySelectorAll('[data-nav-section], [data-nav-group]');
     const empty = scope.querySelector('[data-nav-empty]');
     const normalize = text => text.toLocaleLowerCase('de').normalize('NFD').replace(/[\u0300-\u036f]/g, '');
@@ -23,7 +23,7 @@
   });
   document.querySelectorAll('.bibo-nav [data-nav-group]').forEach(menu => {
     menu.addEventListener('toggle', () => {
-      if (menu.open) document.querySelectorAll('.bibo-nav [data-nav-group]').forEach(other => { if (other !== menu) other.open = false; });
+      if (menu.open && !menu.closest('.bibo-menu-panel')?.querySelector('[data-nav-search]')?.value.trim()) document.querySelectorAll('.bibo-nav [data-nav-group]').forEach(other => { if (other !== menu) other.open = false; });
     });
   });
   const menus = () => document.querySelectorAll('.bibo-nav details[open], .bibo-mobile-menu[open], .account-menu[open]');

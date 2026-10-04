@@ -1,4 +1,4 @@
-const VERSION = 'bibo-v5.1.0';
+const VERSION = 'bibo-v5.1.1';
 const STATIC_CACHE = VERSION + '-static';
 const PAGE_CACHE = VERSION + '-pages';
 const APP_SHELL = [

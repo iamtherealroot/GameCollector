@@ -24,14 +24,14 @@
   <h2>Zubehör manuell hinzufügen</h2>
   <form method="post" class="panel" enctype="multipart/form-data">
     <input type="hidden" name="return_to" value="{{ request.full_path }}">
-    <label>Name<input name="name" required placeholder="z. B. Game Boy Player Startup Disc"></label>
+    <label>Name<input name="name" value="{{ request.form.get('name',request.args.get('new_name','')) }}" required placeholder="z. B. Game Boy Player Startup Disc"></label>
     <div class="row">
       <label>Kategorie<select name="category">{% for key,label in categories.items() %}<option value="{{ key }}">{{ label }}</option>{% endfor %}</select></label>
       <label>Komponententyp<select name="component_kind">{% for key,label in component_kinds.items() %}<option value="{{ key }}">{{ label }}</option>{% endfor %}</select></label>
     </div>
     <label>Plattform<select name="console_id"><option value="">Universal / keine feste Zuordnung</option>{% for c in consoles %}<option value="{{ c.id }}">{{ c.name }}</option>{% endfor %}</select></label>
     <div class="row"><label>Hersteller<input name="manufacturer"></label><label>Modellnummer<input name="model_number"></label></div>
-    <div class="row"><label>EAN / UPC<input name="barcode" inputmode="numeric"></label><label>Produktcode<input name="product_code" placeholder="z. B. DOL-017"></label></div>
+    <div class="row"><label>EAN / UPC<input name="barcode" inputmode="numeric" value="{{ request.form.get('barcode',request.args.get('new_barcode','')) }}"></label><label>Produktcode<input name="product_code" placeholder="z. B. DOL-017"></label></div>
     <label>Kompatibilität<input name="compatibility" placeholder="z. B. Nintendo GameCube · Game Boy Player"></label>
     <label>Teil eines Sets<select name="parent_accessory_id"><option value="">Eigenständiger Eintrag</option>{% for p in parent_items %}<option value="{{ p.id }}">{{ p.name }}</option>{% endfor %}</select></label>
     <div class="row"><label>Farbe<input name="color"></label><label>Anzahl<input name="quantity" type="number" min="1" value="1"></label></div>

@@ -13,13 +13,13 @@
   {% if key=='cards' %}<div class="regal-entry-slot"><span class="regal-helper-door" aria-hidden="true"></span>{% endif %}
   <a class="regal-caption{% if key=='cards' %} regal-door-panel{% endif %}" href="{{ href }}" aria-label="{{ title }} öffnen"><strong class="regal-category-label" title="{{ title }}">{{ title }}</strong><strong>{{ count }} Objekte <span>{{ eur(value) }}</span></strong><small>{{ subtitle or 'Sammlung öffnen' }} →</small></a>
   {% if key=='cards' %}</div>{% endif %}
-  {% include '_shelf_helpers.html' %}
+  <span class="regal-helper-set" data-helper-set data-helper-key="{{ key }}" aria-hidden="true"></span>
 </article>
 {%- endmacro %}
-<div class="regal-heading"><div><span class="eyebrow">Dein interaktives Sammlungsregal</span><h2>Was möchtest du aus dem Regal nehmen?</h2></div><p class="muted">Beschriftete Rücken öffnen das Medium. Der letzte, unbeschriftete Rücken und das Schild darunter öffnen die Kategorie.{% if can_collection('edit_items') %} Im freien Fach legst du eine neue Kategorie an.{% endif %}</p></div>
+<div class="regal-heading"><h2>Deine Sammlungen</h2></div>
 <div class="regal-cabinet-shell{% if dashboard_style=='glass' %} regal-skin-glass{% endif %}">
 <span class="regal-corner-screw screw-top-left" aria-hidden="true"></span><span class="regal-corner-screw screw-top-right" aria-hidden="true"></span><span class="regal-corner-screw screw-bottom-left" aria-hidden="true"></span>
-<section class="collector-module-grid collection-regal" aria-label="Sammlungsregal">
+<section class="collector-module-grid collection-regal" aria-label="Sammlungsregal" data-helpers-url="{{ url_for('dashboard_easter_helpers') }}?v={{ app_version }}">
   {{ compartment('games','Games','🎮','GAME',url_for('collection',status='owned'),game_count+hardware_count+accessory_count,gaming_value,module_images.games,game_count|string+' Spiele · '+hardware_count|string+' Hardware · '+accessory_count|string+' Zubehör',cases=module_cases.games) }}
   {% for key,title,icon,format,subtitle in [('movies','Filme','🎬','BLU-RAY','DVD · Blu-ray · UHD'),('tv','Serien','📺','BOXSET','Staffeln · Boxsets'),('books','Bücher','📚','BUCH','Ausgaben · Autoren · Reihen'),('music','Musik','💿','MUSIK','CD · Vinyl'),('cards','Sammelkarten','🃏','ALBUM','Sets · Einzelkarten')] %}
     {% set st=module_stats[key] %}
@@ -39,8 +39,7 @@
   {% endif %}
 <div class="regal-helper-stage" aria-hidden="true"></div>
 </section>
-{% include '_regal_doorman.html' %}
+<span class="regal-doorman" aria-hidden="true"></span>
 <button type="button" class="regal-shake-trigger" title="Eine etwas lockere Schraube …" aria-label="Am Regal rütteln"></button>
 </div>
 <button type="button" class="secondary regal-rotation-toggle" aria-pressed="false">Titelwechsel pausieren</button>
-<span class="regal-shake-status" role="status" aria-live="polite"></span>

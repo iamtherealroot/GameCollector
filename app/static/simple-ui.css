@@ -1,0 +1,70 @@
+.dashboard-simple-hero{align-items:center;min-height:0;padding:1.25rem 0}
+.dashboard-simple-hero p{margin:.5rem 0}
+.dashboard-search h2{margin-top:0}
+.dashboard-search-form{display:flex;align-items:flex-end;gap:.75rem;flex-wrap:wrap}
+.dashboard-search-form label{flex:1;min-width:180px;margin:0}
+.dashboard-search-form input,.dashboard-search-form select{width:100%;box-sizing:border-box}
+.dashboard-search-form button,.dashboard-search-form>.button{margin:0;min-height:44px}
+.media-choice-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:.75rem}
+.media-choice-grid .button{min-height:48px;display:flex;align-items:center;justify-content:center}
+.dashboard-more{margin:1.5rem 0}
+.dashboard-more>summary{padding:1rem;border:1px solid var(--line);border-radius:12px;cursor:pointer}
+.search-next-actions{margin:1rem 0}
+.collection-pagination{display:flex;align-items:center;justify-content:center;gap:1rem;flex-wrap:wrap;margin:1.5rem 0}
+.collection-pagination span{color:var(--muted);text-align:center}
+.simple-desktop-menu{position:relative}
+.simple-desktop-menu>summary{cursor:pointer;padding:.75rem}
+.simple-desktop-menu>div{position:absolute;right:0;top:100%;width:min(480px,90vw);max-height:70vh;overflow:auto;background:var(--panel,#10182b);padding:1rem;border:1px solid var(--line);border-radius:12px;z-index:90}
+.simple-desktop-menu .bibo-nav-group{display:block;width:100%}
+.page-loading,.metadata-loading{position:fixed;top:16px;left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:12px;max-width:calc(100vw - 32px);box-sizing:border-box;padding:8px 16px;background:var(--panel,#10182b);color:var(--text,#eef2ff);border:1px solid var(--line,#394560);border-radius:14px;box-shadow:0 6px 24px #0005;z-index:200;pointer-events:none}
+.page-loading[hidden]{display:none}
+.catalog-search-results>[data-catalog-feedback]{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);display:flex;align-items:center;gap:12px;max-width:calc(100vw - 32px);box-sizing:border-box;padding:16px 24px;background:var(--panel,#10182b);color:var(--text,#eef2ff);border:1px solid var(--line,#394560);border-radius:14px;box-shadow:0 6px 24px #0005;z-index:199;pointer-events:none}
+.catalog-search-results>[data-catalog-feedback][hidden]{display:none}
+.page-loading,.metadata-loading{top:50%;transform:translate(-50%,-50%)}
+.metadata-loading{z-index:199;pointer-events:auto;font-size:.9rem}
+.metadata-loading.is-complete .bibo-loading-runner{display:none}
+.bibo-loading-runner{flex:none;width:56.25px;height:72px;background:url('loading-runner.svg') 0 0/225px 72px no-repeat;image-rendering:pixelated;animation:bibo-runner .48s steps(4) infinite}
+@keyframes bibo-runner{to{background-position:-225px 0}}
+@media(prefers-reduced-motion:reduce){.bibo-loading-runner{animation:none}}
+@media(max-width:1120px){
+  /* JS measures the actual quickbar, including the iPhone safe area. */
+  body{padding-bottom:calc(var(--bibo-quickbar-height,100px) + 24px)!important}
+  main.container{padding-bottom:24px}
+}
+@media(max-width:560px){
+  .dashboard-search-form label{flex-basis:100%;min-width:0}
+  .dashboard-search-form button,.dashboard-search-form>.button{flex:1;text-align:center}
+  .dashboard-simple-hero{display:block}
+}
+
+/* Shared, local SVG icons and touch-sized navigation tiles. */
+.nav-icon{display:block;width:26px;height:26px;flex:none}
+.bibo-tile-nav{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px;max-width:960px;margin:12px auto 0}
+.bibo-tile-nav:not(:has(.nav-add)){grid-template-columns:repeat(4,minmax(0,1fr))}
+.bibo-tile-nav .bibo-nav-tile{box-sizing:border-box;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;min-height:94px;padding:12px;border:1px solid #36445f;border-radius:16px;background:#151f34;color:var(--text,#eef2ff);text-decoration:none;font-size:.9rem;font-weight:650;line-height:1.25;cursor:pointer;list-style:none;transition:background .15s,border-color .15s}
+.bibo-nav-tile::-webkit-details-marker{display:none}
+.nav-tile-icon{display:grid;place-items:center;width:40px;height:40px;border-radius:12px;background:#ffffff0c;color:#a7bcff}
+.nav-tile-icon .nav-icon{width:28px;height:28px}
+.nav-library .nav-tile-icon{color:#6bdbca}.nav-add .nav-tile-icon{color:#92e2a2}.nav-chart .nav-tile-icon{color:#ffd38c}.nav-menu .nav-tile-icon{color:#c3a5ff}
+.bibo-tile-nav .bibo-nav-tile:hover,.bibo-tile-nav .bibo-nav-tile[aria-current=page],.simple-desktop-menu[open]>.bibo-nav-tile{background:#25324e;border-color:#9babef}
+.bibo-nav-tile:focus-visible,.bibo-menu-panel a:focus-visible,.bibo-menu-panel summary:focus-visible{outline:3px solid #acbaff;outline-offset:3px}
+.simple-desktop-menu>div{width:min(720px,calc(100vw - 48px));max-height:min(50dvh,480px);padding:20px;box-sizing:border-box;box-shadow:0 20px 50px #0007;z-index:100}
+.bibo-menu-panel h2{margin:0 0 12px;font-size:1.15rem}
+.bibo-menu-panel>label{display:grid;gap:6px;margin-bottom:16px}
+.bibo-menu-panel>label input{width:100%;box-sizing:border-box}
+.bibo-menu-panel .bibo-nav-group{min-width:0;margin:0 0 12px}
+.bibo-menu-panel .bibo-nav-group>summary{min-height:64px;border-radius:14px;padding:12px;gap:12px}
+.bibo-menu-panel .bibo-nav-group>summary>span:first-child,.bibo-menu-panel [data-nav-link]>span:first-child{display:grid;place-items:center;flex:none;width:40px;height:40px;border-radius:10px;background:#ffffff0b;color:#afbeff}
+.bibo-menu-panel .bibo-nav-group .bibo-nav-links{position:static;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;min-width:0;width:100%;max-width:none;max-height:none;overflow:visible;border:none;background:none;box-sizing:border-box;box-shadow:none;padding:10px 0 0}
+.bibo-menu-panel .bibo-nav-links a{display:flex;align-items:center;gap:10px;min-height:84px;box-sizing:border-box;padding:12px;background:#172138;border:1px solid #35415c;border-radius:12px;text-decoration:none;text-align:left;white-space:normal}
+.bibo-menu-panel .bibo-nav-links a:hover,.bibo-menu-panel .bibo-nav-links a[aria-current=page]{background:#263654;border-color:#90a2e6}
+.bibo-menu-panel .bibo-nav-links strong{font-size:.85rem;line-height:1.3;overflow-wrap:anywhere}
+.bibo-menu-panel .bibo-nav-links small{font-size:.72rem;color:var(--muted,#a8b4cd);line-height:1.4}
+.bibo-menu-panel [hidden]{display:none!important}
+.bibo-quickbar .nav-icon{width:26px;height:26px}
+@media(max-width:1120px){.bibo-tile-nav{display:none}.bibo-mobile-panel .bibo-menu-panel .bibo-nav-links a{display:flex;font-size:.9rem}.bibo-mobile-panel .bibo-menu-panel .bibo-nav-links a>span:first-child{font-size:1rem}}
+@media(max-width:420px){.bibo-menu-panel .bibo-nav-group .bibo-nav-links{grid-template-columns:minmax(0,1fr)}}
+@media(prefers-reduced-motion:reduce){.bibo-tile-nav .bibo-nav-tile{transition:none}}
+
+/* Separate season selection from the condition fields below it. */
+.media-wizard .season-action-field{margin-bottom:1rem}

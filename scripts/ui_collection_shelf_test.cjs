@@ -26,17 +26,17 @@ let shakeClick,shakeTick;const timers=[],classes=new Set(),knob={disabled:false,
 const original={href:'/collector/item/99',style:{setProperty(){}}};
 const cabinet={querySelectorAll(selector){return selector==='[data-helper-set]'?[]:[original];},classList:{add(...items){items.forEach(item=>classes.add(item));},remove(...items){items.forEach(item=>classes.delete(item));}}};
 vm.runInNewContext(source,{document:{hidden:false,querySelector(selector){return selector==='.collection-regal'?cabinet:selector==='.regal-shake-trigger'?knob:selector==='.regal-shake-status'?status:null;},querySelectorAll(){return [];}},window:{matchMedia(){return reduced;},setInterval(fn){shakeTick=fn;},setTimeout(fn,ms){timers.push({fn,ms});}}});
-shakeClick();assert.equal(knob.disabled,true);assert(classes.has('is-shaking'));assert.equal(timers.length,8);
-shakeClick();assert.equal(timers.length,8);timers[0].fn();assert(classes.has('is-spilling'));
-assert.equal(original.href,'/collector/item/99');timers[1].fn();assert(classes.has('is-helper-arriving'));timers[2].fn();assert(classes.has('is-restocking'));timers[3].fn();assert(classes.has('is-helper-returning'));timers[4].fn();assert(classes.has('is-helper-gesture'));timers[5].fn();assert(classes.has('is-doorman-leaving'));timers[6].fn();assert(classes.has('is-door-closing'));timers[7].fn();assert.equal(classes.size,0);assert.equal(knob.disabled,false);
-reduced.matches=true;shakeClick();assert.equal(timers.length,8);assert.equal(classes.size,0);assert.match(status.textContent,/felsenfest/);
+shakeClick();assert.equal(knob.disabled,true);assert(classes.has('is-shaking'));assert.equal(timers.length,9);
+shakeClick();assert.equal(timers.length,9);timers[0].fn();assert(classes.has('is-spilling'));
+assert(!classes.has('is-door-revealed'));timers[1].fn();assert(classes.has('is-door-revealed'));assert.equal(original.href,'/collector/item/99');timers[2].fn();assert(classes.has('is-helper-arriving'));timers[3].fn();assert(classes.has('is-restocking'));timers[4].fn();assert(classes.has('is-helper-returning'));timers[5].fn();assert(classes.has('is-helper-gesture'));timers[6].fn();assert(classes.has('is-doorman-leaving'));timers[7].fn();assert(classes.has('is-door-closing'));timers[8].fn();assert.equal(classes.size,0);assert.equal(knob.disabled,false);
+reduced.matches=true;shakeClick();assert.equal(timers.length,9);assert.equal(classes.size,0);assert.equal(status.textContent,'');
 console.log('OK: cabinet Easter egg restores original nodes/links, ignores repeated clicks and respects reduced motion');
 reduced.matches=false;
 const chosen=new Set(),helpers=[0,1,2].map(index=>({classList:{toggle(_,on){if(on)chosen.add(index);else chosen.delete(index);}}}));
 const helperSet={dataset:{},querySelectorAll(){return helpers;}},helperTimers=[];
 const helperCabinet={querySelectorAll(selector){return selector==='[data-helper-set]'?[helperSet]:[];},classList:{add(){},remove(){}}};
 vm.runInNewContext(source,{document:{hidden:false,querySelector(selector){return selector==='.collection-regal'?helperCabinet:selector==='.regal-shake-trigger'?knob:null;},querySelectorAll(){return [];}},window:{matchMedia(){return reduced;},setInterval(){},setTimeout(fn){helperTimers.push(fn);}},Math:{floor:Math.floor,round:Math.round,max:Math.max,min:Math.min,random(){return 0;}}});
-shakeClick();assert.deepEqual([...chosen],[0]);helperTimers[7]();shakeClick();assert.deepEqual([...chosen],[1]);helperTimers[15]();
+shakeClick();assert.deepEqual([...chosen],[0]);helperTimers[8]();shakeClick();assert.deepEqual([...chosen],[1]);helperTimers[17]();
 console.log('OK: exactly one helper selected and a different helper on next shake');
 const scene=[],cloneStyle={setProperty(name,value){this[name]=value;}},clone={classList:{add(){}},style:cloneStyle};
 const stage={replaceChildren(){scene.length=0;},appendChild(node){scene.push(node);}};
@@ -48,8 +48,8 @@ vm.runInNewContext(source,{document:{hidden:false,querySelector(selector){return
 shakeClick();assert.equal(scene.length,2);assert.equal(cloneStyle.left,'22px');assert.equal(cloneStyle.top,'98px');
 assert.equal(cloneStyle['--door-x'],'54px');assert.equal(cloneStyle['--door-y'],'344px');
 assert.equal(cloneStyle['--out-facing'],'-1');assert.equal(cloneStyle['--return-facing'],'1');
-assert.deepEqual(sceneTimers.map(timer=>timer.ms),[400,1550,7550,19550,25550,29050,31150,32150]);
-sceneTimers[7].fn();assert.equal(scene.length,0);assert.equal(knob.disabled,false);
+assert.deepEqual(sceneTimers.map(timer=>timer.ms),[400,1450,2950,8950,20950,26950,30450,32550,33550]);
+sceneTimers.at(-1).fn();assert.equal(scene.length,0);assert.equal(knob.disabled,false);
 console.log('OK: cloned scene geometry, shared door/ladder path, phase timing and complete scene cleanup');
 // Real inventory links survive sports shots; the empty category spine is excluded.
 const sportClasses=new Set(),sportItem={href:'/collector/item/ball-test',style:{setProperty(name,value){this[name]=value;}},classList:{add(name){sportClasses.add(name);},remove(name){sportClasses.delete(name);}},getBoundingClientRect(){return {left:160,top:40,width:20,height:140};}};
@@ -61,18 +61,18 @@ const sportCabinet={...geometricCabinet,querySelectorAll(selector){return select
 const sportTimers=[];
 vm.runInNewContext(source,{document:{hidden:false,querySelector(selector){return selector==='.collection-regal'?sportCabinet:selector==='.regal-shake-trigger'?knob:selector==='.regal-helper-door'?door:null;},querySelectorAll(){return [];},createElement(){return {style:{setProperty(name,value){this[name]=value;}},setAttribute(){}};}},window:{matchMedia(){return reduced;},setInterval(){},setTimeout(fn,ms){sportTimers.push({fn,ms});}},Math:{floor:Math.floor,round:Math.round,max:Math.max,min:Math.min,random(){return 0;}}});
 shakeClick();assert.equal(scene.length,3);assert(sportClasses.has('sport-restock'));
-const shot=scene[2];assert.equal(shot.className,'regal-sport-ball');assert.equal(shot.style['--shot-delay'],'300ms');assert.equal(shot.style['--shot-x'],'80.5px');assert.equal(shot.style['--shot-y'],'-79px');
-assert.equal(sportItem.href,'/collector/item/ball-test');sportTimers[7].fn();assert.equal(scene.length,0);assert.equal(sportClasses.size,0);assert.equal(sportItem.href,'/collector/item/ball-test');
-reduced.matches=true;shakeClick();assert.equal(sportTimers.length,8);assert.equal(scene.length,0);reduced.matches=false;
+const shot=scene[2];assert.equal(shot.className,'regal-sport-ball');assert.equal(shot.style['--shot-delay'],'300ms');assert.equal(shot.style['--shot-x'],'0.5px');assert.equal(shot.style['--shot-y'],'-79px');
+assert.equal(sportItem.href,'/collector/item/ball-test');sportTimers.at(-1).fn();assert.equal(scene.length,0);assert.equal(sportClasses.size,0);assert.equal(sportItem.href,'/collector/item/ball-test');
+reduced.matches=true;shakeClick();assert.equal(sportTimers.length,9);assert.equal(scene.length,0);reduced.matches=false;
 console.log('OK: sports shot coordinates, native media links, category exclusion, cleanup and reduced motion');
 // Duplicate identities across categories are skipped even if that leaves a set empty.
-const identities=['conan','conan','ash','ash'],uniqueChosen=new Set();
+const identities=['sport-blue','sport-red','pirate-captain','pirate-swordsman','detective-blue','detective-red','rapper-cap','rapper-shades'],uniqueChosen=new Set();
 const uniqueSets=identities.map((character,index)=>({dataset:{},querySelectorAll(){return [{dataset:{character},classList:{toggle(_,on){if(on)uniqueChosen.add(index);else uniqueChosen.delete(index);},remove(){uniqueChosen.delete(index);}}}];}}));
 const uniqueCabinet={querySelectorAll(selector){return selector==='[data-helper-set]'?uniqueSets:[];},classList:{add(){},remove(){}}};
 const uniqueTimers=[];
 vm.runInNewContext(source,{document:{hidden:false,querySelector(selector){return selector==='.collection-regal'?uniqueCabinet:selector==='.regal-shake-trigger'?knob:null;},querySelectorAll(){return [];}},window:{matchMedia(){return reduced;},setInterval(){},setTimeout(fn){uniqueTimers.push(fn);}},Math:{floor:Math.floor,round:Math.round,max:Math.max,min:Math.min,random(){return 0;}}});
-shakeClick();assert.deepEqual([...uniqueChosen],[0,2]);uniqueTimers[7]();shakeClick();assert.deepEqual([...uniqueChosen],[0,2]);uniqueTimers[15]();
-console.log('OK: no duplicate character identities across categories or repeated scenes');
+shakeClick();assert.deepEqual([...uniqueChosen],[0,2,4,6]);uniqueTimers[8]();shakeClick();assert.deepEqual([...uniqueChosen],[0,2,4,6]);uniqueTimers[17]();
+console.log('OK: one character per theme across categories and repeated scenes');
 // Shared doorway traffic is staggered, and the guard waits for the last return.
 const queueClones=[],queueTimers=[];
 const queueSets=Array.from({length:3},(_,index)=>({dataset:{},querySelectorAll(){return [{dataset:{character:'queue-'+index},classList:{toggle(){}},cloneNode(){const c={classList:{add(){}},style:{setProperty(name,value){this[name]=value;}}};queueClones.push(c);return c;}}];},closest(){return {getBoundingClientRect(){return {left:index*200,bottom:300};}};}}));
@@ -81,8 +81,8 @@ vm.runInNewContext(source,{document:{hidden:false,querySelector(selector){return
 shakeClick();assert.deepEqual(queueClones.map(c=>c.style['--helper-start']),['0ms','1100ms','2200ms']);
 assert.deepEqual(queueClones.map(c=>c.style['--out-facing']),['-1','1','1']);
 assert.deepEqual(queueClones.map(c=>c.style['--return-facing']),['1','-1','-1']);
-assert.deepEqual(queueTimers.map(t=>t.ms),[400,1550,9750,21750,29950,33450,35550,36550]);
-queueTimers[7].fn();assert.equal(scene.length,0);assert.equal(knob.disabled,false);
+assert.deepEqual(queueTimers.map(t=>t.ms),[400,1450,2950,11150,23150,31350,34850,36950,37950]);
+queueTimers.at(-1).fn();assert.equal(scene.length,0);assert.equal(knob.disabled,false);
 console.log('OK: doorway queue and guard timing wait for every helper');
 // Four security workers finish assembly before helpers; retrieval starts after all return.
 const securityClasses=new Set(),securityTimers=[],securityClones=[];
@@ -92,18 +92,43 @@ const securityCabinet={...geometricCabinet,querySelectorAll(selector){return sel
 vm.runInNewContext(source,{document:{hidden:false,querySelector(selector){return selector==='.collection-regal'?securityCabinet:selector==='.regal-shake-trigger'?knob:selector==='.regal-helper-door'?door:selector==='.regal-security-pool'?{querySelectorAll(){return securityTemplates;}}:null;},querySelectorAll(){return [];},createElement(){return {style:{setProperty(name,value){this[name]=value;}}};}},window:{matchMedia(){return reduced;},setInterval(){},setTimeout(fn,ms){securityTimers.push({fn,ms});}},Math:{floor:Math.floor,round:Math.round,max:Math.max,min:Math.min,random(){return 0;}}});
 shakeClick();assert.equal(securityClones.length,4);assert.equal(scene.filter(n=>n.className==='regal-helper-ladder').length,1);
 assert.deepEqual(securityClones.map(n=>n.style['--crew-start']),['0ms','1100ms','2200ms','3300ms']);
-assert.deepEqual([...securityTimers].map(t=>t.ms).sort((a,b)=>a-b),[400,800,12850,22450,34450,44050,55650,59150,61250,62250]);
+assert.deepEqual([...securityTimers].map(t=>t.ms).sort((a,b)=>a-b),[400,1450,2200,14250,26650,38650,51050,62650,66150,68250,69250]);
 const at=ms=>securityTimers.find(t=>t.ms===ms).fn();
-at(800);assert(securityClasses.has('is-security-building'));at(12850);assert(!securityClasses.has('is-security-building'));assert(securityClasses.has('is-ladders-ready'));at(44050);assert(securityClasses.has('is-security-removing'));assert(!securityClasses.has('is-ladders-ready'));at(55650);assert(!securityClasses.has('is-security-removing'));assert(securityClasses.has('is-helper-gesture'));at(62250);assert.equal(securityClasses.size,0);assert.equal(scene.length,0);assert.equal(knob.disabled,false);
+at(2200);assert(securityClasses.has('is-security-building'));at(14250);assert(!securityClasses.has('is-security-building'));assert(securityClasses.has('is-ladders-ready'));at(51050);assert(securityClasses.has('is-security-removing'));assert(!securityClasses.has('is-ladders-ready'));at(62650);assert(!securityClasses.has('is-security-removing'));assert(securityClasses.has('is-helper-gesture'));at(69250);assert.equal(securityClasses.size,0);assert.equal(scene.length,0);assert.equal(knob.disabled,false);
 console.log('OK: four unique security workers, shared column ladder, assembly before helpers and retrieval after final return');
 // Pirate actions reveal real inventory items without spawning a football.
 clone.dataset.character='pirate-captain';sportHelper.dataset.character='pirate-captain';const pirateTimers=[];
 vm.runInNewContext(source,{document:{hidden:false,querySelector(selector){return selector==='.collection-regal'?sportCabinet:selector==='.regal-shake-trigger'?knob:selector==='.regal-helper-door'?door:null;},querySelectorAll(){return [];},createElement(){return {style:{setProperty(name,value){this[name]=value;}},setAttribute(){}};}},window:{matchMedia(){return reduced;},setInterval(){},setTimeout(fn,ms){pirateTimers.push({fn,ms});}},Math:{floor:Math.floor,round:Math.round,max:Math.max,min:Math.min,random(){return 0;}}});
-shakeClick();assert.equal(scene[2].className,'regal-pirate-burst');assert.equal(scene[2].textContent,'✦');assert.equal(scene[2].style.left,'170px');assert.equal(scene[2].style.top,'110px');assert.equal(sportItem.href,'/collector/item/ball-test');pirateTimers[7].fn();assert.equal(scene.length,0);assert.equal(sportClasses.size,0);
+shakeClick();assert.equal(scene[2].className,'regal-pirate-burst');assert.equal(scene[2].textContent,'✦');assert.equal(scene[2].style.left,'170px');assert.equal(scene[2].style.top,'110px');assert.equal(sportItem.href,'/collector/item/ball-test');pirateTimers.at(-1).fn();assert.equal(scene.length,0);assert.equal(sportClasses.size,0);
 console.log('OK: pirate inventory reveal, unchanged direct link and complete cleanup');
 
 // The guard uses the category panel's measured position, rather than cabinet centre.
 const guardStyle={setProperty(name,value){this[name]=value;}},guardTimers=[],guardCabinet={...geometricCabinet,querySelectorAll(){return [];}};
 vm.runInNewContext(source,{document:{hidden:false,querySelector(selector){return selector==='.collection-regal'?guardCabinet:selector==='.regal-shake-trigger'?knob:selector==='.regal-helper-door'?door:selector==='.regal-doorman'?{style:guardStyle}:null;},querySelectorAll(){return [];},createElement(){return {style:{setProperty(){}}};}},window:{matchMedia(){return reduced;},setInterval(){},setTimeout(fn,ms){guardTimers.push({fn,ms});}},Math:{floor:Math.floor,round:Math.round,max:Math.max,min:Math.min,random(){return 0;}}});
-shakeClick();assert.equal(guardStyle['--guard-left'],'122px');assert.equal(guardStyle['--guard-top'],'458px');assert.equal(guardStyle['--guard-door-x'],'-51px');assert.equal(guardStyle['--return-facing'],'-1');guardTimers[7].fn();
+shakeClick();assert.equal(guardStyle['--guard-left'],'122px');assert.equal(guardStyle['--guard-top'],'458px');assert.equal(guardStyle['--guard-door-x'],'-51px');assert.equal(guardStyle['--return-facing'],'-1');guardTimers.at(-1).fn();
 console.log('OK: opposite facing directions, guard route follows real category entrance');
+// Six occupied compartments need six different themes and four shared column ladders.
+const completeClones=[],completeTimers=[],birdStyle={setProperty(name,value){this[name]=value;}},bird={classList:{remove(){},add(){}},style:birdStyle};
+const birdId={value:'bird-mask',getAttribute(){return this.value;},setAttribute(_,v){this.value=v;}},birdClip={value:'url(#bird-mask)',getAttribute(){return this.value;},setAttribute(_,v){this.value=v;}};bird.querySelectorAll=selector=>selector==='[id]'?[birdId]:selector==='[clip-path]'?[birdClip]:[];
+const completeThemes=['sport-blue','pirate-captain','detective-blue','falconer-ranger','rapper-cap','profession-baker'];
+const completeSets=completeThemes.map((character,index)=>({dataset:{},querySelectorAll(){return [{dataset:{character,preferredTheme:character.split('-')[0]},classList:{remove(){},toggle(){}},cloneNode(){const c={dataset:{character},querySelector(){return {cloneNode(){return bird;}};},classList:{add(){}},style:{setProperty(name,value){this[name]=value;}}};completeClones.push(c);return c;}}];},closest(){return {getBoundingClientRect(){return {left:(index%4)*200,bottom:index<4?300:550};},querySelectorAll(){return index===3?[sportItem]:[];}};}}));
+const completeCabinet={...geometricCabinet,querySelectorAll(selector){return selector==='[data-helper-set]'?completeSets:[];}};
+vm.runInNewContext(source,{document:{hidden:false,querySelector(selector){return selector==='.collection-regal'?completeCabinet:selector==='.regal-shake-trigger'?knob:selector==='.regal-helper-door'?door:null;},querySelectorAll(){return [];},createElement(){return {className:'',style:{setProperty(name,value){this[name]=value;}}};}},window:{matchMedia(){return reduced;},setInterval(){},setTimeout(fn,ms){completeTimers.push({fn,ms});}},Math:{floor:Math.floor,round:Math.round,max:Math.max,min:Math.min,random(){return 0;}}});
+shakeClick();assert.equal(completeClones.length,6);assert.equal(scene.filter(n=>n.className==='regal-helper-ladder').length,4);assert(scene.includes(bird));assert.equal(birdStyle['--bird-delay'],'0ms');assert.equal(birdStyle['--bird-x'],'-576px');
+assert(birdId.value.startsWith('scene-1-bird-'));assert.equal(birdClip.value,'url(#'+birdId.value+')');
+assert(completeClones.every(clone=>clone.style['--park-x']==='80px'));
+assert(parseFloat(completeClones[4].style['--helper-return-start'])-parseFloat(completeClones[0].style['--helper-return-start'])>=6400);
+assert(parseFloat(completeClones[5].style['--helper-return-start'])-parseFloat(completeClones[1].style['--helper-return-start'])>=6400);
+assert(parseFloat(completeClones[4].style['--helper-return-start'])>parseFloat(completeClones[3].style['--helper-return-start']));
+completeTimers.at(-1).fn();assert.equal(scene.length,0);assert.equal(knob.disabled,false);
+const birdCss=fs.readFileSync('app/static/collection-shelf.css','utf8');assert(birdCss.includes('95%{opacity:1;transform:translate(0,0) scaleX(-1)}'));assert(birdCss.includes('.regal-flying-bird{display:none!important;animation:none!important}'));
+console.log('OK: six distinct themes, four ladders, supplied bird target/return and complete cleanup');
+// DOM order must not send the lower helpers down before those above them.
+const reorderedCabinet={...completeCabinet,querySelectorAll(selector){return selector==='[data-helper-set]'?[completeSets[4],completeSets[5],...completeSets.slice(0,4)]:[];}};
+const reorderedStart=completeClones.length;
+vm.runInNewContext(source,{document:{hidden:false,querySelector(selector){return selector==='.collection-regal'?reorderedCabinet:selector==='.regal-shake-trigger'?knob:selector==='.regal-helper-door'?door:null;},querySelectorAll(){return [];},createElement(){return {className:'',style:{setProperty(name,value){this[name]=value;}}};}},window:{matchMedia(){return reduced;},setInterval(){},setTimeout(fn,ms){completeTimers.push({fn,ms});}},Math:{floor:Math.floor,round:Math.round,max:Math.max,min:Math.min,random(){return 0;}}});
+shakeClick();const reordered=completeClones.slice(reorderedStart);
+assert(parseFloat(reordered[0].style['--helper-return-start'])-parseFloat(reordered[2].style['--helper-return-start'])>=6400);
+assert(parseFloat(reordered[1].style['--helper-return-start'])-parseFloat(reordered[3].style['--helper-return-start'])>=6400);
+completeTimers.at(-1).fn();assert.equal(scene.length,0);
+console.log('OK: upper helpers return first even when lower shelves occur first in DOM');

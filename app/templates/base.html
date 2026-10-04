@@ -16,11 +16,13 @@
   <link rel="manifest" href="{{ url_for('static', filename='manifest.webmanifest') }}?v={{ app_version }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v={{ app_version }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='v5.css') }}?v={{ app_version }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='simple-ui.css') }}?v={{ app_version }}">
   <script>window.GC_CURRENT_USER_ID={{ current_user.id|tojson if current_user.is_authenticated else 'null' }};</script>
   <script defer src="{{ url_for('static', filename='offline-queue.js') }}?v={{ app_version }}"></script>
   {% block head %}{% endblock %}
 </head>
 <body>
+{% from "_navigation_icons.html" import nav_icon %}
 {% if bibo_test_mode %}<aside class="test-environment-banner" role="status"><strong>🧪 TESTUMGEBUNG · v{{ app_version }}</strong><span>Änderungen hier betreffen nur Testdaten – nicht die Produktion.</span></aside>{% endif %}
 <div class="ambient ambient-one"></div><div class="ambient ambient-two"></div>
 {% if current_user.is_authenticated %}
@@ -49,7 +51,12 @@
       </div>
     </details>
   </div>
-  <nav class="bibo-nav" aria-label="Hauptnavigation"><a class="bibo-nav-home" href="{{ url_for('collector_home') }}" aria-label="Startseite" title="Startseite" {% if request.endpoint=='collector_home' %}aria-current="page"{% endif %}>{% include '_bookshelf_icon.html' %}</a>{% include '_navigation_links.html' %}</nav>
+  <nav class="bibo-nav bibo-tile-nav" aria-label="Hauptnavigation">
+  {% for key,title,endpoint in [('home','Startseite','collector_home'),('library','Sammlung','bibo_library'),('add','Hinzufügen','universal_search'),('chart','Werte','dashboard')] %}
+  {% if key!='add' or can_collection('edit_items') %}<a class="bibo-nav-tile nav-{{ key }}" href="{{ url_for(endpoint) }}" {% if request.endpoint==endpoint %}aria-current="page"{% endif %}><span class="nav-tile-icon">{{ nav_icon(key) }}</span><span>{{ title }}</span></a>{% endif %}
+  {% endfor %}
+  <details class="simple-desktop-menu"><summary class="bibo-nav-tile nav-menu"><span class="nav-tile-icon">{{ nav_icon('menu') }}</span><span>Menü</span></summary><div>{% include '_navigation_panel.html' %}</div></details>
+  </nav>
 </header>
 <aside id="offline-sync-status" class="offline-sync-status" hidden><span id="offline-sync-label">Verbindungsstatus wird geprüft …</span><a href="{{ url_for('offline_queue') }}">Warteschlange <strong id="offline-sync-count" hidden>0</strong></a></aside>
 {% endif %}
@@ -62,11 +69,14 @@
 </div>{% endif %}
 {% for category, message in get_flashed_messages(with_categories=true) %}<div class="flash {{ category }}">{{ message }}</div>{% endfor %}
 {% if current_user.is_authenticated and active_collection_space %}<div class="collection-context shared"><span>🗃️</span><strong>{{ active_collection_label }}</strong><small>{% if current_user.is_admin %}Systemadministrator{% elif collection_permission_role=='manager' %}Verwalten{% elif collection_permission_role=='editor' %}Bearbeiten{% else %}Nur lesen{% endif %}</small></div>{% endif %}
+{% if undo_available %}<div class="flash success"><form action="{{ url_for('undo_item_delete') }}" method="post"><input type="hidden" name="token" value="{{ undo_token }}"><span>Zuletzt gelöschtes Exemplar wiederherstellen (10 Minuten).</span> <button class="button secondary" type="submit">Löschen rückgängig machen</button></form></div>{% endif %}
 {% block content %}{% endblock %}
 </main>
-{% if current_user.is_authenticated %}<nav class="mobile-quickbar bibo-quickbar" aria-label="Mobile Hauptnavigation"><a href="{{ url_for('collector_home') }}" aria-label="Startseite" title="Startseite" {% if request.endpoint=='collector_home' %}aria-current="page"{% endif %}>{% include '_bookshelf_icon.html' %}</a><a href="{{ url_for('bibo_library') }}" {% if request.endpoint=='bibo_library' %}aria-current="page"{% endif %}>▤<span>Sammlung</span></a>{% if can_collection('edit_items') %}<a href="{{ url_for('collector_identify_start') }}">＋<span>Hinzufügen</span></a>{% endif %}<a href="{{ url_for('dashboard') }}" {% if request.endpoint=='dashboard' %}aria-current="page"{% endif %}>📊<span>Werte</span></a><details class="bibo-mobile-menu"><summary>☰<span>Menü</span></summary><div class="bibo-mobile-panel"><h2>Was möchtest du tun?</h2><label>Funktion suchen<input type="search" data-nav-search placeholder="z. B. Barcode, Feedback, Lagerort"></label><div data-nav-directory>{% include '_navigation_links.html' %}</div><p data-nav-empty hidden role="status">Keine passende Funktion gefunden.</p></div></details></nav>{% endif %}
+{% if current_user.is_authenticated %}<nav class="mobile-quickbar bibo-quickbar" aria-label="Mobile Hauptnavigation"><a href="{{ url_for('collector_home') }}" aria-label="Startseite" title="Startseite" {% if request.endpoint=='collector_home' %}aria-current="page"{% endif %}>{% include '_bookshelf_icon.html' %}</a><a href="{{ url_for('bibo_library') }}" {% if request.endpoint=='bibo_library' %}aria-current="page"{% endif %}>{{ nav_icon('library') }}<span>Sammlung</span></a>{% if can_collection('edit_items') %}<a href="{{ url_for('collector_identify_start') }}">{{ nav_icon('add') }}<span>Hinzufügen</span></a>{% endif %}<a href="{{ url_for('dashboard') }}" {% if request.endpoint=='dashboard' %}aria-current="page"{% endif %}>{{ nav_icon('chart') }}<span>Werte</span></a><details class="bibo-mobile-menu"><summary>{{ nav_icon('menu') }}<span>Menü</span></summary><div class="bibo-mobile-panel">{% include '_navigation_panel.html' %}</div></details></nav>{% endif %}
 <footer><span>Bibo v{{ app_version }}</span>{% if current_user.is_authenticated %}<span>·</span><a href="{{ url_for('whats_new') }}">Was ist neu?</a>{% endif %}<span>·</span><span>{{ now.year }}</span><span>·</span><a href="https://retrobase-collection.com" rel="noreferrer">Retro-Daten: RetroBase Collection</a><span>·</span><a href="https://rawg.io" rel="noreferrer">Spiele-Metadaten: RAWG</a></footer>
 <script defer src="{{ url_for('static', filename='navigation.js') }}?v={{ app_version }}"></script>
+{% if auto_metadata_jobs %}<div data-auto-metadata-jobs='{{ auto_metadata_jobs|tojson }}' hidden></div>{% endif %}
+<script defer src="{{ url_for('static', filename='simple-ui.js') }}?v={{ app_version }}"></script>
 <script defer src="{{ url_for('static', filename='cover-fallback.js') }}?v={{ app_version }}"></script>
 {% if current_user.is_authenticated %}{% include '_release_news.html' %}{% endif %}
 {% block scripts %}{% endblock %}

@@ -2,14 +2,19 @@
 {% block title %}Startseite · Collector{% endblock %}
 {% block head %}{{ super() }}<link rel="stylesheet" href="{{ url_for('static',filename='collection-shelf.css') }}?v={{ app_version }}">{% endblock %}
 {% block content %}
-<section class="collector-hero" data-dashboard-tour-home>
-  <div><span class="eyebrow">{{ active_collection_label }}</span><h1>{% if greeting_enabled %}{{ greeting_word }}, {{ greeting_name }}{% if greeting_style == 'friendly' %} 👋{% endif %}{% else %}Deine Sammlungen auf einen Blick{% endif %}</h1><p>{% if new_activity_count %}Seit deinem letzten Besuch gab es {{ new_activity_count }} {{ 'Änderung' if new_activity_count == 1 else 'Änderungen' }} in deiner Sammlung.{% else %}Games, Filme, Serien, Bücher, Musik und alles, was du sammelst – an einem Ort.{% endif %}</p><div class="collector-hero-actions">{% if can_collection('edit_items') %}<a class="button" href="{{ url_for('collector_identify_start') }}">＋ Objekt hinzufügen</a><a class="button secondary" href="{{ url_for('scanner') }}">📷 Barcode scannen</a>{% endif %}<a class="button secondary" href="{{ url_for('feedback.create') }}">💬 Feedback senden</a><a class="button secondary" href="{{ url_for('navigation_help') }}">🧭 Funktionen finden</a><a class="button secondary" href="{{ url_for('discovery_center') }}">✦ Ähnliche Titel</a><button class="button secondary" type="button" onclick="document.querySelector('.header-universal-search input[name=q]').focus()">⌘K Schnellsuche</button></div><div class="collector-summary"><span><strong>{{ collector_count }}</strong> Objekte</span><span><strong>{{ active_modules }}</strong> aktive Bereiche</span></div></div>
-  <div class="collector-total"><small>Gesamter Sammlungswert</small><strong>{{ eur(collector_value) }}</strong><span>über alle Collector-Bereiche</span></div>
+<section class="collector-hero dashboard-simple-hero" data-dashboard-tour-home>
+  <div><span class="eyebrow">{{ active_collection_label }}</span><h1>{% if greeting_enabled %}{{ greeting_word }}, {{ greeting_name }}{% else %}Deine Sammlung{% endif %}</h1><p>{{ collector_count }} Objekte · {{ eur(collector_value) }} Gesamtwert</p></div>
+  <a class="button secondary" href="{{ url_for('bibo_library') }}">Sammlung öffnen →</a>
+</section>
+<section class="panel dashboard-search"><h2>Was möchtest du finden?</h2>
+  <form action="{{ url_for('universal_search') }}" method="get" class="dashboard-search-form"><label>EAN oder Titel<input type="search" name="q" required maxlength="500" placeholder="EAN oder Titel eingeben" autocomplete="off"></label><button type="submit">Weiter →</button><a class="button secondary" href="{{ url_for('scanner') }}">📷 Scannen</a></form>
 </section>
 {% if not collector_count %}<section class="panel empty-collection"><h2>Deine Sammlung wartet auf das erste Objekt</h2><p>Erfasse Games, Filme, Serien, Bücher, Musik, Sammelkarten oder eigene Sammlerstücke. Die Bereiche unten führen dich zur passenden Sammlung.</p>{% if can_collection('edit_items') %}<a class="button" href="{{ url_for('collector_identify_start') }}">＋ Erstes Objekt hinzufügen</a>{% else %}<p class="muted">Du hast hier Leserechte. Ein Bearbeiter oder Sammlungsverwalter kann die ersten Objekte anlegen.</p>{% endif %}</section>{% endif %}
-<section class="panel top10-dashboard-status"><div><strong>🏆 Globale Top 10</strong><p>{{ top10_status_message }}</p></div><a class="button secondary" href="{{ url_for('top10.index' if top10_user_enabled else 'top10.preferences') }}">{{ 'Top 10 ansehen' if top10_user_enabled else 'Einstellungen öffnen' }}</a></section>
+
 
 {% if dashboard_style=='cards' %}{% include '_collection_cards.html' %}{% else %}{% include '_collection_shelf.html' %}{% endif %}
+<details class="dashboard-more"><summary>Weitere Funktionen und Kategorien</summary><div class="panel"><div class="collector-actions"><a class="button secondary" href="{{ url_for('dashboard') }}">Werte und Statistiken</a><a class="button secondary" href="{{ url_for('feedback.create') }}">Feedback senden</a><a class="button secondary" href="{{ url_for('navigation_help') }}">Funktionen finden</a><a class="button secondary" href="{{ url_for('discovery_center') }}">Ähnliche Titel</a></div></div>
+<section class="panel top10-dashboard-status"><div><strong>🏆 Globale Top 10</strong><p>{{ top10_status_message }}</p></div><a class="button secondary" href="{{ url_for('top10.index' if top10_user_enabled else 'top10.preferences') }}">{{ 'Top 10 ansehen' if top10_user_enabled else 'Einstellungen öffnen' }}</a></section>
 {% if can_collection('edit_items') %}<section class="panel" id="custom-category-create"><div class="section-mini-head"><div><span class="eyebrow">Eigene Bereiche</span><h2>Neue Sammlungskategorie</h2></div></div><form method="post" action="{{ url_for('custom_collection_category_create') }}" class="form-grid"><label>Name<input name="title" required minlength="2" maxlength="120" placeholder="z. B. Figuren, Brettspiele, Modelle"></label>{% set selected_icon = '📦' %}{% include '_custom_category_icon_picker.html' %}<label class="wide">Kurze Beschreibung<input name="description" maxlength="240" placeholder="Was sammelst du in diesem Bereich?"></label><button class="button wide" type="submit">＋ Kategorie zum Dashboard hinzufügen</button></form><p class="muted">Nach dem Anlegen öffnet Bibo die neue Kategorie direkt. Dort kannst du sofort das erste Objekt hinzufügen.</p></section>{% endif %}
 {% if custom_category_tiles and can_collection('edit_items') %}
 <section class="panel" id="custom-category-manage">
@@ -23,5 +28,6 @@
   {% endfor %}
 </section>
 {% endif %}
+</details>
 {% endblock %}
 {% block scripts %}<script defer src="{{ url_for('static',filename=('collection-cards.js' if dashboard_style=='cards' else 'collection-shelf.js')) }}?v={{ app_version }}"></script>{% endblock %}

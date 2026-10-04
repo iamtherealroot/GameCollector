@@ -1,0 +1,7 @@
+{% if pagination and pagination.total %}
+<nav class="collection-pagination" aria-label="Sammlungsseiten">
+  {% if pagination.previous %}<a class="button secondary" href="{{ pagination.previous }}">← Zurück</a>{% endif %}
+  <span>{{ pagination.start }}–{{ pagination.end }} von {{ pagination.total }} · Seite {{ pagination.page }}/{{ pagination.pages }}</span>
+  {% if pagination.next %}<a class="button" href="{{ pagination.next }}">Weitere anzeigen →</a>{% endif %}
+</nav>
+{% endif %}

@@ -14,8 +14,8 @@ import html as html_lib
 from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, abort, session, send_file, Response, current_app, has_request_context
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
-from sqlalchemy import inspect, text
-from sqlalchemy.orm import joinedload, selectinload
+from sqlalchemy import inspect, text, event
+from sqlalchemy.orm import joinedload, selectinload, Session
 from sqlalchemy.orm.attributes import set_committed_value
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
@@ -38,7 +38,7 @@ from pathlib import Path
 from html.parser import HTMLParser
 from itsdangerous import BadSignature, URLSafeSerializer
 
-APP_VERSION = "5.1.0"
+APP_VERSION = "5.1.1"
 APP_NAME = "Bibo"
 DISPLAY_TIMEZONE_NAME = os.environ.get("TZ", "Europe/Berlin")
 try:
@@ -272,6 +272,22 @@ class AppSetting(db.Model):
     value = db.Column(db.Text)
     is_secret = db.Column(db.Boolean, default=False, nullable=False)
     updated_at = db.Column(db.DateTime, default=utc_now, onupdate=utc_now, nullable=False)
+
+
+class RegistryRevision(db.Model):
+    """Shared transactional invalidation across web and scheduler processes."""
+    id = db.Column(db.Integer, primary_key=True)
+    revision = db.Column(db.Integer, nullable=False, default=0)
+    synced_revision = db.Column(db.Integer, nullable=False, default=-1)
+
+
+class UndoDeletion(db.Model):
+    token = db.Column(db.String(64), primary_key=True)
+    actor_id = db.Column(db.Integer, nullable=False)
+    owner_id = db.Column(db.Integer, nullable=False)
+    kind = db.Column(db.String(20), nullable=False)
+    payload = db.Column(db.Text, nullable=False)
+    expires_at = db.Column(db.DateTime, nullable=False)
 
 
 class CollectorItem(db.Model):
@@ -4951,12 +4967,18 @@ def _bibo_identity_key(media_kind, identity):
     return f"{media_kind}:{normalized[:260]}:{digest}"
 
 
-def refresh_bibo_registry():
+def refresh_bibo_registry(only_if_changed=False):
     """Synchronize the v4 work/series/edition/copy compatibility index.
 
     No legacy row is changed or deleted. Missing source rows are merely marked
     inactive, making the migration reversible while preserving registry IDs.
     """
+    # Lock the revision for the duration of the rebuild. Source writes update
+    # this same row in their transaction, so another worker cannot miss them.
+    state = RegistryRevision.query.populate_existing().with_for_update().first()
+    if only_if_changed and state and state.revision == state.synced_revision:
+        return BiboCopy.query.filter_by(active=True).count()
+    starting_revision = state.revision if state else None
     owner = shared_collection_user()
     owner_id = owner.id if owner else None
     # Recommendations placed on the wishlist are native Bibo rows rather than
@@ -4965,6 +4987,8 @@ def refresh_bibo_registry():
     BiboEdition.query.filter(BiboEdition.source_kind != "discovery").update({BiboEdition.active: False}, synchronize_session=False)
     BiboSeries.query.update({BiboSeries.active: False}, synchronize_session=False)
     BiboSeriesMembership.query.update({BiboSeriesMembership.active: False}, synchronize_session=False)
+    series_cache = {row.canonical_key: row for row in BiboSeries.query.all()}
+    membership_cache = {(row.series_id, row.work_id): row for row in BiboSeriesMembership.query.all()}
 
     def upsert_work(media_kind, identity, title, series_name=None, metadata=None, **values):
         key = _bibo_identity_key(media_kind, identity)
@@ -4986,19 +5010,21 @@ def refresh_bibo_registry():
         if not str(title or "").strip():
             return None
         key = _bibo_identity_key(f"series-{media_kind}", title)
-        series = BiboSeries.query.filter_by(canonical_key=key).first()
+        series = series_cache.get(key)
         if not series:
             series = BiboSeries(canonical_key=key, media_kind=media_kind, title=str(title).strip())
             db.session.add(series)
+            db.session.flush()
+            series_cache[key] = series
         series.media_kind = media_kind
         series.title = str(title).strip()
         series.image_url = series.image_url or image_url
         series.active = True
-        db.session.flush()
-        membership = BiboSeriesMembership.query.filter_by(series_id=series.id, work_id=work.id).first()
+        membership = membership_cache.get((series.id, work.id))
         if not membership:
             membership = BiboSeriesMembership(series_id=series.id, work_id=work.id)
             db.session.add(membership)
+            membership_cache[(series.id, work.id)] = membership
         membership.position_label = str(position)[:80] if position not in (None, "") else None
         membership.active = True
         return series
@@ -5053,8 +5079,13 @@ def refresh_bibo_registry():
         except (TypeError, ValueError):
             pass
         series_name, series_order = infer_collector_group(item)
+        marvel_entry = match_marvel_movie(item, meta, _match_key) if item.category == "movies" else None
+        if marvel_entry and not series_name:
+            series_name = marvel_entry["series"]
         logical_key = logical_collection_unit_key(item, meta, series_order)
         identity = f"{series_name}:{logical_key}" if series_name else logical_key
+        if marvel_entry:
+            identity = "marvel:" + marvel_entry["key"]
         availability = meta.get("de_physical_release_status") or ("digital" if str(item.media_type or "").casefold() == "digital" else "physical")
         work = upsert_work(item.category, identity, item.title, series_name, {"legacy_collector_item_id": item.id},
                            external_source=item.external_source, external_id=item.external_id,
@@ -5087,6 +5118,9 @@ def refresh_bibo_registry():
                     condition_label=str(item.condition) if item.condition is not None else None,
                     completeness_label="Mit OVP" if item.boxed else "Ohne OVP", storage_location=item.storage_location)
 
+    seed_marvel_catalog(db, globals(), upsert_series)
+    if state and starting_revision is not None:
+        state.synced_revision = starting_revision
     db.session.commit()
     return BiboCopy.query.filter_by(active=True).count()
 
@@ -5098,14 +5132,121 @@ BIBO_KIND_LABELS = {
 }
 
 
+def collection_page(rows, page_size=40):
+    """Bound HTML/image work without changing accent-aware filters or totals."""
+    total = len(rows)
+    pages = max(1, math.ceil(total / page_size))
+    page = min(pages, max(1, request.args.get("page", 1, type=int) or 1))
+    params = request.args.to_dict()
+    def link(number):
+        return url_for(request.endpoint, **{**(request.view_args or {}), **params, "page": number})
+    return rows[(page - 1) * page_size:page * page_size], {
+        "page": page, "pages": pages, "total": total,
+        "start": (page - 1) * page_size + 1 if total else 0,
+        "end": min(page * page_size, total),
+        "previous": link(page - 1) if page > 1 else None,
+        "next": link(page + 1) if page < pages else None,
+    }
+
+
+def capture_deleted_item(kind, row):
+    """Keep a short-lived, server-side snapshot of the copy and its history."""
+    def fields(obj):
+        return {column.name: (value.isoformat() if isinstance(value, (date, datetime)) else value)
+                for column in obj.__table__.columns if column.name != "id"
+                for value in [getattr(obj, column.name)]}
+    related = []
+    histories = {"game": [(PriceHistory, "collection_item_id"), (PriceActivity, "collection_item_id")],
+                 "collector": [(CollectorPriceHistory, "collector_item_id"), (CollectorPriceActivity, "collector_item_id")],
+                 "hardware": [(HardwarePriceHistory, "hardware_item_id")],
+                 "accessory": [(AccessoryPriceHistory, "accessory_item_id")]}
+    for model, foreign_key in histories[kind]:
+        for child in model.query.filter(getattr(model, foreign_key) == row.id).all():
+            related.append({"model": model.__name__, "foreign_key": foreign_key, "fields": fields(child)})
+    if kind == "collector":
+        for child in ReleaseCoverage.query.filter_by(owner_id=row.user_id, source_kind="collector", source_id=str(row.id)).all():
+            related.append({"model": "ReleaseCoverage", "foreign_key": "source_id", "fields": fields(child)})
+    components = [child.id for child in row.components] if kind == "accessory" else []
+    token = secrets.token_urlsafe(32)
+    UndoDeletion.query.filter(UndoDeletion.expires_at < utc_now()).delete(synchronize_session=False)
+    db.session.add(UndoDeletion(token=token, actor_id=current_user.id, owner_id=active_collection_user_id(), kind=kind,
+        payload=json.dumps({"original_id": row.id, "fields": fields(row), "related": related, "components": components}, ensure_ascii=False), expires_at=utc_now() + timedelta(minutes=10)))
+    session["undo_deletion"] = token
+
+
+@app.context_processor
+def undo_deletion_context():
+    if not current_user.is_authenticated or not session.get("undo_deletion"):
+        return {"undo_available": False}
+    snapshot = db.session.get(UndoDeletion, session["undo_deletion"])
+    available = bool(snapshot and snapshot.actor_id == current_user.id and snapshot.owner_id == active_collection_user_id() and snapshot.expires_at > utc_now() and collection_capability("edit_items"))
+    return {"undo_available": available, "undo_token": snapshot.token if available else ""}
+
+
+@app.route("/collection/undo-delete", methods=["POST"])
+@login_required
+def undo_item_delete():
+    token = request.form.get("token", "")
+    if not token or token != session.get("undo_deletion"):
+        abort(400)
+    snapshot = UndoDeletion.query.filter_by(token=token, actor_id=current_user.id, owner_id=active_collection_user_id()).with_for_update().first_or_404()
+    if snapshot.expires_at <= utc_now():
+        flash("Die Zeit zum Rückgängigmachen ist abgelaufen.", "warning")
+        return redirect(url_for("collector_home"))
+    models = {model.__name__: model for model in (CollectionItem, CollectorItem, HardwareItem, AccessoryItem, PriceHistory, PriceActivity, CollectorPriceHistory, CollectorPriceActivity, HardwarePriceHistory, AccessoryPriceHistory, ReleaseCoverage)}
+    def decode(model, values):
+        decoded = dict(values)
+        for column in model.__table__.columns:
+            value = decoded.get(column.name)
+            if value and isinstance(column.type, db.DateTime): decoded[column.name] = datetime.fromisoformat(value)
+            elif value and isinstance(column.type, db.Date): decoded[column.name] = date.fromisoformat(value)
+        return decoded
+    payload = json.loads(snapshot.payload)
+    model = {"game": CollectionItem, "collector": CollectorItem, "hardware": HardwareItem, "accessory": AccessoryItem}[snapshot.kind]
+    values = decode(model, payload["fields"])
+    values["user_id"] = active_collection_user_id()
+    # Reusing a free original ID preserves links from the compatibility register,
+    # including loans. Never overwrite another row that now occupies that ID.
+    original_id = payload.get("original_id")
+    if original_id and db.session.get(model, original_id) is None:
+        values["id"] = original_id
+    row = model(**values)
+    db.session.add(row)
+    try:
+        db.session.flush()
+        if snapshot.kind == "accessory" and payload.get("components"):
+            AccessoryItem.query.filter(AccessoryItem.id.in_(payload["components"]), AccessoryItem.user_id == active_collection_user_id(), AccessoryItem.parent_accessory_id.is_(None)).update({AccessoryItem.parent_accessory_id: row.id}, synchronize_session=False)
+        for child in payload["related"]:
+            child_model = models[child["model"]]
+            fields = decode(child_model, child["fields"])
+            fields[child["foreign_key"]] = str(row.id) if child["foreign_key"] == "source_id" else row.id
+            db.session.add(child_model(**fields))
+        db.session.delete(snapshot)
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        app.logger.exception("Copy restoration failed")
+        flash("Das Exemplar konnte nicht wiederhergestellt werden. Bitte prüfen, ob sein Katalogeintrag noch existiert.", "warning")
+        return redirect(url_for("collector_home"))
+    session.pop("undo_deletion", None)
+    flash("Löschen rückgängig gemacht. Das Exemplar und seine Preisverläufe sind wieder vorhanden.", "success")
+    return redirect(url_for("bibo_library"))
+
+
 @app.route("/library")
 @login_required
 def bibo_library():
-    refresh_bibo_registry()
+    refresh_bibo_registry(only_if_changed=True)
     query_text = request.args.get("q", "").strip()
     selected_kind = request.args.get("kind", "all").strip()
     selected_status = request.args.get("status", "all").strip()
-    copies = BiboCopy.query.options(joinedload(BiboCopy.edition).joinedload(BiboEdition.work)).filter_by(active=True, owner_id=active_collection_user_id()).all()
+    copies = BiboCopy.query.options(joinedload(BiboCopy.edition).joinedload(BiboEdition.work).selectinload(BiboWork.series_memberships)).filter_by(active=True, owner_id=active_collection_user_id()).all()
+    source_models = {"game": CollectionItem, "collector": CollectorItem, "hardware": HardwareItem, "accessory": AccessoryItem}
+    sources = {}
+    for kind, model in source_models.items():
+        ids = [int(copy.source_id) for copy in copies if copy.source_kind == kind]
+        # One query per source type, instead of one per library entry.
+        sources[kind] = {row.id: row for row in model.query.filter(model.id.in_(ids), model.user_id == active_collection_user_id()).all()} if ids else {}
     rows = []
     for copy in copies:
         edition, work = copy.edition, copy.edition.work
@@ -5113,15 +5254,15 @@ def bibo_library():
         link = None
         subtitle = " · ".join(part for part in (edition.platform, edition.format_label, edition.region) if part)
         if copy.source_kind == "game":
-            source = db.session.get(CollectionItem, int(copy.source_id))
+            source = sources["game"].get(int(copy.source_id))
             if source:
                 value, link = effective_value(source), url_for("game_detail", game_id=source.game_id)
         elif copy.source_kind == "collector":
-            source = db.session.get(CollectorItem, int(copy.source_id))
+            source = sources["collector"].get(int(copy.source_id))
             if source:
                 value, link = collector_effective_value(source), url_for("collector_item_detail", item_id=source.id)
         elif copy.source_kind == "hardware":
-            source = db.session.get(HardwareItem, int(copy.source_id))
+            source = sources["hardware"].get(int(copy.source_id))
             if source:
                 value, link = effective_hardware_value(source), url_for("hardware_detail", model_id=source.hardware_model_id)
         elif copy.source_kind == "discovery":
@@ -5131,7 +5272,7 @@ def bibo_library():
                 payload = {}
             link = url_for("discovery_preview", token=_discovery_token(payload)) if payload else url_for("discovery_center", type=work.media_kind)
         elif copy.source_kind == "accessory":
-            source = db.session.get(AccessoryItem, int(copy.source_id))
+            source = sources["accessory"].get(int(copy.source_id))
             if source:
                 value, link = effective_accessory_value(source), url_for("accessory_item_edit", item_id=source.id)
         total_value = (float(value) * max(copy.quantity or 1, 1)) if value is not None else None
@@ -5153,7 +5294,8 @@ def bibo_library():
         "value": round(sum(row["total_value"] or 0 for row in rows), 2),
     }
     kinds = sorted({row.edition.work.media_kind for row in copies}, key=lambda key: BIBO_KIND_LABELS.get(key, key))
-    return render_template("bibo_library.html", rows=rows, stats=stats, kinds=kinds, kind_labels=BIBO_KIND_LABELS, selected_kind=selected_kind, selected_status=selected_status, query_text=query_text)
+    rows, pagination = collection_page(rows)
+    return render_template("bibo_library.html", rows=rows, pagination=pagination, stats=stats, kinds=kinds, kind_labels=BIBO_KIND_LABELS, selected_kind=selected_kind, selected_status=selected_status, query_text=query_text)
 
 
 def bibo_registry_health(owner_id=None):
@@ -5533,19 +5675,32 @@ def dashboard_style_context():
     token=URLSafeSerializer(app.config['SECRET_KEY'],salt='dashboard-style').dumps({'uid':current_user.id,'nonce':nonce})
     return {'dashboard_style':style,'dashboard_style_token':token}
 
-@app.route("/")
-@login_required
-def collector_home():
-    dashboard_style = app_setting_get(f"dashboard_style_user_{current_user.id}", "glass")
-    if dashboard_style not in {"cards", "shelf", "glass"}: dashboard_style = "glass"
-    nonce=session.setdefault("dashboard_style_nonce",secrets.token_urlsafe(24))
-    dashboard_style_token=URLSafeSerializer(app.config['SECRET_KEY'],salt='dashboard-style').dumps(
-        {'uid':current_user.id,'nonce':nonce})
-    user_id = active_collection_user_id()
-    owned_items = [i for i in CollectionItem.query.filter_by(status="owned", user_id=user_id).all() if game_is_physical_candidate(i.game)]
+class DashboardSummary(db.Model):
+    owner_id = db.Column(db.Integer, primary_key=True)
+    revision = db.Column(db.Integer, nullable=False)
+    payload = db.Column(db.Text, nullable=False)
+
+
+def dashboard_collection_data(user_id):
+    if user_id is None:
+        return build_dashboard_collection_data(user_id)
+    revision = db.session.query(RegistryRevision.revision).filter_by(id=1).scalar() or 0
+    cached = db.session.get(DashboardSummary, user_id)
+    if cached and cached.revision == revision:
+        try:
+            return json.loads(cached.payload)
+        except (ValueError, TypeError):
+            pass
+    data = build_dashboard_collection_data(user_id)
+    db.session.execute(text("INSERT INTO dashboard_summary (owner_id, revision, payload) VALUES (:uid, :revision, :payload) ON CONFLICT (owner_id) DO UPDATE SET revision = :revision, payload = :payload"), {"uid": user_id, "revision": revision, "payload": json.dumps(data, ensure_ascii=False)})
+    return data
+
+
+def build_dashboard_collection_data(user_id):
+    owned_items = [i for i in CollectionItem.query.options(joinedload(CollectionItem.game).joinedload(Game.console)).filter_by(status="owned", user_id=user_id).all() if game_is_physical_candidate(i.game)]
     game_value = sum((effective_value(i) or 0) for i in owned_items)
-    hardware_items = scoped_hardware_query().all()
-    accessory_items = scoped_accessory_query().all()
+    hardware_items = scoped_hardware_query().options(joinedload(HardwareItem.model).joinedload(HardwareModel.console)).all()
+    accessory_items = scoped_accessory_query().options(joinedload(AccessoryItem.console)).all()
     hardware_value = sum((effective_hardware_value(i) or 0) for i in hardware_items)
     accessory_value = sum((effective_accessory_value(i) or 0) * max(i.quantity or 1, 1) for i in accessory_items if accessory_counts_in_total(i))
     gaming_value = game_value + hardware_value + accessory_value
@@ -5636,18 +5791,6 @@ def collector_home():
                       + sum(1 for key, value in module_stats.items() if key != "custom" and value["count"] > 0)
                       + sum(1 for category in custom_category_tiles if category["count"] > 0)
                       + (1 if module_stats["custom"]["count"] > assigned_custom_count else 0))
-    local_now = local_datetime(utc_now())
-    greeting_word = "Guten Morgen" if local_now.hour < 11 else ("Guten Tag" if local_now.hour < 18 else "Guten Abend")
-    greeting_enabled = app_setting_get(f"greeting_enabled_user_{current_user.id}", "1") != "0"
-    greeting_style = app_setting_get(f"greeting_style_user_{current_user.id}", "friendly")
-    last_visit_raw = app_setting_get(f"last_home_visit_user_{current_user.id}", "")
-    try:
-        last_visit = datetime.fromisoformat(last_visit_raw) if last_visit_raw else None
-    except ValueError:
-        last_visit = None
-    new_activity_count = ActivityLog.query.filter(ActivityLog.collection_user_id == user_id, ActivityLog.created_at > last_visit).count() if last_visit else 0
-    app_setting_set(f"last_home_visit_user_{current_user.id}", utc_now().isoformat())
-    db.session.commit()
     # Bibo 4.0.1: decorate the start tiles with real images from this collection.
     # The newest usable cover is preferred so the landing page changes naturally
     # as the collection grows; no unrelated stock image is introduced.
@@ -5690,9 +5833,7 @@ def collector_home():
             url_for('collector_item_detail', item_id=row.id), row.cover_url or "") for row in module_rows
             if row.category == "custom" and collector_metadata(row).get("custom_category") == category["id"]
             and collector_metadata(row).get("status", "owned") == "owned"])
-    return render_template(
-        "collector_home.html",
-        dashboard_style=dashboard_style, dashboard_style_token=dashboard_style_token,
+    return dict(
         module_cases=module_cases,
         game_count=len(owned_items), gaming_value=gaming_value,
         hardware_count=len(hardware_items),
@@ -5705,10 +5846,45 @@ def collector_home():
         game_breakdown=game_breakdown,
         module_images=module_images,
         custom_category_tiles=custom_category_tiles,
+    )
+
+
+@app.route("/")
+@login_required
+def collector_home():
+    dashboard_style = app_setting_get(f"dashboard_style_user_{current_user.id}", "glass")
+    if dashboard_style not in {"cards", "shelf", "glass"}: dashboard_style = "glass"
+    nonce=session.setdefault("dashboard_style_nonce",secrets.token_urlsafe(24))
+    dashboard_style_token=URLSafeSerializer(app.config['SECRET_KEY'],salt='dashboard-style').dumps(
+        {'uid':current_user.id,'nonce':nonce})
+    user_id = active_collection_user_id()
+    data = dashboard_collection_data(user_id)
+    local_now = local_datetime(utc_now())
+    greeting_word = "Guten Morgen" if local_now.hour < 11 else ("Guten Tag" if local_now.hour < 18 else "Guten Abend")
+    greeting_enabled = app_setting_get(f"greeting_enabled_user_{current_user.id}", "1") != "0"
+    greeting_style = app_setting_get(f"greeting_style_user_{current_user.id}", "friendly")
+    last_visit_raw = app_setting_get(f"last_home_visit_user_{current_user.id}", "")
+    try:
+        last_visit = datetime.fromisoformat(last_visit_raw) if last_visit_raw else None
+    except ValueError:
+        last_visit = None
+    new_activity_count = ActivityLog.query.filter(ActivityLog.collection_user_id == user_id, ActivityLog.created_at > last_visit).count() if last_visit else 0
+    app_setting_set(f"last_home_visit_user_{current_user.id}", utc_now().isoformat())
+    db.session.commit()
+    return render_template("collector_home.html", **data,
+        dashboard_style=dashboard_style, dashboard_style_token=dashboard_style_token,
         greeting_enabled=greeting_enabled, greeting_style=greeting_style,
         greeting_word=greeting_word, greeting_name=current_user.display_name or current_user.username,
-        new_activity_count=new_activity_count,
-    )
+        new_activity_count=new_activity_count)
+
+
+
+@app.route('/dashboard/easter-helpers')
+@login_required
+def dashboard_easter_helpers():
+    response = jsonify(helpers={key: render_template('_shelf_helpers.html', key=key) for key in ('games','movies','tv','books','music','cards','more')}, guard=render_template('_regal_doorman.html'))
+    response.headers['Cache-Control'] = 'private, max-age=86400'
+    return response
 
 
 @app.route('/dashboard/style',methods=['POST'])
@@ -5726,6 +5902,7 @@ def dashboard_style_save():
     db.session.commit()
     flash('Dashboardansicht gespeichert.','success')
     return redirect(url_for('account' if request.form.get('return_to')=='account' else 'collector_home'))
+
 
 
 COLLECTOR_SECTIONS = {
@@ -5985,6 +6162,10 @@ def infer_collector_group(row):
             name = coll.strip()
     elif row.category == "books":
         name = (meta.get("book_series") or "").strip()
+    if not name and row.category == "movies":
+        entry = match_marvel_movie(row, meta, _match_key)
+        if entry:
+            name = entry["series"]
     return name, order
 
 
@@ -7645,6 +7826,8 @@ def collector_collections():
                 b["detail_url"] = url_for("collector_tv_collection", tmdb_id=canonical_id) if canonical_id else None
             elif b["type"] == "movies":
                 b["detail_url"] = url_for("collector_movie_collection", collection_id=canonical_id) if canonical_id else None
+                if not canonical_id and any(entry["series"] == b["name"] for entry in MARVEL_CATALOG):
+                    b["detail_url"] = url_for("marvel_movies", series=b["name"])
             elif b["type"] == "books" and b["items"]:
                 b["detail_url"] = url_for("collector_book_collection", item_id=b["items"][0]["id"])
             b.pop("_orders", None); b.pop("_logical_units", None); b.pop("_owned_work_ids", None); b.pop("_total_candidates", None); b.pop("_canonical_id", None); b.pop("_canonical_score", None); b.pop("_aliases", None)
@@ -7653,11 +7836,15 @@ def collector_collections():
     if kind in {"all", "consoles"}:
         groups.extend(_console_family_rows())
 
+    if kind in {"all", "movies"}:
+        marvel_group = marvel_overview_group(user_id)
+        if marvel_group:
+            groups.append(marvel_group)
     all_groups = list(groups)
     overview = {
         "groups": len(all_groups),
-        "owned": sum(int(b.get("owned") or 0) for b in all_groups),
-        "value": sum(float(b.get("value") or 0) for b in all_groups),
+        "owned": sum(int(b.get("owned") or 0) for b in all_groups if not b.get("catalog_umbrella")),
+        "value": sum(float(b.get("value") or 0) for b in all_groups if not b.get("catalog_umbrella")),
         "complete": sum(1 for b in all_groups if b.get("total") and int(b.get("owned") or 0) >= int(b["total"])),
         "unresolved": sum(1 for b in all_groups if not b.get("total")),
     }
@@ -7760,7 +7947,9 @@ def collector_section(section):
             if name:
                 counts[name] = counts.get(name, 0) + max(card.quantity or 1, 1)
         active_tcgs = sorted(counts.items(), key=lambda x: x[0].casefold())
-    return render_template("collector_section.html", section=section, config=config, rows=rows, item_count=count, section_value=value, tcg_filter=tcg_filter, active_tcgs=active_tcgs, selected_sort=sort, query_text=query_text, view=view,
+    rows, pagination = collection_page(rows)
+    session["collector_return_to"] = request.full_path.rstrip("?")
+    return render_template("collector_section.html", section=section, config=config, rows=rows, pagination=pagination, item_count=count, section_value=value, tcg_filter=tcg_filter, active_tcgs=active_tcgs, selected_sort=sort, query_text=query_text, view=view,
                            custom_categories=custom_categories, selected_custom_category=selected_custom_category,
                            category_move_token=custom_category_form_token("move-items") if section == "custom" and collection_capability("edit_items") else None)
 
@@ -8002,7 +8191,7 @@ def collector_item_detail(item_id):
     media_copies = _collector_media_copies(row) if row.category in {"movies", "tv"} else []
     copy_position = next((index for index, copy in enumerate(media_copies, 1) if copy.id == row.id), 1)
     coverages = ReleaseCoverage.query.filter_by(owner_id=row.user_id, source_kind="collector", source_id=str(row.id)).order_by(ReleaseCoverage.target_kind, ReleaseCoverage.sequence_label, ReleaseCoverage.target_title).all()
-    return render_template("collector_item_detail.html", row=row, config=COLLECTOR_SECTIONS[row.category],
+    return render_template("collector_item_detail.html", return_to=safe_local_url(request.args.get("return_to")) or safe_local_url(session.get("collector_return_to")) or url_for("collector_section",section=row.category), row=row, config=COLLECTOR_SECTIONS[row.category],
                            effective_value=collector_effective_value(row), metadata=collector_metadata(row),
                            media_copies=media_copies, copy_position=copy_position, coverages=coverages,
                            personal_review=_personal_review("collector", row.id),
@@ -8318,7 +8507,7 @@ def collector_item_edit(item_id):
         row.metadata_json = json.dumps(meta, ensure_ascii=False)
         db.session.commit()
         flash(f"{row.title} wurde gespeichert.", "success")
-        return redirect(url_for("collector_item_detail", item_id=row.id))
+        return redirect(url_for("collector_item_detail", item_id=row.id, return_to=safe_local_url(request.values.get("return_to")) or safe_local_url(session.get("collector_return_to"))))
     if row.category == "books":
         return render_template("collector_book_edit.html", row=row, config=COLLECTOR_SECTIONS[row.category], metadata=collector_metadata(row), book_conditions=COLLECTOR_BOOK_CONDITIONS)
     return render_template("collector_item_edit.html", row=row, config=COLLECTOR_SECTIONS[row.category], metadata=collector_metadata(row),
@@ -8333,6 +8522,7 @@ def collector_item_edit(item_id):
 def collector_item_delete(item_id):
     row = collector_owned_row(item_id)
     section, title = row.category, row.title
+    capture_deleted_item("collector", row)
     _repoint_deleted_media_copy_links(row)
     ReleaseCoverage.query.filter_by(owner_id=row.user_id, source_kind="collector", source_id=str(row.id)).delete(synchronize_session=False)
     db.session.delete(row); db.session.commit()
@@ -11013,6 +11203,8 @@ def games():
                 log_activity("game_created", "game", game.id, f"Katalogtitel „{game.title}“ angelegt.")
                 db.session.commit()
                 flash("Spiel zum Katalog hinzugefügt.", "success")
+                if request.form.get("guided_add") == "1":
+                    return redirect(url_for("collection_configure", game_id=game.id, new_copy=1))
             except Exception:
                 db.session.rollback()
                 flash("Diese Spielvariante ist bereits vorhanden.", "warning")
@@ -11500,6 +11692,7 @@ def collection_item_delete(item_id):
     # Preserve historical run summaries while detaching their optional item link.
     RevaluationLog.query.filter_by(collection_item_id=item.id).update({"collection_item_id": None})
     log_activity("copy_deleted", "collection_item", item.id, f"{title}: Exemplar #{item.id} gelöscht.", {"game_id": game_id})
+    capture_deleted_item("game", item)
     db.session.delete(item)
     db.session.flush()
     collection_total_value_snapshot()
@@ -12054,7 +12247,7 @@ def collection():
     if view not in {"grid", "list"}:
         view = "grid"
     session["collection_return_to"] = request.full_path.rstrip("?")
-    query = CollectionItem.query.join(Game).filter(CollectionItem.status == status, CollectionItem.user_id == active_collection_user_id(), Game.physical_status != "excluded")
+    query = CollectionItem.query.options(joinedload(CollectionItem.game).joinedload(Game.console)).join(Game).filter(CollectionItem.status == status, CollectionItem.user_id == active_collection_user_id(), Game.physical_status != "excluded")
     if q:
         query = query.filter(db.or_(Game.title.ilike(f"%{q}%"), Game.barcode.ilike(f"%{q}%"), Game.product_code.ilike(f"%{q}%")))
     if console_id:
@@ -12110,7 +12303,7 @@ def collection():
     completeness_options = [r[0] for r in db.session.query(CollectionItem.completeness).filter(
         CollectionItem.status == status, CollectionItem.user_id == active_collection_user_id(), CollectionItem.completeness.isnot(None)
     ).distinct().order_by(CollectionItem.completeness).all()]
-    format_rows = CollectionItem.query.join(Game).filter(
+    format_rows = db.session.query(CollectionItem.ownership_format).join(Game).filter(
         CollectionItem.status == status, CollectionItem.user_id == active_collection_user_id(), Game.physical_status != "excluded"
     ).all()
     format_counts = {
@@ -12118,7 +12311,8 @@ def collection():
         "physical": sum(1 for row in format_rows if (row.ownership_format or "physical") != "digital"),
         "digital": sum(1 for row in format_rows if row.ownership_format == "digital"),
     }
-    return render_template("collection.html", items=items, status=status, q=q, consoles=Console.query.order_by(Console.name).all(),
+    items, pagination = collection_page(items)
+    return render_template("collection.html", items=items, pagination=pagination, status=status, q=q, consoles=Console.query.order_by(Console.name).all(),
                            selected_console=console_id, valuation=valuation, completeness=completeness, selected_franchise=franchise,
                            region=region, sort=sort, view=view, franchises=franchises, regions=regions,
                            completeness_options=completeness_options, selected_format=ownership_format, format_counts=format_counts,
@@ -12134,6 +12328,7 @@ def collection_remove(item_id):
     title = item.game.title
     item_id_value = item.id
     log_activity("copy_removed", "collection_item", item_id_value, f"{title}: Exemplar #{item_id_value} aus der Sammlung entfernt.")
+    capture_deleted_item("game", item)
     db.session.delete(item)
     db.session.commit()
     flash("Exemplar aus der Sammlung entfernt.", "success")
@@ -13261,53 +13456,57 @@ def franchise_manage(name):
                            entry_count=SeriesEntry.query.filter(SeriesEntry.franchise == source_name).count())
 
 
+SEARCH_MEDIA = {"games": "Spiele", "movies": "Filme", "tv": "Serien", "books": "Bücher", "music": "Musik", "cards": "Sammelkarten", "hardware": "Hardware", "accessories": "Zubehör", "custom": "Weitere Sammlungen"}
+
+
 @app.route("/find")
 @login_required
 def universal_search():
-    q=(request.args.get("q") or "").strip()
-
-    # The dashboard search is the single entry point for the whole Collector.
-    # Numeric product identifiers must use the central identify pipeline instead
-    # of being treated as plain text that only searches the local inventory.
-    # This keeps EAN/UPC/GTIN/ISBN behavior consistent for games, movies/TV,
-    # books, music, hardware/accessories and future collection modules.
-    barcode_candidate = clean_barcode(q)
-    barcode_like = bool(re.fullmatch(r"[0-9\s-]+", q))
-    if barcode_like and barcode_candidate and len(barcode_candidate) in {8, 10, 12, 13, 14}:
-        return redirect(url_for("collector_identify", barcode=barcode_candidate))
-
-    selected=(request.args.get("type") or "all").strip().lower()
-    sort=(request.args.get("sort") or "relevance").strip().lower()
-    if sort not in {"relevance","name","newest","value"}: sort="relevance"
-    tcg_filter=(request.args.get("tcg") or "").strip()
-    allowed={"all","series","games","tv","movies","books","music","cards","hardware","accessories"}
-    if selected not in allowed: selected="all"
-    if not q: return redirect(url_for("collector_home"))
-    like=f"%{q}%"; uid=active_collection_user_id()
-    games=(Game.query.outerjoin(CollectionItem, db.and_(CollectionItem.game_id==Game.id, CollectionItem.user_id==uid))
-           .filter(db.or_(Game.title.ilike(like),Game.barcode.ilike(like),Game.product_code.ilike(like),Game.edition.ilike(like),Game.publisher.ilike(like),Game.developer.ilike(like),Game.franchise.ilike(like),CollectionItem.storage_location.ilike(like),CollectionItem.tags.ilike(like),CollectionItem.notes.ilike(like)))
-           .distinct().order_by(Game.title).limit(60).all())
-    collector=CollectorItem.query.filter(CollectorItem.user_id==uid, db.or_(CollectorItem.title.ilike(like),CollectorItem.barcode.ilike(like),CollectorItem.edition.ilike(like),CollectorItem.media_type.ilike(like),CollectorItem.card_set.ilike(like),CollectorItem.card_number.ilike(like),CollectorItem.tcg_game.ilike(like),CollectorItem.storage_location.ilike(like),CollectorItem.notes.ilike(like))).order_by(CollectorItem.added_at.desc()).limit(120).all()
-    hardware=(HardwareModel.query.join(Console).outerjoin(HardwareItem, db.and_(HardwareItem.hardware_model_id==HardwareModel.id, HardwareItem.user_id==uid))
-              .filter(db.or_(HardwareModel.name.ilike(like),HardwareModel.model_number.ilike(like),HardwareModel.revision.ilike(like),HardwareModel.color.ilike(like),Console.name.ilike(like),HardwareItem.serial_number.ilike(like),HardwareItem.storage_location.ilike(like),HardwareItem.notes.ilike(like)))
-              .distinct().order_by(HardwareModel.name).limit(40).all())
-    accessories=scoped_accessory_query().filter(db.or_(AccessoryItem.name.ilike(like),AccessoryItem.manufacturer.ilike(like),AccessoryItem.model_number.ilike(like),AccessoryItem.barcode.ilike(like),AccessoryItem.product_code.ilike(like),AccessoryItem.compatibility.ilike(like),AccessoryItem.storage_location.ilike(like),AccessoryItem.notes.ilike(like))).order_by(AccessoryItem.name).limit(40).all()
-    needle = _search_text(q)
-    series_results = [row for row in _game_franchise_overview_rows(uid) if needle in _search_text(row.get("name"))]
-    for row in series_results:
-        row["url"] = url_for("franchise_detail", name=row["name"])
-    available_tcgs=sorted({(r.tcg_game or "").strip() for r in collector if r.category=="cards" and (r.tcg_game or "").strip()})
-    if tcg_filter:
-        collector=[r for r in collector if r.category!="cards" or (r.tcg_game or "").casefold()==tcg_filter.casefold()]
-    if sort=="name":
-        games=sorted(games,key=lambda x:(x.title or "").casefold()); collector=sorted(collector,key=lambda x:(x.title or "").casefold())
-    elif sort=="newest":
-        collector=sorted(collector,key=lambda x:x.added_at or datetime.min,reverse=True)
-    elif sort=="value":
-        collector=sorted(collector,key=lambda x:(collector_effective_value(x) or 0)*max(x.quantity or 1,1),reverse=True)
-    counts={"series":len(series_results),"games":len(games),"hardware":len(hardware),"accessories":len(accessories)}
-    for cat in ("tv","movies","books","music","cards"): counts[cat]=sum(1 for r in collector if r.category==cat)
-    return render_template("universal_search.html",query=q,selected_type=selected,counts=counts,series_results=series_results,game_results=games,collector_results=collector,hardware_results=hardware,accessory_results=accessories,sort=sort,tcg_filter=tcg_filter,available_tcgs=available_tcgs)
+    q = " ".join((request.args.get("q") or "").split())[:500]
+    selected = (request.args.get("type") or "").strip().lower()
+    if not q or selected not in SEARCH_MEDIA:
+        return render_template("search_media_choice.html", query=q, media_choices=SEARCH_MEDIA)
+    uid = active_collection_user_id()
+    like = f"%{q}%"
+    games, collector, hardware, accessories = [], [], [], []
+    # Only the chosen category is queried. No external network calls here.
+    if selected == "games":
+        games = Game.query.options(joinedload(Game.console)).filter(db.or_(Game.title.ilike(like), Game.barcode.ilike(like), Game.product_code.ilike(like))).order_by(Game.title).limit(60).all()
+        games = [game for game in games if game_is_physical_candidate(game)]
+    elif selected == "hardware":
+        hardware = HardwareModel.query.options(joinedload(HardwareModel.console)).join(Console).filter(db.or_(HardwareModel.name.ilike(like), HardwareModel.model_number.ilike(like), Console.name.ilike(like))).order_by(HardwareModel.name).limit(40).all()
+    elif selected == "accessories":
+        accessories = scoped_accessory_query().options(joinedload(AccessoryItem.console)).filter(db.or_(AccessoryItem.name.ilike(like), AccessoryItem.barcode.ilike(like), AccessoryItem.product_code.ilike(like), AccessoryItem.model_number.ilike(like))).order_by(AccessoryItem.name).limit(40).all()
+    else:
+        collector = CollectorItem.query.filter(CollectorItem.user_id == uid, CollectorItem.category == selected, db.or_(CollectorItem.title.ilike(like), CollectorItem.barcode.ilike(like), CollectorItem.edition.ilike(like), CollectorItem.card_number.ilike(like))).order_by(CollectorItem.title).limit(60).all()
+    barcode = clean_barcode(q) if re.fullmatch(r"[0-9\s-]+", q) and len(clean_barcode(q)) in {8, 10, 12, 13, 14} else ""
+    new_title = "" if barcode else q
+    if selected == "games":
+        external_url = url_for("game_catalog_search", q=q, source_ean=barcode or None)
+        new_url = url_for("games", title=new_title, barcode=barcode or None, guided_add=1)
+    elif selected in {"movies", "tv"}:
+        external_url = url_for("collector_media_search", section=selected, **({"ean": barcode} if barcode else {"q": q}))
+        new_url = url_for("collector_media_questionnaire", category=selected, title=new_title, barcode=barcode or None)
+    elif selected == "books":
+        external_url = url_for("collector_books_search", **({"isbn": barcode} if barcode else {"q": q}))
+        new_url = url_for("collector_media_questionnaire", category=selected, title=new_title, barcode=barcode or None)
+    elif selected == "music":
+        external_url = url_for("collector_music_search", q=q, mode="barcode" if barcode else "text")
+        new_url = url_for("collector_media_questionnaire", category=selected, title=new_title, barcode=barcode or None)
+    elif selected == "cards":
+        external_url = url_for("collector_cards_search", q=q)
+        new_url = url_for("collector_media_questionnaire", category=selected, title=new_title, barcode=barcode or None)
+    elif selected == "hardware":
+        external_url = None
+        new_url = url_for("hardware", new_name=new_title)
+    elif selected == "accessories":
+        external_url = url_for("accessory_search", q=q)
+        new_url = url_for("accessories", new_name=new_title, new_barcode=barcode or None)
+    else:
+        external_url = None
+        new_url = url_for("collector_media_questionnaire", category=selected, title=new_title, barcode=barcode or None)
+    counts = {selected: len(games) + len(collector) + len(hardware) + len(accessories)}
+    return render_template("universal_search.html", query=q, selected_type=selected, media_choices=SEARCH_MEDIA, counts=counts, series_results=[], game_results=games, collector_results=collector, hardware_results=hardware, accessory_results=accessories, sort="name", tcg_filter="", available_tcgs=[], external_url=external_url, new_url=new_url)
 
 
 def musicbrainz_json(path, params=None):
@@ -13987,17 +14186,33 @@ def collector_media_questionnaire():
     allowed = set(COLLECTOR_SECTIONS)
     if request.method == "GET":
         prefill = session.pop("media_questionnaire_prefill", {})
+        for field in ("title", "barcode", "release_year"):
+            if not prefill.get(field) and request.args.get(field):
+                prefill[field] = request.args.get(field).strip()[:500]
         if request.args.get("custom_category") and not prefill.get("custom_category"):
             prefill["custom_category"] = (request.args.get("custom_category") or "").strip()[:80]
         requested = str(prefill.get("category") or request.args.get("category") or "movies").strip().lower()
-        return render_template("collector_media_questionnaire.html", selected_category=requested if requested in allowed else "movies", sections=COLLECTOR_SECTIONS, prefill=prefill,
+        template = "collector_media_questionnaire.html" if request.args.get("advanced") == "1" or prefill.get("from_provider") or prefill.get("from_existing") else "collector_media_simple.html"
+        return render_template(template, selected_category=requested if requested in allowed else "movies", sections=COLLECTOR_SECTIONS, prefill=prefill,
                                custom_categories=custom_collection_categories(active_collection_user_id()))
 
     category = (request.form.get("category") or "").strip().lower()
     title = " ".join((request.form.get("title") or "").split()).strip()
     if category not in allowed or not title:
-        flash("Bitte Medienart und Titel vollständig angeben.", "warning")
-        return redirect(url_for("collector_media_questionnaire", category=category if category in allowed else "movies"))
+        flash("Titel: Bitte einen Titel eingeben.", "warning")
+        return render_template("collector_media_simple.html", selected_category=category if category in allowed else "movies", sections=COLLECTOR_SECTIONS, prefill=request.form.to_dict(), custom_categories=custom_collection_categories(active_collection_user_id())), 400
+    errors = []
+    for field, label in (("purchase_price_eur", "Kaufpreis"), ("estimated_value_eur", "Eigene Schätzung")):
+        value = (request.form.get(field) or "").strip()
+        if value and parse_money_input(value) is None:
+            errors.append(f"{label}: Bitte einen gültigen Betrag wie 39,90 eingeben.")
+    if request.form.get("purchase_date"):
+        try: date.fromisoformat(request.form["purchase_date"])
+        except ValueError: errors.append("Kaufdatum: Bitte ein gültiges Kalenderdatum auswählen.")
+    if errors:
+        for message in errors: flash(message, "warning")
+        session["media_questionnaire_prefill"] = request.form.to_dict()
+        return render_template("collector_media_simple.html", selected_category=category, sections=COLLECTOR_SECTIONS, prefill=request.form.to_dict(), custom_categories=custom_collection_categories(active_collection_user_id())), 400
     raw_barcode = (request.form.get("barcode") or "").strip()
     barcode = (normalize_isbn(raw_barcode) if category == "books" else clean_barcode(raw_barcode)) or None
     year_raw = (request.form.get("release_year") or "").strip()
@@ -14007,7 +14222,7 @@ def collector_media_questionnaire():
         purchase_date = date.fromisoformat(purchase_date_raw) if purchase_date_raw else None
     except ValueError:
         purchase_date = None
-    availability = (request.form.get("de_physical_release_status") or "unknown").strip()
+    availability = (request.form.get("de_physical_release_status") or "physical").strip()
     if availability not in {"physical", "never_physical_de", "digital", "unknown"}:
         availability = "unknown"
     ownership_format = (request.form.get("ownership_format") or "physical").strip()
@@ -14120,6 +14335,7 @@ def collector_media_questionnaire():
                        target_key=key[:320], target_title=covered_title, sequence_label=sequence, origin="manual"))
     log_activity("guided_media_created", "collector_item", row.id, f"{title}: über den Medienassistenten angelegt.", {"category": category, "coverage_count": len(coverage_rows)})
     db.session.commit()
+    session.pop("media_questionnaire_prefill", None)
     refresh_bibo_registry()
     flash(f"{title} wurde vollständig angelegt. Du kannst Angaben jederzeit nachbearbeiten.", "success")
     return redirect(url_for("collector_item_detail", item_id=row.id))
@@ -14130,7 +14346,7 @@ def collector_identify_start():
     code = clean_barcode(request.args.get("barcode"))
     if code:
         return redirect(url_for("collector_identify", barcode=code))
-    return render_template("collector_identify_start.html")
+    return redirect(url_for("universal_search"))
 
 
 @app.route("/identify/<barcode>")
@@ -15734,6 +15950,7 @@ def hardware_item_edit(item_id):
 @login_required
 def hardware_item_delete(item_id):
     item=scoped_hardware_or_404(item_id); model_id=item.hardware_model_id
+    capture_deleted_item("hardware", item)
     db.session.delete(item); db.session.commit(); flash("Hardware-Exemplar gelöscht. Das Modell bleibt erhalten.","success")
     return redirect(url_for("hardware_detail",model_id=model_id))
 
@@ -17840,6 +18057,7 @@ def accessory_item_delete(item_id):
     item = scoped_accessory_or_404(item_id)
     name = item.name
 
+    capture_deleted_item("accessory", item)
     db.session.delete(item)
     db.session.commit()
 
@@ -18110,10 +18328,33 @@ from .test_release import setup_test_release
 setup_test_release(app, db, APP_VERSION, utc_now, admin_required)
 setup_navigation(app, collection_capability, lambda: custom_collection_categories(active_collection_user_id()) if active_collection_user_id() else [])
 
+REGISTRY_SOURCE_MODELS = (Game, Console, CollectionItem, CollectorItem, HardwareModel, HardwareItem, AccessoryItem, ReleaseCoverage)
+COLLECTION_READ_INDEXES = (db.Index("ix_collection_owner_status", CollectionItem.user_id, CollectionItem.status), db.Index("ix_collector_owner_category", CollectorItem.user_id, CollectorItem.category), db.Index("ix_copy_owner_active", BiboCopy.owner_id, BiboCopy.active))
+
+
+@event.listens_for(Session, "after_flush")
+def invalidate_registry_after_flush(db_session, flush_context):
+    changed = list(db_session.new) + list(db_session.deleted)
+    changed += [obj for obj in db_session.dirty if db_session.is_modified(obj, include_collections=False)]
+    if any(isinstance(obj, REGISTRY_SOURCE_MODELS) or (isinstance(obj, AppSetting) and ((obj.key or "").startswith("custom_collection_categories_") or obj.key == "pokecollector_portfolio_value_eur")) for obj in changed):
+        db_session.connection().execute(RegistryRevision.__table__.update().where(RegistryRevision.id == 1).values(revision=RegistryRevision.revision + 1))
+
+
+@event.listens_for(Session, "after_bulk_update")
+@event.listens_for(Session, "after_bulk_delete")
+def invalidate_registry_after_bulk(context):
+    if context.mapper.class_ in REGISTRY_SOURCE_MODELS:
+        context.session.connection().execute(RegistryRevision.__table__.update().where(RegistryRevision.id == 1).values(revision=RegistryRevision.revision + 1))
+
+
 def initialize_database():
     with app.app_context():
         db.create_all()
+        db.session.execute(text("INSERT INTO registry_revision (id, revision, synced_revision) VALUES (1, 0, -1) ON CONFLICT (id) DO NOTHING"))
+        db.session.commit()
         ensure_schema()
+        for index in COLLECTION_READ_INDEXES:
+            index.create(bind=db.engine, checkfirst=True)
         app.config['FEEDBACK_BACKFILL']()
         recover_stale_revaluation_runs(force=True)
         ensure_default_consoles()
@@ -18148,6 +18389,11 @@ def initialize_database():
         repair_series_v103_metadata()
         repair_series_v104_metadata()
 
+
+from .auto_metadata import setup_auto_metadata
+setup_auto_metadata(app, db, globals())
+from .marvel_catalog import CATALOG as MARVEL_CATALOG, match_movie as match_marvel_movie, seed_catalog as seed_marvel_catalog, setup_marvel_catalog
+marvel_overview_group = setup_marvel_catalog(app, db, globals())
 
 if os.environ.get('BIBO_SKIP_BOOTSTRAP') != '1':
     initialize_database()

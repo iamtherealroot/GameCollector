@@ -82,7 +82,7 @@
 @media(max-width:1120px){.collector-module-grid.collection-regal{grid-template-columns:repeat(2,minmax(0,1fr))}}
 /* Three matching decorative screws; only the existing fourth screw is a control. */
 .regal-corner-screw{position:absolute;width:7px;height:7px;z-index:8;border:1px solid #493728;border-radius:50%;background:linear-gradient(135deg,transparent 43%,#35291e 44%,#35291e 55%,transparent 56%),radial-gradient(circle at 35% 30%,#aa8b65,#70553a 65%,#4f3928);box-shadow:inset 0 1px 1px #ddbd8b44,0 1px 1px #0005;pointer-events:none}.screw-top-left{top:2px;left:2px}.screw-top-right{top:2px;right:2px}.screw-bottom-left{bottom:2px;left:2px}
-.regal-helper{display:none;position:absolute;bottom:96px;left:2px;width:58px;height:73px;z-index:10;pointer-events:none;filter:drop-shadow(2px 3px 2px #0008)}.regal-helper svg{display:block;width:100%;height:100%}.helper-link{--helper-shirt:#509645;--helper-trousers:#947956}.helper-actor{--helper-shirt:#303b52;--helper-trousers:#202b3e}.helper-football{--helper-shirt:#2684bc;--helper-trousers:#eee}.helper-hero{--helper-shirt:#965ab9}
+.regal-helper{display:none;position:absolute;bottom:96px;left:2px;width:58px;height:73px;z-index:10;pointer-events:none;filter:drop-shadow(2px 3px 2px #0008)}.regal-helper>svg{display:block;width:100%;height:100%}.helper-link{--helper-shirt:#509645;--helper-trousers:#947956}.helper-actor{--helper-shirt:#303b52;--helper-trousers:#202b3e}.helper-football{--helper-shirt:#2684bc;--helper-trousers:#eee}.helper-hero{--helper-shirt:#965ab9}
 @keyframes helper-restock{0%{opacity:0;transform:translate(-15px,110px)}20%{opacity:1;transform:translate(0,8px)}45%{transform:translate(60px,-10px)}65%{transform:translate(105px,0)}82%{opacity:1;transform:translate(135px,5px)}100%{opacity:0;transform:translate(160px,105px)}}
 @keyframes helper-reach{0%,100%{transform:rotate(0)}50%{transform:rotate(-24deg)}}
 @keyframes media-restock{0%{opacity:0;transform:translate3d(0,180px,100px) rotateZ(var(--fall-tilt))}30%{opacity:1}75%{transform:translate3d(0,-10px,65px) rotateX(-8deg)}100%{opacity:1;transform:none}}
@@ -109,7 +109,7 @@
 /* Larger helpers share one door and travel on ladders in front of the cabinet. */
 .regal-cabinet-shell{padding-bottom:72px}.regal-cabinet-shell:after{content:'';position:absolute;bottom:0;left:0;right:0;height:70px;background:repeating-linear-gradient(2deg,#62432d,#62432d 3px,#735034 4px,#483223 7px);border:3px solid #9c754d;border-top:0;border-radius:0 0 12px 12px;box-sizing:border-box;z-index:0}.regal-skin-glass.regal-cabinet-shell:after{background:linear-gradient(120deg,#4f607329,#0b121ccc),#101721;border-color:#4b5d70}
 .collection-regal{position:relative}.regal-helper-stage{position:absolute;inset:0;z-index:30;pointer-events:none}.regal-helper-set .regal-helper{display:none!important}
-.regal-helper-clone{position:absolute!important;bottom:auto!important;width:90px!important;height:112px!important;transform-origin:50% 100%;z-index:32}.regal-helper-clone svg{overflow:visible}.regal-helper-name{position:absolute;bottom:-17px;left:50%;transform:translateX(-50%);padding:2px 5px;border-radius:5px;background:#0b1220dd;color:#f2f5fa;font-size:11px;font-weight:700;white-space:nowrap;border:1px solid #bdcde455;pointer-events:none}
+.regal-helper-clone{position:absolute!important;bottom:auto!important;width:90px!important;height:112px!important;transform-origin:50% 100%;z-index:32}.regal-helper-clone>svg{overflow:hidden}.regal-helper-name{position:absolute;bottom:-17px;left:50%;transform:translateX(-50%);padding:2px 5px;border-radius:5px;background:#0b1220dd;color:#f2f5fa;font-size:11px;font-weight:700;white-space:nowrap;border:1px solid #bdcde455;pointer-events:none}
 .regal-helper-ladder{display:none;position:absolute;width:24px;border-left:3px solid #b4a47e;border-right:3px solid #b4a47e;background:repeating-linear-gradient(0deg,transparent 0,transparent 14px,#c4b792 15px,#c4b792 18px);box-sizing:border-box;opacity:.9;z-index:31}
 .regal-helper-door{position:absolute;bottom:9px;left:50%;transform:translateX(-50%);width:42px;height:54px;background:#05080d;border:3px solid #7e8a98;border-radius:5px 5px 0 0;perspective:180px;z-index:34;box-shadow:0 0 10px #0009;pointer-events:none}.regal-helper-door>span{position:absolute;inset:0;transform-origin:left;transition:transform .7s ease;background:linear-gradient(120deg,#61738a55,#151e2b);border:1px solid #738196}.regal-helper-door>span:after{content:'';position:absolute;right:5px;top:26px;width:4px;height:4px;background:#cfbc82;border-radius:50%}
 .collection-regal:is(.is-helper-arriving,.is-restocking)~.regal-helper-door>span{transform:rotateY(-110deg)}
@@ -125,7 +125,7 @@
 @media(prefers-reduced-motion:reduce){.collection-regal .regal-helper-clone,.collection-regal .regal-helper-ladder,.regal-cabinet-shell .regal-doorman{display:none!important}.regal-helper-door>span{transition:none}.doorman-wiper{animation:none!important}}
 .regal-cabinet-shell:after{pointer-events:none}.regal-shake-trigger{z-index:40}
 /* The door exists geometrically, but is visible only during the scene. */
-.regal-helper-door{opacity:0;visibility:hidden;transition:opacity .65s ease,visibility 0s linear .65s}.collection-regal.is-shaking~.regal-helper-door{opacity:1;visibility:visible;transition:opacity .65s ease,visibility 0s}.collection-regal.is-helper-gesture~.regal-helper-door>span{transform:rotateY(0)}
+.regal-helper-door{opacity:0;visibility:hidden;transition:opacity .65s ease,visibility 0s linear .65s}.collection-regal.is-door-revealed~.regal-helper-door{opacity:1;visibility:visible;transition:opacity .65s ease,visibility 0s}.collection-regal.is-helper-gesture~.regal-helper-door>span{transform:rotateY(0)}
 /* Continuous routes with small pauses at the ladder, never tipping the body. */
 @keyframes helper-enter-climb{0%{opacity:0;transform:translate(var(--door-x),var(--door-y)) scale(.45)}12%{opacity:1;transform:translate(var(--door-x),var(--door-y)) scale(.65)}32%,38%{transform:translate(0,var(--door-y)) scale(1)}48%{transform:translate(0,calc(var(--door-y)*.82))}64%{transform:translate(0,calc(var(--door-y)*.5))}80%{transform:translate(0,calc(var(--door-y)*.18))}94%,100%{opacity:1;transform:translate(0,0) scale(1)}}
 @keyframes helper-work-slow{0%,12%,100%{transform:translate(0,0)}32%{transform:translate(20px,0)}50%,62%{transform:translate(40px,0)}82%{transform:translate(20px,0)}}
@@ -240,8 +240,8 @@
 /* rc.18: assembly and retrieval crew with inline sprite images. */
 .regal-security-template{display:none}.regal-security-crew{display:none;position:absolute;width:90px;height:112px;z-index:34;transform-origin:50% 100%;pointer-events:none}
 .security-sprite{width:100%;height:100%;overflow:visible;image-rendering:pixelated}.security-pose{opacity:0}.security-pose-6{opacity:1}
-.regal-cabinet-shell:has(.is-shaking) .regal-doorman{display:block;width:100px;height:96px;left:calc(50% + 18px);bottom:10px;animation:none}
-.regal-cabinet-shell:has(.is-shaking) .regal-helper-door>span{transform:rotateY(-110deg)}.regal-cabinet-shell:has(.is-door-closing) .regal-helper-door>span{transform:rotateY(0)}
+.regal-cabinet-shell:has(.is-door-revealed) .regal-doorman{display:block;width:100px;height:96px;left:calc(50% + 18px);bottom:10px;animation:none}
+.regal-cabinet-shell:has(.is-door-revealed) .regal-helper-door>span{transform:rotateY(-110deg)}.regal-cabinet-shell:has(.is-door-closing) .regal-helper-door>span{transform:rotateY(0)}
 .collection-regal .regal-helper-ladder{display:block;opacity:0;transform:scaleY(0);transform-origin:50% 100%}
 @keyframes ladder-build{0%{opacity:0;transform:scaleY(0) rotate(-7deg)}12%{opacity:1}100%{opacity:1;transform:scaleY(1)}}
 @keyframes ladder-remove{0%{opacity:1;transform:scaleY(1)}88%{opacity:1}100%{opacity:0;transform:scaleY(0) rotate(-7deg)}}
@@ -271,7 +271,7 @@
 .regal-security-crew .security-pose-4{animation:security-step-4 .65s steps(1,end) infinite}
 @keyframes security-step-5{0%,100%{opacity:0}83.333%{opacity:1}100.0%{opacity:0}}
 .regal-security-crew .security-pose-5{animation:security-step-5 .65s steps(1,end) infinite}
-@media(max-width:720px){.regal-security-crew{width:68px;height:90px}.regal-cabinet-shell:has(.is-shaking) .regal-doorman{width:80px;height:76px}.regal-carried-ladder{width:14px;height:45px}}
+@media(max-width:720px){.regal-security-crew{width:68px;height:90px}.regal-cabinet-shell:has(.is-door-revealed) .regal-doorman{width:80px;height:76px}.regal-carried-ladder{width:14px;height:45px}}
 @media(prefers-reduced-motion:reduce){.regal-security-crew,.regal-carried-ladder{display:none!important}.security-pose{animation:none!important}}
 
 .security-walk-set{opacity:0}
@@ -300,10 +300,10 @@
 .collection-regal .regal-entry-slot .regal-helper-door{inset:0;bottom:auto;left:0;transform:none;width:100%;height:100%;box-sizing:border-box;z-index:0;border:0;border-radius:0 0 3px 3px;background:radial-gradient(ellipse at 50% 90%,#142030,#03060b 70%);box-shadow:inset 8px 0 14px #000,inset 0 6px 14px #000;opacity:0;visibility:hidden;transition:opacity .6s ease,visibility 0s linear .6s}
 .collection-regal .regal-door-panel{position:relative;z-index:1;transform-origin:left center;backface-visibility:hidden;transition:transform .8s cubic-bezier(.35,0,.25,1);background:repeating-linear-gradient(89deg,#191917 0,#191917 5px,#241e19 6px,#1b1a18 9px);box-shadow:inset 0 1px #9f7b5644}
 .regal-skin-glass .collection-regal .regal-door-panel{background:linear-gradient(115deg,#18212d,#0a1019 65%,#192333);box-shadow:inset 0 1px #9caec333}
-.collection-regal.is-shaking:not(.is-door-closing) .regal-door-panel{transform:rotateY(-82deg)}
-.collection-regal.is-shaking .regal-entry-slot .regal-helper-door{opacity:1;visibility:visible;transition:opacity .5s ease .15s,visibility 0s}
+.collection-regal.is-door-revealed:not(.is-door-closing) .regal-door-panel{transform:rotateY(-82deg)}
+.collection-regal.is-door-revealed .regal-entry-slot .regal-helper-door{opacity:1;visibility:visible;transition:opacity .5s ease .15s,visibility 0s}
 .collection-regal.is-door-closing .regal-entry-slot .regal-helper-door{opacity:0;transition:opacity .6s ease .2s}
-.regal-cabinet-shell:has(.is-shaking) .regal-doorman{z-index:41;bottom:auto;left:var(--guard-left,50%);top:var(--guard-top,0);animation:door-guard-reveal .8s ease both}
+.regal-cabinet-shell:has(.is-door-revealed) .regal-doorman{z-index:41;bottom:auto;left:var(--guard-left,50%);top:var(--guard-top,0);animation:door-guard-reveal .8s ease both}
 @keyframes door-guard-reveal{0%,75%{opacity:0}100%{opacity:1}}
 @keyframes guard-enter-panel{0%,8%{opacity:1;transform:translate(0,0) scale(1)}75%{opacity:1;transform:translate(var(--guard-door-x,-50px),0) scale(.65)}100%{opacity:0;transform:translate(var(--guard-door-x,-50px),0) scale(.45)}}
 .regal-cabinet-shell:has(.is-doorman-leaving) .regal-doorman{animation:guard-enter-panel 2.1s ease-in-out both}
@@ -333,3 +333,57 @@
 /* Contact shadows anchor resting cases; pulled cases keep the approved movement. */
 .regal-media:after{content:'';position:absolute;left:0;right:-7px;bottom:0;height:3px;transform:translateY(1px);background:#0009;filter:blur(1px);pointer-events:none}
 .collection-regal .regal-caption{padding-top:12px}
+
+/* 5.1.1: keep the final perspective face within its own compartment. */
+.regal-spine-wrap{padding-right:52px;box-sizing:border-box}
+.regal-spine-wrap .regal-media{--case-depth:130px}
+.regal-spine-wrap .case-vinyl{--case-depth:145px}
+@media(max-width:720px){.regal-spine-wrap{padding-right:32px;gap:2px}.regal-spine-wrap .regal-media{--case-depth:80px}.regal-spine-wrap .case-vinyl{--case-depth:90px}}
+.collection-regal:not(.is-shaking) .regal-door-panel{background:none;box-shadow:none;transform:none}
+.collection-regal:not(.is-shaking) .regal-helper-door{opacity:0;visibility:hidden;transition:none}
+
+/* Supplied professions and falconer: the bird returns to its handler. */
+.regal-bird-template{display:none}.regal-flying-bird{position:absolute;width:56px;height:70px;opacity:0;pointer-events:none;z-index:34;overflow:visible;image-rendering:pixelated}
+.bird-pose{opacity:0}
+@keyframes bird-flight{0%{opacity:0;transform:translate(0,0)}5%{opacity:1}45%{opacity:1;transform:translate(var(--bird-x),calc(var(--bird-y) - 12px))}55%{opacity:1;transform:translate(var(--bird-x),var(--bird-y)) scaleX(-1)}95%{opacity:1;transform:translate(0,0) scaleX(-1)}100%{opacity:0;transform:translate(0,0) scaleX(-1)}}
+.collection-regal.is-restocking:not(.is-helper-returning) .regal-flying-bird{animation:bird-flight 1.2s ease-in-out var(--bird-delay) both}
+@media(prefers-reduced-motion:reduce){.regal-flying-bird{display:none!important;animation:none!important}}
+@keyframes bird-wing-0{0%,100%{opacity:0}0.000%{opacity:1}16.667%{opacity:0}}
+.collection-regal.is-restocking .bird-pose-0{animation:bird-wing-0 .45s steps(1,end) infinite}
+@keyframes bird-wing-1{0%,100%{opacity:0}16.667%{opacity:1}33.333%{opacity:0}}
+.collection-regal.is-restocking .bird-pose-1{animation:bird-wing-1 .45s steps(1,end) infinite}
+@keyframes bird-wing-2{0%,100%{opacity:0}33.333%{opacity:1}50.000%{opacity:0}}
+.collection-regal.is-restocking .bird-pose-2{animation:bird-wing-2 .45s steps(1,end) infinite}
+@keyframes bird-wing-3{0%,100%{opacity:0}50.000%{opacity:1}66.667%{opacity:0}}
+.collection-regal.is-restocking .bird-pose-3{animation:bird-wing-3 .45s steps(1,end) infinite}
+@keyframes bird-wing-4{0%,100%{opacity:0}66.667%{opacity:1}83.333%{opacity:0}}
+.collection-regal.is-restocking .bird-pose-4{animation:bird-wing-4 .45s steps(1,end) infinite}
+@keyframes bird-wing-5{0%,100%{opacity:0}83.333%{opacity:1}100.000%{opacity:0}}
+.collection-regal.is-restocking .bird-pose-5{animation:bird-wing-5 .45s steps(1,end) infinite}
+
+/* Never display the stored bird template inside the handler. */
+.regal-helper .regal-bird-template{display:none!important}
+
+/* Helpers step off at the top; each return has its own reserved lane slot. */
+@keyframes helper-enter-climb{0%{opacity:0;transform:translate(var(--door-x),var(--door-y)) scale(.35)}12%{opacity:1;transform:translate(var(--door-x),var(--door-y)) scale(.6)}36%{transform:translate(0,var(--door-y)) scale(.9)}62%{transform:translate(0,calc(var(--door-y)*.5))}90%{opacity:1;transform:translate(0,0)}100%{opacity:1;transform:translate(var(--park-x,80px),0)}}
+@keyframes helper-climb-exit{0%{opacity:1;transform:translate(var(--park-x,80px),0)}15%{transform:translate(0,0)}35%{transform:translate(0,calc(var(--door-y)*.5))}60%{transform:translate(0,var(--door-y)) scale(.9)}90%{opacity:1;transform:translate(var(--door-x),var(--door-y)) scale(.5)}100%{opacity:0;transform:translate(var(--door-x),var(--door-y)) scale(.35)}}
+@keyframes sport-arrival-walk{0%,35.99%{opacity:1;transform:scaleX(var(--out-facing,1))}36%,89.99%{opacity:0}90%,98%{opacity:1;transform:scaleX(1)}100%{opacity:0}}
+@keyframes sport-arrival-climb{0%,35.99%{opacity:0}36%,89.99%{opacity:1}90%,100%{opacity:0}}
+@keyframes helper-arrival-idle{0%,99.99%{opacity:0}100%{opacity:1}}
+.collection-regal.is-helper-arriving .sport-work-set{animation:helper-arrival-idle 6s steps(1,end) var(--helper-start,0ms) both;transform:none}
+.collection-regal.is-restocking:not(.is-helper-returning) .regal-helper-clone:has(.sport-sprite){transform:translate(var(--park-x,80px),0)}
+@keyframes sport-return-walk{0%,14.99%{opacity:1;transform:scaleX(-1)}15%,59.99%{opacity:0}60%,100%{opacity:1;transform:scaleX(var(--return-facing,1))}}
+@keyframes sport-return-climb{0%,14.99%{opacity:0}15%,59.99%{opacity:1}60%,100%{opacity:0}}
+@keyframes helper-return-idle{0%,100%{opacity:0}}
+.collection-regal.is-helper-returning .regal-helper-clone{animation-delay:var(--helper-return-start,0ms)}
+.collection-regal.is-helper-returning .sport-walk-set{animation:sport-return-walk 6s steps(1,end) var(--helper-return-start,0ms) forwards}
+.collection-regal.is-helper-returning .sport-climb-set{animation:sport-return-climb 6s steps(1,end) var(--helper-return-start,0ms) forwards}
+.collection-regal.is-helper-returning .sport-work-set{opacity:1;animation:helper-return-idle 6s steps(1,end) var(--helper-return-start,0ms) forwards;transform:none}
+.collection-regal.is-helper-returning .sport-work-set .sport-pose-6{opacity:1;animation:none}
+
+.collection-regal.is-helper-arriving .sport-work-set .sport-pose-6{opacity:1;animation:none}
+
+/* Bound raster sprite frames even if a browser cannot resolve a clip resource. */
+.regal-helper>svg.profession-sprite,.regal-helper-clone>svg.profession-sprite,.regal-flying-bird{overflow:hidden!important}
+.collection-regal:not(.is-door-revealed) .regal-door-panel{background:none;box-shadow:none;transform:none}
+.collection-regal:not(.is-door-revealed) .regal-helper-door{opacity:0;visibility:hidden;transition:none}

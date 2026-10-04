@@ -1,36 +1,11 @@
-{% macro helper(character) %}
-<span class="regal-helper helper-{{ character }}" data-character="{{ character }}" aria-hidden="true">
-  {% if character.startswith('sport-') or character.startswith('pirate-') or character.startswith('detective-') or character.startswith('rapper-') %}{% include '_sport_sprite_helper.html' %}{% elif character=='ash' %}{% include '_ash_pixel_helper.html' %}{% else %}
-  <svg viewBox="0 0 80 100" xmlns="http://www.w3.org/2000/svg" focusable="false">
-    <ellipse cx="40" cy="94" rx="28" ry="4" fill="#0005"/>
-    <g class="helper-leg-left"><path d="M31 68 30 80" stroke="var(--helper-trousers,#33467a)" stroke-width="10" stroke-linecap="round"/><g class="helper-shin-left"><path d="M30 80 26 91" stroke="var(--helper-trousers,#33467a)" stroke-width="9" stroke-linecap="round"/><path d="M25 89h9v6H19v-3z" fill="#172334"/></g></g>
-    <g class="helper-leg-right"><path d="M49 68 50 80" stroke="var(--helper-trousers,#33467a)" stroke-width="10" stroke-linecap="round"/><g class="helper-shin-right"><path d="M50 80 54 91" stroke="var(--helper-trousers,#33467a)" stroke-width="9" stroke-linecap="round"/><path d="M47 89h9l8 3v3H47z" fill="#172334"/></g></g>
-    <path d="M27 45Q40 38 54 45L58 72H23Z" fill="var(--helper-shirt,#d7493b)" stroke="#152335" stroke-width="2"/>
-    <g class="helper-arm"><path d="M53 48 62 59" fill="none" stroke="var(--helper-shirt,#d7493b)" stroke-width="11" stroke-linecap="round"/><g class="helper-forearm"><path d="M62 59 72 46" fill="none" stroke="var(--helper-shirt,#d7493b)" stroke-width="9" stroke-linecap="round"/><circle cx="72" cy="46" r="6" fill="#f2c19b"/><g class="helper-carried-media"><rect x="58" y="14" width="20" height="30" rx="2" fill="{{ '#a05239' if key=='books' else '#247ec0' }}" stroke="#dbe4ed" stroke-width="2"/><path d="M62 14v30M63 19h11M64 38h9" stroke="#dbe4ed" stroke-width="1.5"/><text x="69" y="31" font-size="6" font-weight="bold" text-anchor="middle" fill="white">{{ {'books':'BUCH','games':'GAME','music':'CD','cards':'ALBUM','tv':'BOX'}.get(key,'DVD') }}</text></g></g></g>
-    <g class="helper-free-arm"><path d="M27 49 18 59" fill="none" stroke="var(--helper-shirt,#d7493b)" stroke-width="10" stroke-linecap="round"/><g class="helper-free-forearm"><path d="M18 59 8 51" fill="none" stroke="var(--helper-shirt,#d7493b)" stroke-width="8" stroke-linecap="round"/><circle cx="8" cy="51" r="5" fill="#f2c19b"/></g></g>
-    <ellipse cx="40" cy="29" rx="15" ry="17" fill="#f2c19b" stroke="#7e4933" stroke-width="1.5"/><path class="helper-hair" d="M25 26Q20 5 40 8q21 0 16 22l-6-14-10 3-10-1z" fill="#473126"/>
-    <g class="helper-eyes"><circle cx="35" cy="29" r="2" fill="#182539"/><circle cx="46" cy="29" r="2" fill="#182539"/></g><path d="M35 37q6 5 12-1" fill="none" stroke="#8c4b3a" stroke-width="2"/>
-    {% if character in ['mario','luigi'] %}<path d="M22 20q0-18 19-18 21 0 18 18z" fill="{{ '#309743' if character=='luigi' else '#eb3838' }}"/><path d="M24 20h39" stroke="{{ '#267737' if character=='luigi' else '#be2323' }}" stroke-width="6" stroke-linecap="round"/><circle cx="41" cy="10" r="7" fill="#fff"/><text x="41" y="14" text-anchor="middle" font-size="10" font-weight="bold" fill="#d12f2f">{{ 'L' if character=='luigi' else 'M' }}</text><path d="M30 35q5-7 11-2 6-5 11 2-8 8-11 2-5 6-11-2" fill="#473126"/><path d="M31 46v20h18V46" fill="none" stroke="#326cc0" stroke-width="5"/>
-    {% elif character=='link' %}<path d="M24 18Q32-5 70 8L55 23 40 14z" fill="#4f9c47"/><path d="m24 29-10-5 13 13m29-8 10-5-13 13" fill="#f2c19b"/><path d="M29 47 51 67" stroke="#886141" stroke-width="5"/>
-    {% elif character=='football' %}<path d="M24 53h31" stroke="#fff" stroke-width="7"/><text x="40" y="69" text-anchor="middle" font-size="14" font-weight="bold" fill="#fff">10</text>
-    {% elif character=='actor' %}<path d="M26 27h12l3 3 3-3h12v8H44l-3-4-3 4H26z" fill="#202b37"/><path d="m32 45 9 14 9-14" fill="#f4efe6"/><path d="M39 52h4l2 14-5 4-4-4z" fill="#c25652"/><path d="M3 34h17v13H3z" fill="#272e38"/><path d="m3 34 4-6 5 3 5-3 5 6" fill="#eee"/>
-
-    {% elif character=='hitman' %}<path d="m31 44 10 16 10-16" fill="#fff"/><path d="M39 50h4l2 17-5 5-4-5z" fill="#bc3433"/><path d="M49 17v5m2-5v5m2-5v5m2-5v5" stroke="#222" stroke-width="1"/>
-    {% elif character=='walter' %}<path d="M19 39V24Q19 3 40 3q21 0 21 22v16l-9 5-1-18q-1-16-11-15-13 0-13 16l1 17z" fill="#e4bf29" stroke="#827020" stroke-width="1.5"/><path d="M28 27h11v9H28zm15 0h11v9H43z" fill="none" stroke="#373c43" stroke-width="2"/><path d="M39 30h4" stroke="#373c43" stroke-width="2"/><path d="M34 36h14v7l-7 4-7-4z" fill="#7b5c45"/><path d="M39 48v23" stroke="#8a7824" stroke-width="2"/>
-    {% elif character=='conan' %}<circle cx="34" cy="29" r="7" fill="none" stroke="#26383d" stroke-width="1.5"/><circle cx="48" cy="29" r="7" fill="none" stroke="#26383d" stroke-width="1.5"/><path d="M40 29h2" stroke="#26383d"/><path d="m40 50-9-5v11zm0 0 10-5v11z" fill="#da4548"/><path d="M28 10 43 6l14 8-5 5-8-8-6 7z" fill="#152634"/>
-    {% elif character=='savas' %}<path d="M22 20q1-17 20-17 16 0 16 17z" fill="#262b32"/><path d="M24 20h39" stroke="#171b23" stroke-width="5"/><path d="M29 34q12 10 23 0l-2 10H32z" fill="#42382f"/><text x="40" y="62" text-anchor="middle" font-size="12" font-weight="bold" fill="#eee">KS</text><path d="M8 39v12" stroke="#393d46" stroke-width="5"/><circle cx="8" cy="37" r="4" fill="#858c98"/>
-    {% elif character=='wizard' %}<path d="M19 21 42-2 57 21z" fill="#7956ba"/><path d="M21 20h40" stroke="#ac88e1" stroke-width="4"/><path d="M28 35q12 30 25 0l-8 20z" fill="#e8e7dd"/><path d="m38 9 2 4 5 1-4 2-1 5-3-4-5-1 4-3z" fill="#ffd885"/>
-    {% elif character=='detective' %}<path d="M24 17h33L52 5H30z" fill="#977952"/><path d="M18 19h44" stroke="#735637" stroke-width="5"/><path d="m27 47 12 23 13-23" fill="none" stroke="#dfbc84" stroke-width="6"/>
-    {% elif character=='musician' %}<path d="M23 25q-2-21 18-21 20 0 18 21" fill="none" stroke="#61c8d5" stroke-width="5"/><path d="M22 24v12m37-12v12" stroke="#334558" stroke-width="8" stroke-linecap="round"/><path d="M31 48 48 68" stroke="#272537" stroke-width="5"/>
-    {% elif character in ['trainer','ash'] %}<path d="M23 20Q23 2 42 2q17 0 16 18z" fill="#e54b48"/><path d="M23 21h39" stroke="#ede8db" stroke-width="5"/><circle cx="40" cy="10" r="5" fill="#eee"/><path d="M31 47v20h18V47" fill="#568dcc"/>
-    {% elif character=='adventurer' %}<path d="M25 16h32L51 4H30z" fill="#c6a060"/><path d="M18 19h45" stroke="#826642" stroke-width="5"/><path d="M29 45 53 71" stroke="#794c32" stroke-width="5"/>
-    {% endif %}
-    {% if character=='ash' %}<g class="helper-pokeball"><circle cx="12" cy="47" r="7" fill="white" stroke="#202634" stroke-width="1.5"/><path d="M5 47a7 7 0 0 1 14 0z" fill="#e63d46"/><path d="M5 47h14" stroke="#202634" stroke-width="1.5"/><circle cx="12" cy="47" r="2" fill="white" stroke="#202634"/></g>{% endif %}
-  </svg>
-  {% endif %}
-
-</span>
-
-{% endmacro %}
-{% set options=['sport-blue','sport-red','sport-yellow','sport-white','sport-tennis','mario','luigi','hitman','ash'] if key=='games' else {'movies':['pirate-captain','pirate-sharpshooter','pirate-cook','hitman','actor'],'tv':['pirate-swordsman','pirate-captain','pirate-medic','detective-blue','detective-red','detective-cap','walter'],'books':['pirate-navigator','pirate-medic','pirate-swordsman','detective-green','detective-purple','detective-blond','ash','wizard'],'music':['rapper-tracksuit','rapper-cap','rapper-hoodie','rapper-bucket','rapper-shades'],'cards':['ash'],'more':['pirate-sharpshooter','pirate-cook','pirate-captain','detective-blue','detective-red','detective-green','adventurer','wizard']}.get(key,['adventurer']) %}
-<span class="regal-helper-set" data-helper-set aria-hidden="true">{% for character in options %}{{ helper(character) }}{% endfor %}</span>
+{% set groups={
+  'games':['sport-blue','sport-red','sport-yellow','sport-white','sport-tennis'],
+  'movies':['pirate-captain','pirate-sharpshooter','pirate-cook'],
+  'tv':['pirate-swordsman','pirate-captain','pirate-medic','detective-blue','detective-red','detective-cap'],
+  'books':['pirate-navigator','pirate-medic','pirate-swordsman','detective-green','detective-purple','detective-blond'],
+  'music':['rapper-tracksuit','rapper-cap','rapper-hoodie','rapper-bucket','rapper-shades'],
+  'cards':['detective-blue','detective-red','detective-cap','detective-green','detective-purple','detective-blond'],
+  'more':['pirate-sharpshooter','pirate-cook','pirate-captain','detective-blue','detective-red','detective-green']
+} %}
+{% set newcomers=['falconer-ranger','profession-baker','profession-medic','profession-builder','profession-mechanic','profession-office','profession-beekeeper','profession-explorer','profession-diver','profession-birdkeeper','profession-smith','class-postman','class-chef','class-miner','class-courier'] %}
+<span class="regal-helper-set" data-helper-set aria-hidden="true">{% for character in groups.get(key,groups['more']) + newcomers %}<span class="regal-helper helper-{{ character }}" data-character="{{ character }}" data-preferred-theme="{{ {'games':'sport','movies':'pirate','tv':'detective','books':'falconer','music':'rapper','cards':'profession','more':'class'}.get(key,'class') }}" aria-hidden="true">{% include '_sport_sprite_helper.html' %}</span>{% endfor %}</span>
