@@ -1,0 +1,13 @@
+{% extends 'base.html' %}
+{% block title %}TU-Release-Freigabe · Bibo{% endblock %}
+{% block content %}
+<h1>Testfreigabe · {{ app_version }}</h1>
+<p class="panel">Nur eine dokumentierte Testfreigabe: keine automatische Installation, kein Datenimport in Produktion und keine GitHub-Veröffentlichung. Ein RC bleibt ein Prüfstand, auch nach dieser Bestätigung.</p>
+<section class="panel"><h2>{{ '✓ Test freigegeben' if approved else 'Noch nicht freigegeben / Stand geändert' }}</h2><p>App-Fingerabdruck: <code>{{ fingerprint }}</code></p>
+<form method="post"><input type="hidden" name="token" value="{{ token }}"><input type="hidden" name="version" value="{{ app_version }}">
+{% for key,label in checks.items() %}<label><input type="checkbox" name="{{ key }}" value="1">{{ label }}</label>{% endfor %}
+<label>Prüfnotiz<textarea name="notes" maxlength="2000" rows="3"></textarea></label>
+<button name="action" value="approve">Test freigeben</button>{% if approved %}<button class="secondary" name="action" value="revoke">Freigabe zurücknehmen</button>{% endif %}</form></section>
+{% if command %}<section class="panel"><h2>Produktiv-Update vorbereiten</h2><p>Nur den Programmstand installieren, nicht die TU-Daten. Der Installer sichert Code und Datenbank. Zugangsdaten bleiben erhalten. RC-Installation ist hier ausdrücklich erlaubt; normale automatische Updates ignorieren RC-Pakete.</p><pre class="release-command"><code>{{ command }}</code></pre><p>Auf PokeCollector als root ausführen. Die TU-Freigabe prüft den App-Stand, ersetzt aber kein Backup und keine separate Veröffentlichungsfreigabe.</p></section>{% endif %}
+<section class="panel"><h2>Prüfprotokoll</h2>{% for entry in history %}<p>{{ entry.created_at|localdt }} · {{ entry.reviewer }} · {{ 'Freigegeben' if entry.action=='approve' else 'Zurückgenommen' }} · {{ entry.notes }}</p>{% else %}<p>Noch keine Freigabe.</p>{% endfor %}</section>
+{% endblock %}

@@ -11,10 +11,39 @@ from flask import Blueprint, abort, flash, redirect, render_template, request, s
 from flask_login import current_user, login_required
 from PIL import Image, ImageOps, UnidentifiedImageError
 from sqlalchemy.orm.exc import StaleDataError
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy import case
 
 STATUSES = {'submitted': 'Eingereicht', 'review': 'In Prüfung', 'planned': 'Geplant',
             'working': 'In Arbeit', 'done': 'Erledigt', 'rejected': 'Abgelehnt', 'duplicate': 'Duplikat'}
-PRIORITIES = {'normal': 'Normal', 'low': 'Niedrig', 'high': 'Hoch', 'urgent': 'Dringend'}
+PRIORITIES = {'normal': 'Normal', 'low': 'Niedrig', 'high': 'Hoch', 'urgent': 'Kritisch'}
+CATEGORIES = {'bug': 'Fehler', 'quality': 'Qualitätsverbesserung', 'feature': 'Neue Funktion',
+              'change': 'Änderung bestehender Funktionen', 'unclear': 'Unklar'}
+CLOSED = ('done', 'rejected', 'duplicate')
+
+
+def classify_feedback(title, description, kind):
+    """Explainable local suggestion, never an automatic workflow decision."""
+    text = (title + ' ' + description).casefold()
+    critical = ('datenverlust', 'daten verloren', 'sicherheitslücke', 'fremde daten',
+                'unberechtigter zugriff', 'alle daten gelöscht')
+    if kind == 'bug':
+        category = 'bug'
+    elif any(word in text for word in ('neue funktion', 'neues feature', 'funktion hinzufügen')):
+        category = 'feature'
+    elif any(word in text for word in ('qualität', 'übersichtlich', 'verständlicher', 'layout', 'symbol', 'menü', 'darstellung')):
+        category = 'quality'
+    elif kind == 'improvement':
+        category = 'change'
+    else:
+        category = 'unclear'
+    hit = next((word for word in critical if word in text and
+                not re.search(r'(?:kein\w*|ohne|nicht)\s+(?:\w+\s+){0,2}' + re.escape(word), text)), None)
+    if hit and category == 'bug':
+        return category, 'urgent', f'Kritischer Hinweis im Text: „{hit}“. Bitte manuell prüfen.'
+    if kind == 'bug' and any(word in text for word in ('nicht anmelden', 'login geht nicht', 'absturz', 'nicht erreichbar')):
+        return category, 'high', 'Hinweis auf blockierte Anmeldung, Ausfall oder Absturz.'
+    return category, 'normal', 'Vorschlag aus Meldungstyp und Text; keine automatische Statusänderung.'
 KINDS = {'bug': 'Fehler', 'improvement': 'Verbesserung'}
 AREAS = ['Allgemein', 'Navigation', 'Spiele', 'Hardware & Zubehör', 'Weitere Sammlungen',
          'Preise & Bewertungen', 'Scanner & Import', 'Nutzer & Rechte']
@@ -59,6 +88,65 @@ def setup_feedback(app, db, User, utc_now, version, admin_required):
         storage_name = db.Column(db.String(64), nullable=False, unique=True)
         internal = db.Column(db.Boolean, nullable=False, default=False)
         created_at = db.Column(db.DateTime, nullable=False, default=utc_now)
+
+    class FeedbackTriage(db.Model):
+        __tablename__ = 'feedback_triage'
+        ticket_id = db.Column(db.Integer, db.ForeignKey('feedback_ticket.id'), primary_key=True)
+        category = db.Column(db.String(20), nullable=False)
+        suggested_category = db.Column(db.String(20), nullable=False)
+        suggested_priority = db.Column(db.String(20), nullable=False)
+        reason = db.Column(db.Text, nullable=False)
+        overridden = db.Column(db.Boolean, nullable=False, default=False)
+
+    class FeedbackNotification(db.Model):
+        __tablename__ = 'feedback_notification'
+        id = db.Column(db.Integer, primary_key=True)
+        user_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'), nullable=False, index=True)
+        message_id = db.Column(db.Integer, db.ForeignKey('feedback_message.id'), nullable=False)
+        created_at = db.Column(db.DateTime, nullable=False, default=utc_now)
+        read_at = db.Column(db.DateTime)
+        message = db.relationship(FeedbackMessage)
+        __table_args__ = (db.UniqueConstraint('user_id', 'message_id'),)
+
+    FeedbackTicket.triage = db.relationship(FeedbackTriage, uselist=False)
+
+    class FeedbackUserCompletion(db.Model):
+        __tablename__ = 'feedback_user_completion'
+        ticket_id = db.Column(db.Integer, db.ForeignKey('feedback_ticket.id'), primary_key=True)
+        completed_at = db.Column(db.DateTime, nullable=False, default=utc_now)
+
+    FeedbackTicket.user_completion = db.relationship(FeedbackUserCompletion, uselist=False)
+    app.config['FEEDBACK_COMPLETION_MODEL'] = FeedbackUserCompletion
+
+    def own_open_query():
+        return FeedbackTicket.query.filter_by(user_id=current_user.id).outerjoin(FeedbackUserCompletion).filter(
+            ~FeedbackTicket.status.in_(CLOSED), FeedbackUserCompletion.ticket_id.is_(None))
+
+    def triage_ticket(ticket, assign_priority=False):
+        category, priority, reason = classify_feedback(ticket.title, ticket.description, ticket.kind)
+        row = FeedbackTriage(ticket_id=ticket.id, category=category, suggested_category=category,
+                             suggested_priority=priority, reason=reason,
+                             overridden=not assign_priority and ticket.priority != priority)
+        db.session.add(row)
+        if assign_priority:
+            ticket.priority = priority
+        return row
+
+    def backfill():
+        # Existing admin priorities are preserved. Historical answers are not
+        # replayed as a flood of new notifications.
+        for ticket in FeedbackTicket.query.outerjoin(FeedbackTriage).filter(FeedbackTriage.ticket_id.is_(None)).all():
+            triage_ticket(ticket)
+        db.session.commit()
+
+    app.config['FEEDBACK_BACKFILL'] = backfill
+    app.config['FEEDBACK_NOTIFICATION_MODEL'] = FeedbackNotification
+    app.config['FEEDBACK_TRIAGE_MODEL'] = FeedbackTriage
+
+    def notify_owner(ticket, message):
+        if ticket.user_id and ticket.user_id != current_user.id and not message.internal:
+            db.session.flush()
+            db.session.add(FeedbackNotification(user_id=ticket.user_id, message_id=message.id))
 
     def token(action):
         key = f'feedback-token-{current_user.id}-{action}'
@@ -142,23 +230,57 @@ def setup_feedback(app, db, User, utc_now, version, admin_required):
     @bp.app_context_processor
     def feedback_context():
         return dict(feedback_statuses=STATUSES, feedback_priorities=PRIORITIES,
-                    feedback_kinds=KINDS, feedback_areas=AREAS)
+                    feedback_kinds=KINDS, feedback_areas=AREAS, feedback_categories=CATEGORIES,
+                    feedback_open_count=FeedbackTicket.query.filter(~FeedbackTicket.status.in_(CLOSED)).count()
+                        if current_user.is_authenticated and current_user.is_admin else 0,
+                    feedback_own_open_count=own_open_query().count() if current_user.is_authenticated else 0,
+                    feedback_unread_count=FeedbackNotification.query.filter_by(user_id=current_user.id, read_at=None).count()
+                        if current_user.is_authenticated else 0)
+
+    @bp.route('/feedback/messages', methods=['GET', 'POST'])
+    @login_required
+    def inbox():
+        if request.method == 'POST':
+            check_token('inbox')
+            notification = db.session.get(FeedbackNotification, request.form.get('notification_id', type=int))
+            if not notification or notification.user_id != current_user.id:
+                abort(404)
+            if not notification.read_at:
+                notification.read_at = utc_now()
+                db.session.commit()
+            return redirect(url_for('feedback.inbox'))
+        page = FeedbackNotification.query.filter_by(user_id=current_user.id).order_by(
+            FeedbackNotification.read_at.is_not(None), FeedbackNotification.id.desc()).paginate(
+                page=max(1, request.args.get('page', 1, type=int) or 1), per_page=25, error_out=False)
+        return render_template('feedback_inbox.html', pagination=page, feedback_token=token('inbox'))
 
     def list_page(admin=False):
         query = FeedbackTicket.query if admin else FeedbackTicket.query.filter_by(user_id=current_user.id)
         status = request.args.get('status', '')
         kind = request.args.get('kind', '')
+        category = request.args.get('category', '')
+        priority = request.args.get('priority', '')
+        if request.args.get('open') == '1':
+            query = query.filter(~FeedbackTicket.status.in_(CLOSED)) if admin else own_open_query()
+        if category in CATEGORIES:
+            query = query.join(FeedbackTriage).filter(FeedbackTriage.category == category)
+        if priority in PRIORITIES and admin:
+            query = query.filter(FeedbackTicket.priority == priority)
         search = request.args.get('q', '').strip()[:160]
         if status in STATUSES:
-            query = query.filter_by(status=status)
+            query = query.filter(FeedbackTicket.status == status)
         if kind in KINDS:
-            query = query.filter_by(kind=kind)
+            query = query.filter(FeedbackTicket.kind == kind)
         if search:
             query = query.filter(FeedbackTicket.title.ilike('%' + search.replace('%', r'\%').replace('_', r'\_') + '%', escape='\\'))
-        pagination = query.order_by(FeedbackTicket.updated_at.desc(), FeedbackTicket.id.desc()).paginate(
+        pagination = query.order_by(FeedbackTicket.status.in_(CLOSED),
+            case((FeedbackTicket.priority == 'urgent', 0), (FeedbackTicket.priority == 'high', 1),
+                 (FeedbackTicket.priority == 'normal', 2), else_=3) if admin else FeedbackTicket.updated_at.desc(),
+            FeedbackTicket.updated_at.desc(), FeedbackTicket.id.desc()).paginate(
             page=max(1, request.args.get('page', 1, type=int) or 1), per_page=25, error_out=False)
         return render_template('feedback_list.html', pagination=pagination, admin_view=admin,
-                               status_filter=status, kind_filter=kind, search=search)
+                               status_filter=status, kind_filter=kind, search=search,
+                               category_filter=category, priority_filter=priority, open_filter=request.args.get('open', ''))
 
     @bp.route('/feedback')
     @login_required
@@ -193,6 +315,7 @@ def setup_feedback(app, db, User, utc_now, version, admin_required):
                                             kind=kind, area=area, app_version=version)
                     db.session.add(ticket)
                     db.session.flush()
+                    triage_ticket(ticket, assign_priority=True)
                     save_images(ticket, None, False, written)
                     commit_or_conflict(written)
                     flash('Deine Meldung wurde eingereicht.', 'success')
@@ -211,9 +334,26 @@ def setup_feedback(app, db, User, utc_now, version, admin_required):
         ticket = ticket_for_user(ticket_id)
         if request.method == 'POST':
             check_token(f'ticket-{ticket.id}')
+            action = request.form.get('action', '')
+            if action in ('personal_complete', 'personal_reopen'):
+                if ticket.user_id != current_user.id:
+                    abort(403)
+                record = db.session.get(FeedbackUserCompletion, ticket.id)
+                if action == 'personal_complete' and record is None:
+                    db.session.add(FeedbackUserCompletion(ticket_id=ticket.id))
+                elif action == 'personal_reopen' and record:
+                    db.session.delete(record)
+                try:
+                    db.session.commit()
+                except IntegrityError:
+                    db.session.rollback()
+                    if action != 'personal_complete' or db.session.get(FeedbackUserCompletion, ticket.id) is None:
+                        raise
+                flash('Für dich abgeschlossen. Die Admin-Aufgabe bleibt unverändert.' if action == 'personal_complete'
+                      else 'Wieder in deinen offenen Meldungen.', 'success')
+                return redirect(url_for('feedback.detail', ticket_id=ticket.id))
             if request.form.get('revision', type=int) != ticket.revision:
                 abort(409, 'Die Meldung wurde inzwischen geändert. Bitte neu laden.')
-            action = request.form.get('action', '')
             written = []
             try:
                 if action == 'reply':
@@ -230,18 +370,27 @@ def setup_feedback(app, db, User, utc_now, version, admin_required):
                     db.session.add(message)
                     db.session.flush()
                     save_images(ticket, message, internal, written)
+                    notify_owner(ticket, message)
                 elif action == 'manage':
                     if not current_user.is_admin:
                         abort(403)
                     status = request.form.get('status', '')
                     priority = request.form.get('priority', '')
                     target = request.form.get('target_version', '').strip()
+                    category = request.form.get('category', ticket.triage.category if ticket.triage else 'unclear')
+                    if category not in CATEGORIES:
+                        raise ValueError('Ungültige Kategorie.')
                     if status not in STATUSES or priority not in PRIORITIES or (target and not re.fullmatch(r'v?\d+\.\d+\.\d+(?:-[a-zA-Z0-9.-]+)?', target)) or len(target) > 32:
                         raise ValueError('Status, Priorität oder Zielversion (z. B. 5.0.1) ungültig.')
                     # Record public status history without disclosing internal priority.
                     if ticket.status != status or (ticket.target_version or '') != target:
-                        db.session.add(FeedbackMessage(ticket_id=ticket.id, user_id=current_user.id,
-                            body=f'Status: {STATUSES[status]}. Geplante Version: {target or "Noch offen"}.', internal=False))
+                        message = FeedbackMessage(ticket_id=ticket.id, user_id=current_user.id,
+                            body=f'Status: {STATUSES[status]}. Geplante Version: {target or "Noch offen"}.', internal=False)
+                        db.session.add(message)
+                        notify_owner(ticket, message)
+                    triage = ticket.triage or triage_ticket(ticket)
+                    triage.category = category
+                    triage.overridden = category != triage.suggested_category or priority != triage.suggested_priority
                     ticket.status, ticket.priority, ticket.target_version = status, priority, target
                 else:
                     abort(400)

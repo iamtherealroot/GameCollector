@@ -5,7 +5,9 @@
     const response=await fetch('/api/release-news',{cache:'no-store'});
     if(!response.ok)return;
     const data=await response.json();if(!data.show){await startTutorial();return;}
-    document.getElementById('release-news-version').textContent=`Bibo ${data.version}`;
+    document.getElementById('release-news-version').textContent=data.since_login
+      ? `Seit deinem vorherigen Login: ${data.updates?.length || 1} Update(s) bis Bibo ${data.version}`
+      : data.since_version ? `Seit deinem zuletzt dokumentierten Stand ${data.since_version} bis Bibo ${data.version}` : `Bibo ${data.version}`;
     const list=document.getElementById('release-news-highlights');
     data.highlights.forEach(text=>{const li=document.createElement('li');li.textContent=text;list.append(li);});
     const button=document.getElementById('release-news-close');

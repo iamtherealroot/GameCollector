@@ -30,6 +30,7 @@ import zipfile
 import threading
 import time
 import statistics
+import math
 import secrets
 import socket
 import ipaddress
@@ -37,7 +38,7 @@ from pathlib import Path
 from html.parser import HTMLParser
 from itsdangerous import BadSignature, URLSafeSerializer
 
-APP_VERSION = "5.0.4"
+APP_VERSION = "5.1.0"
 APP_NAME = "Bibo"
 DISPLAY_TIMEZONE_NAME = os.environ.get("TZ", "Europe/Berlin")
 try:
@@ -1470,7 +1471,7 @@ def enforce_viewer_read_only():
     if not current_user.is_authenticated or request.method not in {"POST", "PUT", "PATCH", "DELETE"}:
         return None
     # Viewer may update their own display name/password and log out, but cannot alter shared data.
-    if request.endpoint in {"account", "logout", "collection_switch", "personal_review_edit", "collection_access_request"}:
+    if request.endpoint in {"account", "logout", "collection_switch", "personal_review_edit", "collection_access_request", "dashboard_style_save"}:
         return None
     endpoint = request.endpoint or ""
     # Feedback is personal, not a mutation of the active collection. Its own
@@ -2080,7 +2081,7 @@ def parse_money_input(value):
         raw = raw.replace(".", "").replace(",", ".")
     try:
         value = float(raw)
-        return value if value >= 0 else None
+        return value if math.isfinite(value) and value >= 0 else None
     except ValueError:
         return None
 
@@ -2101,8 +2102,26 @@ def form_money(name, *, allow_empty=True):
     return True, value, None
 
 
+def validate_inventory_form():
+    """Reject invalid input before any inventory mutation or file upload."""
+    for field in ('purchase_price','estimated_value','wishlist_target_price'):
+        raw=request.form.get(field,'').strip()
+        if raw and parse_money_input(raw) is None:
+            abort(400,description=f'Ungültiger Geldbetrag: {field}. Bitte z. B. 39,90 eingeben.')
+    raw=request.form.get('purchase_date','').strip()
+    if raw:
+        try:datetime.strptime(raw,'%Y-%m-%d')
+        except ValueError:abort(400,description='Ungültiges Kaufdatum. Bitte ein gültiges Kalenderdatum auswählen.')
+    parent=request.form.get('parent_accessory_id',type=int)
+    if parent is not None:
+        target=scoped_accessory_query().filter_by(id=parent).first()
+        if target is None or target.parent_accessory_id is not None:
+            abort(400,description='Zubehör-Zuordnung ungültig: Hauptobjekt muss in der aktiven Sammlung liegen.')
+
+
 def update_collection_item_from_form(item):
     """Single source of truth for creating and editing CollectionItem fields."""
+    validate_inventory_form()
     errors = []
     item.status = request.form.get("status", item.status or "owned")
     ownership_format = request.form.get("ownership_format", item.ownership_format or "physical").strip().lower()
@@ -2121,7 +2140,8 @@ def update_collection_item_from_form(item):
             item.media_present = item.box_present = item.manual_present = True
         item.completeness = derive_completeness(item.media_present, item.box_present, item.manual_present, item.sealed)
     item.media_condition = max(1, min(10, request.form.get("media_condition", type=int) or item.media_condition or 8))
-    item.box_condition = max(1, min(10, request.form.get("box_condition", type=int) or item.box_condition or 8))
+    if item.box_present:
+        item.box_condition = max(1, min(10, request.form.get("box_condition", type=int) or item.box_condition or 8))
 
     for field in ("purchase_price", "estimated_value", "wishlist_target_price"):
         present, value, error = form_money(field)
@@ -2709,6 +2729,26 @@ def game_offer_matches_completeness(item, title, condition=""):
             and manual == bool(item.manual_present))
 
 
+def game_offer_matches_variant(item,title):
+    """Reject explicitly conflicting regions and special editions."""
+    key=_match_key(title);tokens=set(key.split())
+    region=_match_key(item.game.region or '')
+    pal='pal' in tokens
+    japan=bool(tokens & {'jpn','japan','japanese','ntscj'}) or 'ntsc j' in key
+    usa=bool(tokens & {'usa','american','ntscu'}) or 'ntsc u' in key
+    if region.startswith('pal') and (japan or usa or 'ntsc' in tokens):return False
+    if region in {'usa','us','ntsc u','ntscu'} and (pal or japan):return False
+    if region in {'jpn','japan','ntsc j','ntscj'} and (pal or usa):return False
+    edition=_match_key(item.game.edition or 'Standard')
+    special={'steelbook','collector','collectors','limited','platinum','essentials','greatest hits'}
+    if edition in {'standard',''}:
+        if any(re.search(r'\b'+re.escape(word)+r'\b',key) for word in special):return False
+    else:
+        required={word for word in edition.split() if word not in {'edition','ausgabe','the'}}
+        if required and not required<=tokens:return False
+    return True
+
+
 def ebay_offer_valuation(item):
     """Estimate a value from current fixed-price eBay offers, never from claimed sold prices."""
     credentials = ebay_credentials()
@@ -2760,7 +2800,7 @@ def ebay_offer_valuation(item):
         matched = sum(1 for word in game_words if word in title_key.split())
         if game_words and matched < len(game_words):
             continue
-        if not game_offer_matches_completeness(item, row.get("name", ""), row.get("condition", "")):
+        if not game_offer_matches_variant(item,row.get('name','')) or not game_offer_matches_completeness(item, row.get("name", ""), row.get("condition", "")):
             continue
         total = float(row["price"]) + float(row.get("shipping") or 0)
         if 0.5 <= total <= 5000:
@@ -3152,6 +3192,29 @@ def upcitemdb_title_search(query, limit=8):
             "source_id": str(row.get("ean") or row.get("upc") or ""),
         })
     return out
+
+
+def pokemon_title_key(value):
+    key = _search_text(value)
+    if key.startswith("pokemon "):
+        key = re.sub(r"\b(?:edition|version)\b", " ", key)
+        key = re.sub(r"\bschwarze\b", "schwarz", key)
+        key = re.sub(r"\bweisse\b", "weiss", key)
+        key = " ".join(key.split())
+    return key
+
+
+def game_title_identity(value):
+    """Compare catalog spelling without changing edition numbers or punctuation."""
+    value = unicodedata.normalize("NFKD", str(value or ""))
+    value = "".join(ch for ch in value if not unicodedata.combining(ch))
+    return " ".join(value.casefold().split())
+
+
+def matching_catalog_title(query, title):
+    key = game_title_identity(title)
+    return next((game for game in query.order_by(Game.id).all()
+                 if game_title_identity(game.title) == key), None)
 
 
 def _search_text(value):
@@ -4622,7 +4685,7 @@ def health_deep():
         db.session.execute(text("SELECT 1"))
         tables = set(inspect(db.engine).get_table_names())
         required = {"user", "collection_space", "collection_permission", "collection_access_request", "game", "collection_item", "collector_item", "hardware_item", "accessory_item", "application_error", "capture_batch", "release_coverage", "personal_review", "bibo_work", "bibo_edition", "bibo_copy", "bibo_series", "bibo_series_membership", "storage_location", "loan_record", "inventory_session"}
-        required.update({'release_acknowledgement', 'dashboard_tutorial_acknowledgement', 'feedback_ticket', 'top10_consent', 'top10_user_preference'})
+        required.update({'release_acknowledgement', 'dashboard_tutorial_acknowledgement', 'tutorial_preference', 'release_login_state', 'feedback_ticket', 'feedback_triage', 'feedback_notification', 'feedback_user_completion', 'test_release_approval', 'top10_consent', 'top10_user_preference'})
         missing = sorted(required - tables)
         if missing:
             return {"status":"error","name":APP_NAME,"version":APP_VERSION,"database":"ok","schema":"incomplete","missing_tables":missing}, 503
@@ -4635,44 +4698,9 @@ def health_deep():
 @app.route("/whats-new")
 @login_required
 def whats_new():
-    releases = [
-        ("5.0.4", "Prüfentwurf: Dashboard-Tour & einfacher Testzugang", "Farbiges Bücherregal, geführte Einführung direkt im Dashboard, Testbanner, passwortloser Test-admin und Desktop-Bash-Starter."),
-        ("5.0.3", "Prüfentwurf: zuverlässiger Docker-Start", "Einmalige Datenbankinitialisierung vor Web-Workern und Scheduler; sichtbare Healthcheck-Wartephase und frühzeitige Fehlerausgabe."),
-        ("5.0.2", "Prüfentwurf: Einführung & Testmigration", "Robustere Release-Bestätigung, überspringbares Einführungstutorial und Kopieren von Produktionsdaten in die isolierte Docker-Testumgebung."),
-        ("5.0.1", "Zweiter Prüfentwurf: globale Top 10 & Release-Hinweise", "Menübuttons, freiwillige globale Ranglisten mit persönlichem Schalter ab zwei Sammlungen, einmaliger Hinweis pro Nutzer/Version und separate Docker-Testumgebung."),
-        ("5.0.0", "Prüfentwurf: verständliche Navigation & privates Feedback", "Menüs erklären Funktionen und bieten eine Suche. Nutzer können Meldungen mit Bildern senden; Systemadministratoren verwalten Status, Zielversion, Antworten und interne Notizen."),
-        ("4.7.1", "Symbolauswahl & flexibler Installer", "Eigene Kategorien erhalten Standardicons oder ein eigenes Emoji. Die Löschbestätigung ist kompakter, das Startskript findet Pakete lokal und auf GitHub."),
-        ("4.7.0", "Eigene Sammlungskategorien verwalten", "Eigene Dashboard-Bereiche bearbeiten oder entfernen und mehrere Objekte gemeinsam verschieben. Beim Entfernen einer Kategorie bleiben alle Objekte erhalten."),
-        ("4.6.5", "Private Rechteverwaltung & sauberer Release-Workflow", "Sammlungsverwalter sehen nur Mitglieder und konkrete Zugriffsanfragen ihrer Sammlung. Eigene Kategorien führen direkt zum ersten Objekt und leere Sammlungen zeigen keine fremden Spielreihen mehr."),
-        ("4.6.4", "Getrennte Spielreihen & eigene Dashboard-Bereiche", "Spielreihen erscheinen nur für die aktive Sammlung; zusätzlich lassen sich beliebig viele eigene Sammlungskategorien mit Name und Symbol direkt zum Start- und Bewertungsdashboard hinzufügen."),
-        ("4.6.3", "Weitere Exemplare über vorhandene EAN", "Bekannte EANs zeigen eine Dublettenwarnung mit den getrennten Aktionen „vorhandenes Exemplar öffnen“ und „weiteres Exemplar erfassen“; Medien übernehmen Katalogdaten in den Fragenkatalog, ohne persönliche Exemplardaten zu kopieren."),
-        ("4.6.2", "Persönliche Rezensionen & Updatearchiv", "Vorhandene Titel erhalten eigene inhaltliche Rezensionen mit Gesamt- und Einzelwertungen; erfolgreiche Installationen verschieben Bibo-Pakete aus Downloads automatisch nach /opt/gamecollector/updates."),
-        ("4.6.1", "Ähnliche-Titel-Vorschau & TMDB-Boxinhalt", "Werkseiten zeigen ähnliche Titel als kompakte Coverleiste mit Besitz- oder Wunschlistenstatus; Film-Boxen übernehmen enthaltene Filme direkt aus TMDB-Film-Links oder IDs."),
-        ("4.6.0", "Ähnliche Titel & passende Formatauswahl", "Games, Filme, Serien, Bücher, Musik und Sammelkarten erhalten begründete, bebilderte Empfehlungen mit eigener Vorschau, Wunschliste und direkter Übernahme; Medium und Format werden im Fragenkatalog als passende Auswahlliste angeboten."),
-        ("4.5.3", "Sichtbare Coverprüfung & korrekte Staffelboxen", "Cover-Links zeigen im Medienassistenten sofort das tatsächliche Bild und erneut in der Abschlusskontrolle; Komplettboxen einzelner Staffeln werden nicht mehr als komplette Serie gewertet."),
-        ("4.5.2", "Komplettbox-Aktionen & Kachelstatistiken", "Staffeln einer Box lassen sich mit Aktionsfeldern gesammelt auswählen; ältere Komplettboxen werden automatisch auf alle Serienstaffeln erweitert und jede Dashboard-Kachel zeigt eine kurze Bestandsaufteilung."),
-        ("4.5.1", "Fragenkatalog nach EAN-Treffern", "Gefundene Film-, Serien-, Buch-, Musik- und allgemeine EAN-Daten werden vorausgefüllt in den Assistenten übernommen; gespeichert wird erst nach der Abschlusskontrolle."),
-        ("4.5.0", "Geführter Medienassistent", "Ein schrittweiser, medienabhängiger Fragenkatalog erfasst Werk, Ausgabe, Boxinhalt, Zustand, Kaufdaten und Lagerort vollständig und verständlich."),
-        ("4.4.1", "Komplettboxen für TV-Serien", "Eine physische Komplett- oder Mehrstaffelbox kann ausgewählten Staffeln gemeinsam zugeordnet werden; Preis und Exemplar werden weiterhin nur einmal summiert."),
-        ("4.4.0", "Rechte & Betriebssicherheit", "Einzelrechte für Einträge, Preise, Importe und Benutzerverwaltung, exportierbarer Änderungsnachweis sowie eine zentrale Systemdiagnose."),
-        ("4.3.0", "Lager, Inventur & Leihen", "Hierarchische Lagerorte mit QR-Code, mobile Bestandsprüfung und eine übersichtliche Leihverwaltung für das gemeinsame Bibliotheksregister."),
-        ("4.2.0", "Planungszentrale", "Monatsbudget, tatsächliche Ausgaben, Wünsche, priorisierte Ziele und deutsche Veröffentlichungsstatus werden gemeinsam geplant."),
-        ("4.1.0", "Persönlicher Einstieg", "Zeitabhängige Begrüßung, zentrale Hinzufügen-Seite und Strg/⌘+K für die globale Suche."),
-        ("4.0.2", "Automatische Cover-Slider", "Bis zu fünf Cover je Bereich wechseln weich und zeitversetzt; Bewegungsreduzierung und Einzelcover werden respektiert."),
-        ("4.0.1", "Cover auf der Startseite", "Die großen Bereichskacheln zeigen echte Cover aus der eigenen Sammlung mit einem lesbaren, ruhigen Bildverlauf."),
-        ("4.0.0", "Eine Bibliothek für alles", "Das gemeinsame Register verbindet Werke, Reihen, Ausgaben und Exemplare aller Medienarten – nicht-destruktiv und mit eigener Werkansicht."),
-        ("3.5.0", "Dashboard mit Sammlungsassistent", "Eigene Cover als Wasserzeichen und priorisierte nächste Schritte statt eintöniger Kennzahlen."),
-        ("3.4.0", "Boxsets richtig abbilden", "Eine Box kann mehrere Filme, Staffeln oder Bände abdecken, ohne ihren Preis mehrfach zu zählen."),
-        ("3.3.0", "Mobile Stapel-Erfassung", "Mehrere Barcodes unterwegs sammeln, Mengen und Kaufpreise festhalten und später gesammelt zuordnen."),
-        ("3.2.0", "Prüf-Inbox", "Daten-, Preis- und Technikhinweise werden in einer gemeinsamen, handlungsorientierten Inbox gebündelt."),
-        ("3.1.0", "Komfort & Stabilität", "Kumulative, vollständig geprüfte Ausgabe mit Release-Übersicht und verständlicher Benutzerrechte-Erklärung."),
-        ("3.0.15", "Logische Reihenzählung", "Staffeln, Filme und Bände statt einzelner Datenträger; Split-Boxen werden nicht doppelt gezählt."),
-        ("3.0.14", "Einheitliche Ansichten", "Listen-/Cover-Ansicht, weiche Cover-Hintergründe und bessere mobile Bedienung in allen Collector-Bereichen."),
-        ("3.0.13", "Transparente Preise", "Preisdetails zeigen Quelle, Zeitstand, Spanne, Historie und die besondere PokéCollector-Herkunft."),
-        ("3.0.12", "Saubere Sammlungstrennung", "Bewertungsläufe, Serienabgleiche, Offline-Scans und Diagnose bleiben in ihrer jeweiligen Sammlung."),
-        ("3.0.11", "Diagnose", "Verständliche Fehlerseiten, Fehlerkennungen und automatische Template-/Routenprüfung."),
-    ]
-    return render_template("whats_new.html", releases=releases)
+    from .release_catalog import RELEASES
+    releases = RELEASES
+    return render_template("whats_new.html", releases=releases, recent_updates=app.config['RELEASE_UPDATES']())
 
 
 @app.errorhandler(403)
@@ -4715,6 +4743,7 @@ def login():
         if user and (test_login or check_password_hash(user.password_hash, request.form.get("password", ""))):
             session.permanent = True
             login_user(user, remember=True, duration=timedelta(days=SESSION_DAYS))
+            app.config['RELEASE_RECORD_LOGIN'](user.id)
             return redirect(url_for("collector_home"))
         flash("Benutzername oder Passwort ist falsch.", "danger")
     return render_template("login.html")
@@ -4760,6 +4789,7 @@ def account():
     tmdb = tmdb_credentials()
     return render_template(
         "account.html", ebay_configured=bool(ebay["client_id"] and ebay["client_secret"]),
+        **dashboard_style_context(),
         ebay_client_id=ebay["client_id"], ebay_dev_id=ebay["dev_id"],
         ebay_marketplace=ebay["marketplace"], ebay_environment=ebay["environment"],
         tmdb_configured=bool(tmdb["api_key"] or tmdb["token"]),
@@ -5494,9 +5524,23 @@ def discovery_action():
     return redirect(url_for("collector_media_questionnaire"))
 
 
+app.config['DASHBOARD_STYLE_FOR_USER']=lambda user_id: app_setting_get(f'dashboard_style_user_{user_id}','glass')
+
+def dashboard_style_context():
+    style=app_setting_get(f'dashboard_style_user_{current_user.id}','glass')
+    if style not in {'cards','shelf','glass'}:style='glass'
+    nonce=session.setdefault('dashboard_style_nonce',secrets.token_urlsafe(24))
+    token=URLSafeSerializer(app.config['SECRET_KEY'],salt='dashboard-style').dumps({'uid':current_user.id,'nonce':nonce})
+    return {'dashboard_style':style,'dashboard_style_token':token}
+
 @app.route("/")
 @login_required
 def collector_home():
+    dashboard_style = app_setting_get(f"dashboard_style_user_{current_user.id}", "glass")
+    if dashboard_style not in {"cards", "shelf", "glass"}: dashboard_style = "glass"
+    nonce=session.setdefault("dashboard_style_nonce",secrets.token_urlsafe(24))
+    dashboard_style_token=URLSafeSerializer(app.config['SECRET_KEY'],salt='dashboard-style').dumps(
+        {'uid':current_user.id,'nonce':nonce})
     user_id = active_collection_user_id()
     owned_items = [i for i in CollectionItem.query.filter_by(status="owned", user_id=user_id).all() if game_is_physical_candidate(i.game)]
     game_value = sum((effective_value(i) or 0) for i in owned_items)
@@ -5631,8 +5675,25 @@ def collector_home():
             row for row in module_rows
             if row.category == "custom" and collector_metadata(row).get("custom_category") == category["id"]
         ], lambda row: row.cover_url)
+    from app.shelf import shelf_cases
+    module_cases = {"games": shelf_cases("games", [
+        (item.game.title, item.game.console.name if item.game.console else "",
+         url_for('game_detail', game_id=item.game.id, return_to=url_for('collector_home')), item.game.cover_url or "", bool(item.box_present))
+        for item in owned_items if item.game
+    ])}
+    for key in ("movies", "tv", "books", "music", "cards", "custom"):
+        module_cases[key] = shelf_cases(key, [(row.title, row.media_type,
+            url_for('collector_item_detail', item_id=row.id), row.cover_url or "") for row in module_rows
+            if row.category == key and collector_metadata(row).get("status", "owned") == "owned"])
+    for category in custom_category_tiles:
+        category["cases"] = shelf_cases("custom", [(row.title, row.media_type,
+            url_for('collector_item_detail', item_id=row.id), row.cover_url or "") for row in module_rows
+            if row.category == "custom" and collector_metadata(row).get("custom_category") == category["id"]
+            and collector_metadata(row).get("status", "owned") == "owned"])
     return render_template(
         "collector_home.html",
+        dashboard_style=dashboard_style, dashboard_style_token=dashboard_style_token,
+        module_cases=module_cases,
         game_count=len(owned_items), gaming_value=gaming_value,
         hardware_count=len(hardware_items),
         accessory_count=sum(max(i.quantity or 1, 1) for i in accessory_items),
@@ -5648,6 +5709,23 @@ def collector_home():
         greeting_word=greeting_word, greeting_name=current_user.display_name or current_user.username,
         new_activity_count=new_activity_count,
     )
+
+
+@app.route('/dashboard/style',methods=['POST'])
+@login_required
+def dashboard_style_save():
+    try:
+        token=URLSafeSerializer(app.config['SECRET_KEY'],salt='dashboard-style').loads(request.form.get('token',''))
+    except BadSignature:
+        abort(400)
+    nonce=session.get('dashboard_style_nonce')
+    if not nonce or token != {'uid':current_user.id,'nonce':nonce}: abort(400)
+    style=request.form.get('style')
+    if style not in {'cards','shelf','glass'}: abort(400)
+    app_setting_set(f'dashboard_style_user_{current_user.id}',style)
+    db.session.commit()
+    flash('Dashboardansicht gespeichert.','success')
+    return redirect(url_for('account' if request.form.get('return_to')=='account' else 'collector_home'))
 
 
 COLLECTOR_SECTIONS = {
@@ -11290,6 +11368,7 @@ def safe_collection_return_to(value):
 @app.route("/collection/configure/<int:game_id>", methods=["GET", "POST"])
 @login_required
 def collection_configure(game_id):
+    if request.method=='POST':validate_inventory_form()
     game = db.get_or_404(Game, game_id)
     return_to = safe_collection_return_to(request.values.get("return_to", "")) or safe_collection_return_to(session.get("collection_return_to", ""))
     ean_flow = request.values.get("ean_flow") == "1"
@@ -11637,6 +11716,7 @@ def _price_center_outlier(item, automatic, purchase, history_previous):
 
 
 def _price_center_row(item, kind):
+    from .price_quality import valuation_warnings
     now = utc_now()
     if kind == "game":
         title = item.game.title
@@ -11727,6 +11807,7 @@ def _price_center_row(item, kind):
     if kind == "collector" and is_pokemon_card(item):
         source = "PokéCollector-Synchronwert (keine automatische Bibo-Bewertung)" if automatic is not None else "PokéCollector-Synchronisierung erforderlich"
     return {
+        "warnings":valuation_warnings(item,utc_now(),PRICE_CENTER_STALE_DAYS),
         "kind": kind, "id": item.id, "item": item, "title": title, "category": category,
         "category_label": category_label, "subtitle": subtitle, "variant": variant,
         "purchase": purchase, "estimate": estimate, "automatic": automatic, "effective": effective,
@@ -12143,6 +12224,19 @@ def duplicate_candidates():
                     a,b=matches[i],matches[j]; pair=_dup_pair(a.id,b.id)
                     if pair not in ignored and pair not in seen:
                         rows.append({"reason":"external_shared","strength":"medium","a":a,"b":b,"detail":f"{a.external_source}: {a.external_id}"})
+    by_title = {}
+    for game in games:
+        key = (game.console_id, game.region, game.edition or "Standard", game_title_identity(game.title))
+        by_title.setdefault(key, []).append(game)
+    seen = {_dup_pair(row["a"].id, row["b"].id) for row in rows}
+    for matches in by_title.values():
+        for i, a in enumerate(matches):
+            for b in matches[i + 1:]:
+                pair = _dup_pair(a.id, b.id)
+                if pair not in ignored and pair not in seen:
+                    rows.append({"reason": "title_spelling_duplicate", "strength": "medium",
+                                 "a": a, "b": b, "detail": "Gleicher Titel, Plattform, Region und Edition"})
+                    seen.add(pair)
     return rows
 
 
@@ -12913,19 +13007,19 @@ def franchise_detail(name):
     # separate editions (Diamond/Pearl, X/Y, etc.) into one metadata record.
     if _search_text(name) == "pokemon":
         def local_matches(aliases):
-            alias_keys = [_search_text(a) for a in aliases]
+            alias_keys = [pokemon_title_key(a) for a in aliases]
             matches = []
             for g in games:
-                key = _search_text(g.title)
-                if any(key == a or key.startswith(a + " edition") or key.startswith(a + " version") for a in alias_keys):
+                key = pokemon_title_key(g.title)
+                if key in alias_keys:
                     matches.append(g)
             return matches
 
         def external_visual(aliases):
-            alias_keys = [_search_text(a) for a in aliases]
+            alias_keys = [pokemon_title_key(a) for a in aliases]
             for e in external:
-                ek = _search_text(e.title)
-                if any(a in ek or ek in a for a in alias_keys):
+                ek = pokemon_title_key(e.title)
+                if ek in alias_keys:
                     return e
             return None
 
@@ -13360,7 +13454,8 @@ def musicbrainz_search_releases(query, limit=20, search_mode="auto", with_diagno
             "country": rel.get("country"), "format": ", ".join(dict.fromkeys(formats)) or "Tonträger",
             "track_count": tracks or None, "label": ", ".join(dict.fromkeys(labels)),
             "catalog_number": ", ".join(dict.fromkeys(catalogs)),
-            "barcode": code if mode == "barcode" else None,
+            "barcode": code if mode == "barcode" else (clean_barcode(rel.get("barcode")) or None),
+            "disc_count": len(media) or None,
             "cover_url": f"https://coverartarchive.org/release/{quote(rid, safe='')}/front-500",
             "score": rel.get("score"), "resolved_via": "EAN-Fallback" if fallback_products else "MusicBrainz",
         })
@@ -13594,7 +13689,7 @@ def _questionnaire_prefill_redirect(category, form=None):
     }
     allowed = {
         "title", "barcode", "release_year", "cover_url", "media_type", "edition",
-        "author", "publisher", "artist", "label", "catalog_number", "country",
+        "author", "publisher", "artist", "label", "catalog_number", "country", "disc_count", "track_count",
         "tmdb_id", "source", "source_id", "series_name", "series_order",
     }
     prefill = {"category": category, "from_provider": True}
@@ -13823,11 +13918,21 @@ def collector_media_import():
 @app.route("/collector/music/search")
 @login_required
 def collector_music_search():
-    q = " ".join((request.args.get("q") or "").split()).strip()
+    q = " ".join((request.args.get("q") or "").split()).strip()[:500]
+    artist = " ".join((request.args.get("artist") or "").split()).strip()[:240]
+    album = " ".join((request.args.get("album") or "").split()).strip()[:240]
     mode = (request.args.get("mode") or "auto").strip().lower()
-    if mode not in {"auto", "text", "barcode", "catalog"}: mode = "auto"
+    if mode not in {"auto", "text", "barcode", "catalog", "fields"}: mode = "auto"
+    if mode == "fields":
+        def literal(value):
+            return value.replace("\\", "\\\\").replace('"', '\\"')
+        terms = []
+        if artist: terms.append(f'artist:"{literal(artist)}"')
+        if album: terms.append(f'release:"{literal(album)}"')
+        q = " AND ".join(terms)
     results, diagnostics = musicbrainz_search_releases(q, search_mode=mode, with_diagnostics=True) if q else ([], [])
-    return render_template("collector_music_search.html", query=q, results=results, search_mode=mode, diagnostics=diagnostics)
+    return render_template("collector_music_search.html", query=q if mode != "fields" else "", artist_query=artist, album_query=album,
+                           results=results, search_mode=mode, diagnostics=diagnostics)
 
 
 @app.route("/collector/music/import", methods=["POST"])
@@ -13957,6 +14062,9 @@ def collector_media_questionnaire():
             "artist": (request.form.get("artist") or "").strip()[:255] or None,
             "label": (request.form.get("label") or "").strip()[:160] or None,
             "catalog_number": (request.form.get("catalog_number") or "").strip()[:120] or None,
+            "disc_count": max(1, min(request.form.get("disc_count", type=int) or 1, 99)),
+            "track_count": max(0, min(request.form.get("track_count", type=int) or 0, 9999)) or None,
+
         })
 
     source_name = (request.form.get("source") or "").strip()[:80]
@@ -14514,11 +14622,10 @@ def import_catalog_search_match():
     if source_id:
         game = Game.query.filter_by(external_source=source, external_id=source_id, console_id=console.id).first()
     if not game:
-        game = Game.query.filter(
-            db.func.lower(Game.title) == title.casefold(),
+        game = matching_catalog_title(Game.query.filter(
             Game.console_id == console.id,
             Game.region == region,
-        ).first()
+        ), title)
     if game:
         flash(f"„{game.title}“ ist bereits im Master-Katalog vorhanden.", "info")
         if destination == "collection":
@@ -14578,12 +14685,11 @@ def import_game_search_match():
     if not game and source_id:
         game = Game.query.filter_by(external_source=source, external_id=source_id, console_id=console.id).first()
     if not game:
-        game = Game.query.filter(
-            db.func.lower(Game.title) == title.casefold(),
+        game = matching_catalog_title(Game.query.filter(
             Game.console_id == console.id,
             Game.region == (request.form.get("region", "PAL").strip() or "PAL"),
             Game.edition == "Standard",
-        ).first()
+        ), title)
     if not game:
         year = request.form.get("release_year", "").strip()
         game = Game(
@@ -14749,10 +14855,9 @@ def _import_row_match(payload):
     console = Console.query.filter(db.func.lower(Console.name) == payload["console"].casefold()).first()
     if not console:
         return None, "new", "Neue Plattform/Katalogtitel"
-    exact = Game.query.filter(
-        db.func.lower(Game.title) == payload["title"].casefold(), Game.console_id == console.id,
+    exact = matching_catalog_title(Game.query.filter( Game.console_id == console.id,
         db.func.lower(Game.region) == payload["region"].casefold(), db.func.lower(Game.edition) == payload["edition"].casefold(),
-    ).first()
+    ), payload["title"])
     if exact:
         return exact, "exact_duplicate", "Titel, Plattform, Region und Edition vorhanden"
     if payload.get("barcode"):
@@ -15551,6 +15656,7 @@ def error_center():
 @app.route("/hardware/<int:model_id>", methods=["GET", "POST"])
 @login_required
 def hardware_detail(model_id):
+    if request.method=='POST':validate_inventory_form()
     model = db.get_or_404(HardwareModel, model_id)
     if request.method == "POST":
         item = HardwareItem(hardware_model_id=model.id, model=model, user_id=active_collection_user_id())
@@ -15593,6 +15699,7 @@ def derive_hardware_completeness(item):
 
 
 def apply_hardware_item_form(item):
+    validate_inventory_form()
     item.status=request.form.get("status", item.status or "owned")
     item.serial_number=request.form.get("serial_number", "").strip() or None
     item.condition=max(1,min(10,request.form.get("condition",type=int) or item.condition or 8))
@@ -17518,6 +17625,7 @@ def accessories_revalue_all():
 @app.route("/accessories", methods=["GET", "POST"])
 @login_required
 def accessories():
+    if request.method=='POST':validate_inventory_form()
     if request.method == "POST":
         name=request.form.get("name", "").strip()
         if name:
@@ -17637,6 +17745,7 @@ def accessory_search_import():
 @app.route("/accessories/<int:item_id>/edit", methods=["GET", "POST"])
 @login_required
 def accessory_item_edit(item_id):
+    if request.method=='POST':validate_inventory_form()
     item = scoped_accessory_or_404(item_id)
 
     if request.method == "POST":
@@ -17997,12 +18106,15 @@ ReleaseAcknowledgement = setup_release_news(app, db, APP_VERSION, utc_now)
 Top10Consent, Top10UserPreference, top10_user_enabled = setup_top10(app, db, globals())
 app.config['TOP10_USER_ENABLED'] = top10_user_enabled
 FeedbackTicket, FeedbackMessage, FeedbackAttachment = setup_feedback(app, db, User, utc_now, APP_VERSION, admin_required)
+from .test_release import setup_test_release
+setup_test_release(app, db, APP_VERSION, utc_now, admin_required)
 setup_navigation(app, collection_capability, lambda: custom_collection_categories(active_collection_user_id()) if active_collection_user_id() else [])
 
 def initialize_database():
     with app.app_context():
         db.create_all()
         ensure_schema()
+        app.config['FEEDBACK_BACKFILL']()
         recover_stale_revaluation_runs(force=True)
         ensure_default_consoles()
         normalize_existing_consoles()

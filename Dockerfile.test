@@ -5,5 +5,5 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 COPY app ./app
 COPY scripts ./scripts
-COPY docker-compose.test.yml .
+COPY install.sh docker-compose.yml docker-compose.test.yml Dockerfile Dockerfile.test requirements.txt ./
 CMD ["bash", "scripts/run_regressions.sh"]

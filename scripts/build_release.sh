@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 version="${1:?Version fehlt}"
+[[ "$version" =~ ^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-rc\.[1-9][0-9]*)?$ ]] || { echo 'Ungültige Version; erwartet X.Y.Z oder X.Y.Z-rc.N'; exit 1; }
 root="$(cd "$(dirname "$0")/.." && pwd)"
 outdir="${2:-$(cd "$root/.." && pwd)}"
 mkdir -p "$outdir"

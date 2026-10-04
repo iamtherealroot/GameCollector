@@ -16,7 +16,7 @@ from urllib.parse import urlencode
 
 source = Path(__file__).resolve().parents[1] / 'app/app.py'
 names = {'_match_key', 'value_kind_for_item', 'condition_factor',
-         'game_offer_matches_completeness', 'game_price_jump_pending',
+         'game_offer_matches_completeness', 'game_offer_matches_variant', 'game_price_jump_pending',
          'store_auto_valuation', 'ebay_offer_valuation', 'auto_value_item'}
 tree = ast.parse(source.read_text())
 env = dict(json=json, re=re, statistics=statistics, unicodedata=unicodedata,
@@ -43,6 +43,14 @@ def copy(box=False, manual=False, sealed=False, previous=50):
 
 
 class PricingTests(unittest.TestCase):
+    def test_regions_and_editions(self):
+        item=copy();match=env['game_offer_matches_variant']
+        self.assertTrue(match(item,'Pokémon Gelb PAL nur Modul'))
+        for title in ['Pokémon Gelb USA NTSC-U nur Modul','Pokémon Gelb JPN nur Modul','Pokémon Gelb Collector Edition nur Modul']:
+            self.assertFalse(match(item,title))
+        item.game.edition='Steelbook'
+        self.assertFalse(match(item,'Pokémon Gelb PAL nur Modul'))
+        self.assertTrue(match(item,'Pokémon Gelb Steelbook PAL nur Modul'))
     def setUp(self):
         env["utc_now"] = lambda: datetime(2026,10,2,tzinfo=timezone.utc)
         env["db"] = NS(session=NS(add=lambda value: None))

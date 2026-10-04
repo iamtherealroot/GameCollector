@@ -1,0 +1,2 @@
+<span class="regal-security-pool" hidden aria-hidden="true">{% for security_index in range(4) %}<span class="regal-security-template" data-security-id="security-{{ security_index }}">{% include '_security_'+security_index|string+'.html' %}</span>{% endfor %}</span>
+<span class="regal-doorman" aria-hidden="true">{% include '_security_4.html' %}</span>

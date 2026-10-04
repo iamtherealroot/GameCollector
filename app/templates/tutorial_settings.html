@@ -1,0 +1,15 @@
+{% extends 'base.html' %}
+{% block title %}Tutorial-Einstellungen · Bibo{% endblock %}
+{% block content %}
+<section class="panel tutorial-settings-panel">
+  <h1>Tutorial-Einstellungen</h1>
+  <p>Diese Entscheidung gilt nur für dein Konto und bleibt über Gerätewechsel und zukünftige Releases hinweg gespeichert. „Was ist neu?“ ist ein separater Release-Hinweis.</p>
+  <form method="post">
+    <input type="hidden" name="token" value="{{ token }}">
+    <label class="copy-check tutorial-setting-toggle"><input type="checkbox" name="enabled" value="1" {{ 'checked' if not disabled }}><span><strong>Tutorial automatisch anzeigen</strong><small>Haken entfernen, um automatische Tutorials dauerhaft auszuschalten.</small></span></label>
+    <div class="tutorial-save-actions"><p>Änderung mit dem Button bestätigen:</p><button type="submit" class="button tutorial-save-button">✓ Tutorial-Einstellung speichern</button></div>
+  </form>
+  <p>{{ 'Automatische Tutorials sind dauerhaft ausgeschaltet.' if disabled else 'Automatische Tutorials sind aktiviert.' }}</p>
+  <a class="button secondary" href="{{ url_for('collector_home',tutorial=1) }}">Tutorial bewusst einmal starten</a>
+</section>
+{% endblock %}

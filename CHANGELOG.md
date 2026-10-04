@@ -1,3 +1,163 @@
+## v5.1.0
+
+### Dashboard und Regal
+- Persönliche Dashboardansicht unter Konto: Kacheln, Holzregal oder Schwarzglas.
+- Zwei Regalfächer nebeneinander im mobilen Hochformat.
+- Nach Größe sortierte Medien mit wechselnden Rückentiteln, Direktlinks zu Einträgen und Kategoriezugang am letzten Rücken sowie unter dem Fach.
+- Vollständige Hüllen mit Tiefe, unterschiedlichen Medienformaten und gemeinsamer Auflage auf dem Regalbrett.
+- Verstecktes Rüttel-Easter-Egg mit Sportlern, Piraten, Detektiven und Rappern aus Spritebögen.
+- Tür im Sammelkarten-Fach, Auf- und Abbau der Leitern durch Türsteher, gestaffelte Wege und passende Laufrichtungen. Keine mehrfach ausgewählten Charaktere pro Szene.
+- Bewegungseinstellungen werden berücksichtigt.
+
+## Erfassung, Reihen und Bedienung
+- Sichtbarer Games-/Spiel-Zugang im ersten Schritt des Medienassistenten.
+- MusicBrainz-Musikbestimmung mit Interpret und Album.
+- Spielübernahme und CSV-Abgleich erkennen Titel unabhängig von Akzenten.
+- Pokémon-Reihen erkennen Schwarze/Weiße Edition und Schwarz/Weiß 2 Edition passend zur vorhandenen Sammlung. Fortsetzungen bleiben getrennt.
+- Bestehende Schreibvarianten werden bei gleicher Plattform, Region und Edition als Dublettenkandidaten angeboten; Exemplare bleiben beim Zusammenführen erhalten.
+- Persönliche Ansichtswahl, Tutorial-Einstellungen, private Rückmeldungen und Release-Ankündigungen.
+- Mobile Menükacheln untereinander und kompakter Zugang über Menü.
+
+
+## v5.1.0-rc.19 – unveröffentlichter Prüfentwurf
+
+## 5.1.0-rc.22 – Prüfentwurf
+
+- Medien und Regalbrett teilen eine gemeinsame Auflage, unabhängig von der Beschriftungshöhe.
+- Perspektive am unteren Rand, Hüllenrahmen innerhalb der Höhe und dezenter Kontaktschatten.
+- Helfer richten sich nach der tatsächlichen Brettposition.
+
+## 5.1.0-rc.21 – Prüfentwurf
+
+- Die Beschriftungsfläche des Sammelkarten-Fachs öffnet sich als Tür.
+- Laufposen drehen sich passend zur Richtung; herausgezogene Hüllen bleiben vor der Regalkante.
+- Eingang und Wächterin folgen der tatsächlichen Fachposition, auch im mobilen Raster.
+- Separates Brett und aufgesetzte Tür entfernt; Kategorie-Link bleibt erhalten.
+
+## 5.1.0-rc.20 – Prüfentwurf
+
+- Anhebbares Regalbrett enthüllt den Eingang; Figuren vor der Tür.
+- Keine Namensschilder; Piratenhut in allen Kletterposen.
+- Sechs Detektive und fünf Rapper aus den bereitgestellten Spritebögen.
+
+- Sechs Piraten mit isolierten Lauf-, Kletter- und Aktionsposen für Filme, Serien, Bücher und weitere Sammlungen.
+- Aktionspose und kurzer Effekt lassen das Medium im Fach erscheinen.
+- Keine doppelt ausgewählten Charaktere, gemeinsame Leitern und vollständiger Auf-/Abbau aus rc.18.
+
+## v5.1.0-rc.18 – unveröffentlichter Prüfentwurf
+
+- Sportlerbilder direkt eingebunden statt externer SVG-Pose-Verweise.
+- Vier verschiedene Aufbauhelfer und eine Türwächterin aus dem gelieferten Sicherheitskräfte-Bogen.
+- Leitern aufbauen, Team zurückziehen, Helfer einräumen lassen, Leitern abbauen, Team hinein, Wächterin hinein, Tür schließen.
+- Eine gemeinsame Leiter pro Regalspalte; keine übereinanderliegenden Leitern.
+
+## v5.1.0-rc.17 – unveröffentlichter Prüfentwurf
+
+- Spritekonturen einzeln isoliert: keine Reste benachbarter Figuren, vollständige Köpfe und Füße auf gemeinsamer Grundlinie.
+- Schuss mit Ausholen, Kontakt und Nachschwingen; Ball löst sich beim Kontakt.
+- Keine doppelten Charaktere innerhalb einer Szene, auch über Kategorien hinweg.
+- Helfer kommen und gehen nacheinander mit Abstand; Türsteher wartet auf den letzten.
+
+## v5.1.0-rc.16 – unveröffentlichter Prüfentwurf
+
+- Fünf Sportler mit Sprite-Laufposen und Ballaktionen.
+- Ball fliegt ins Fach und wird zum echten Medium; temporäre Effekte werden entfernt.
+- Korrigierter Spritebogen mit eigenen Kletterposen ohne eingezeichnete Leitern.
+
+## v5.1.0-rc.15 – unveröffentlichter Prüfentwurf
+
+- Bewegliche Schulter-, Ellenbogen-, Hüft- und Kniegelenke statt durchgehender starrer Arme und Beine.
+- Türsteher geht nach der Geste ebenfalls zurück; Tür schließt und verschwindet danach im Regal.
+- Separaten Sockel entfernt. Gesamtablauf rund 33 Sekunden.
+- Ash mit eigener Pixel-Laufanimation und vier Schrittposen nach der Pokémon-Bewegungsreferenz.
+
+## v5.1.0-rc.14 – unveröffentlichter Prüfentwurf
+
+- Ernster Türwächter; Tür erscheint nur während der Szene und verschwindet wieder.
+- Harmonischere Bewegung mit ruhigen Übergängen, Schritten und Armbewegungen; Medien erst beim Einräumen in der Hand.
+- Enthält alle bisherigen 5.1.0-Prüfstände.
+
+## v5.1.0-rc.13 – unveröffentlichter Prüfentwurf
+
+- Größere Helfer mit Namen, gemeinsamer Tür und Leitern; langsamer Ablauf über rund 30 Sekunden.
+- Türwächter wartet auf alle Helfer und reagiert anschließend mit einer zufälligen Geste.
+- Dashboardansicht ausschließlich in den Kontoeinstellungen ändern.
+
+## v5.1.0-rc.12 – unveröffentlichter Prüfentwurf
+
+- Persönliche, dauerhaft gespeicherte Wahl zwischen ursprünglichem Kachel-Dashboard, Holzregal und Schwarzglas.
+- Medien von klein nach groß sortiert, auch nach automatischem Titelwechsel.
+- Charakteristische Helfer mit Pokéballwurf, prüfenden Blicken und Bühnenpose; erkennbare Medien; langsameres, gestaffeltes Wiedereinräumen über etwa zehn Sekunden.
+
+## v5.1.0-rc.11 – unveröffentlichter Prüfentwurf
+
+- Drei Zierschrauben ohne Funktion; versteckte Rüttelschraube bleibt unten rechts.
+- Kleine Gaming-/Filmfiguren und animiertes Wiedereinräumen nach dem Rütteln.
+- Gaming-Themen nach vorhandenen Sammlungstiteln, reduzierte Bewegung berücksichtigt.
+
+## v5.1.0-rc.10 – unveröffentlichter Prüfentwurf
+
+- Rüttelknopf als dezente Schraube im unteren Holzrahmen versteckt; Tastaturbedienung bleibt erhalten.
+- Enthält alle vorherigen 5.1.0-Prüfstände.
+
+## v5.1.0-rc.9 – unveröffentlichter Prüfentwurf
+
+- Vollständige Medienhüllen mit Coverseite, Oberkante, Tiefe und Formatbändern; bisherige Herausziehbewegung erhalten.
+- Beschriftete Rücken öffnen direkt das Medium. Letzter freier Rücken und Beschriftung unten öffnen die Kategorie.
+- Titelwechsel aktualisiert Ziel, Format und Cover gleichzeitig; Kategorieplatz bleibt unverändert.
+- Holzregal, zwei Fächer pro Reihe auf Handy/Tablet und Rüttel-Easter-Egg mit automatischem Wiederherstellen.
+
+## v5.1.0-rc.8 – unveröffentlichter Prüfentwurf
+
+- Gefüllte Regalfächer mit zufälligen echten Sammlungstiteln, formatabhängigen Farben und Hüllengrößen.
+- Einzelne Hüllen mit räumlicher Bewegung nach vorne; Kategorienamen nur unter dem Fach.
+- Leere „Weitere Sammlungen“ ausgeblendet; Rechte und Sammlungsisolation beibehalten.
+- Automatischer Titelwechsel mit Pausenschalter und kompakte mobile Navigation mit Menükacheln untereinander.
+
+## v5.1.0-rc.7 – unveröffentlichter Prüfentwurf
+
+- Dashboard als interaktives Sammlungsregal mit Buch-/Medienrücken, Bestands-/Wertschildern und eigenem Fach für neue Kategorien.
+- Unbeschriftete Hülle gleitet bei Maus-/Tastaturfokus leicht nach oben und vorne; reduzierte Bewegung wird berücksichtigt.
+- Navigation, Leserechte und Dashboard-Tutorial an den Regal-Look angepasst. Enthält alle Stabilitätsfixes aus rc.6.
+
+## v5.1.0-rc.6 – unveröffentlichter Prüfentwurf
+
+- Preisqualitätswarnungen und Ausschluss erkennbarer Regions-/Editionskonflikte bei eBay-Spielangeboten.
+- Geld-/Datumsprüfung vor Inventaränderungen, endliche Beträge und Zubehörzuordnung innerhalb der aktiven Sammlung.
+- Anlegen/Bearbeiten/Löschen für Spieleexemplare, Hardware und Zubehör mit neuen Regressionen abgesichert.
+- Zugänglicher Platzhalter für defekte Bilder einschließlich nachgeladenen Bildern.
+- Update-Backup mit pausierten Schreibern, separaten Uploadarchiven, Checksummen, Dateiwiederherstellung und SQL-Probe in einer temporären Datenbank.
+
+## v5.1.0-rc.5 – unveröffentlichter Prüfentwurf
+
+- Allgemeine Konten admin und test-admin aus der Top-10-Besitzeranzeige ausgeschlossen, persönliche Administratoren bleiben erhalten.
+
+## v5.1.0-rc.4 – unveröffentlichter Prüfentwurf
+
+- Cover und Besitzer-Benutzernamen in der globalen Top 10; für gemeinsam verwaltete Sammlungen die zugeordneten Administratoren.
+- Jedes Exemplar bleibt erhalten. Preisgleichstände teilen den Rang, inklusive aller gleichwertigen Exemplare am zehnten Platz.
+
+## v5.1.0-rc.3 – unveröffentlichter Prüfentwurf
+
+- Globale Top-10-Ansicht und Sammlungsfreigabe standardmäßig aktiv ab zwei Sammlungsdatenbanken; gespeicherte Abmeldungen bleiben bestehen. Neutrale öffentliche Standardnamen schützen Kontonamen.
+- Tutorial-Schalter ausgerichtet und Speicheraktion deutlich hervorgehoben.
+- OVP-Zustand ohne OVP/Hülle nicht bedienbar; unpassende Zustandswerte werden serverseitig ignoriert.
+
+## v5.1.0-rc.2 – unveröffentlichter Prüfentwurf
+
+- Persönlicher Meldungsabschluss ohne Erledigung der Admin-Aufgabe, getrennte Zähler und Übersichten.
+- Dauerhaftes, geräte- und versionsübergreifendes Abschalten automatischer Tutorials mit manuellem Neustart.
+- Persönliche Update-Übersicht seit dem vorherigen Login, einschließlich übersprungener Versionen und noch unbestätigter Hinweise.
+- Rechte-, Persistenz- und UI-Vertragstests ergänzt; Details: RELEASE-NOTES-v5.1.0-rc.2.md.
+
+## v5.1.0-rc.1 – unveröffentlichter Prüfentwurf
+
+- Regelbasierte, manuell korrigierbare Meldungskategorien und Dringlichkeiten.
+- Dauerhafter Admin-Zähler offener Meldungen; privater Nachrichteneingang für öffentliche Antworten und Statusänderungen.
+- Dokumentierte TU-Freigabe, Rücknahme und validierter Produktionsbefehl ohne automatischen Transfer.
+- Einheitliche X.Y.Z-/rc.N-Versionierung, Schutz vor automatischer RC-Installation und älteren Stable-Downgrades.
+- Details: RELEASE-NOTES-v5.1.0-rc.1.md.
+
 ## v5.0.4 – freigegebener Release
 
 - Enthält die Prüfentwürfe 5.0.0 bis 5.0.4: Feedbackportal, freiwillige globale Top 10, nutzerbezogene Release-Hinweise und interaktive Dashboard-Tour.
@@ -458,3 +618,5 @@
 
 ## 2.13.2
 - Kompakte TV-/Filmreihen-Listen und dichtere Collector-Startseite.
+
+Musik: sichtbarer Zugang „Musik bestimmen“, getrennte Interpret-/Album-Suche in der bereits angebundenen MusicBrainz-Datenbank. Treffer zeigen EAN und Anzahl der Tonträger; diese Angaben werden in den Fragenkatalog übernommen.

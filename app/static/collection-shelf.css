@@ -1,0 +1,335 @@
+/* Native CSS media spines: navigable without JavaScript or image assets. */
+.regal-heading{margin:1.8rem 0 1rem}.regal-heading h2{margin:.3rem 0;font-size:1.5rem}.regal-heading p{margin:.4rem 0;line-height:1.5}
+.collection-regal{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:18px;padding:20px;border:12px solid #654b36;border-top-color:#98724d;border-bottom-color:#3d2c24;border-radius:14px;background:linear-gradient(90deg,#191c25,#252531 50%,#191c25);box-shadow:inset 0 2px 24px #0009,0 15px 35px #0005}
+.collection-regal .shelf-compartment{position:relative;isolation:isolate;display:flex;flex-direction:column;justify-content:flex-end;gap:0;min-height:330px;padding:10px 12px 0;border:1px solid #574d44;border-radius:5px;background:linear-gradient(180deg,#111723b3,#080b11b3);overflow:visible;text-decoration:none;color:var(--text);box-shadow:inset 6px 0 15px #0005;transition:border-color .18s ease;transform:none}
+.collection-regal .shelf-compartment:before{display:none}.collection-regal .shelf-compartment:after{content:'';position:absolute;left:-3px;right:-3px;bottom:71px;height:13px;background:repeating-linear-gradient(2deg,#785438 0,#785438 2px,#916742 3px,#725033 5px);border-top:2px solid #c89a64;border-bottom:4px solid #432e22;box-shadow:0 8px 12px #0009;z-index:4}
+.collection-regal .shelf-compartment:hover{border-color:var(--module-accent);box-shadow:inset 0 0 20px #0005}.collection-regal .shelf-compartment:focus-visible{outline:3px solid #ffd38f;outline-offset:4px;z-index:5}
+/* Eight individual cases, with a deep side and top surface for a forward pull. */
+.regal-spine-wrap{display:flex;justify-content:center;align-items:flex-end;gap:3px;min-height:248px;padding:4px 0 0;perspective:650px;perspective-origin:50% 20%;transform-style:preserve-3d}
+.regal-media{--case-color:#303b4a;--case-height:218px;--case-depth:70px;position:relative;display:block;flex:1 1 0;min-width:0;max-width:27px;height:var(--case-height);transform-style:preserve-3d;transform-origin:center bottom;transition:transform .35s ease}
+.regal-case-spine{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;border:1px solid #ffffff42;border-radius:3px 3px 1px 1px;background:linear-gradient(90deg,#0007,#ffffff25 30%,transparent 65%,#0005),var(--case-color);box-shadow:2px 0 4px #0008;backface-visibility:hidden}
+.regal-spine-title{writing-mode:vertical-rl;text-orientation:mixed;max-height:calc(100% - 38px);overflow:hidden;white-space:nowrap;text-overflow:ellipsis;color:#fff;font-size:.72rem;font-weight:700;letter-spacing:.025em;margin:12px 0 0;text-shadow:0 1px 2px #000}
+.regal-spine-mark{font-size:.65rem;margin-top:auto;margin-bottom:7px}
+.regal-case-side{position:absolute;left:100%;top:0;width:var(--case-depth);height:100%;transform-origin:left;transform:rotateY(90deg);background:linear-gradient(90deg,#0004,#ffffff12 15%,#0003),var(--case-color);border:1px solid #ffffff30;border-radius:2px}
+.regal-case-top{position:absolute;left:0;top:0;width:100%;height:var(--case-depth);transform-origin:top;transform:rotateX(-90deg);background:repeating-linear-gradient(90deg,#bfc5cb,#bfc5cb 2px,#626c77 3px);border:1px solid #ffffff50}
+.case-bluray{--case-color:#1767c3;--case-height:208px}.case-dvd,.case-dvd-game{--case-color:#17191d;--case-height:242px}.case-uhd{--case-color:#131619;--case-height:208px}.case-vhs{--case-color:#26252c;--case-height:238px;max-width:31px}
+.case-switch{--case-color:#df303c;--case-height:222px}.case-xbox360{--case-color:#5b9c30;--case-height:242px}.case-ps1{--case-color:#6b7782;--case-height:166px}.case-ps3{--case-color:#414953;--case-height:208px}.case-ps-blue{--case-color:#235dbc;--case-height:208px}.case-game{--case-color:#284f8f;--case-height:226px}
+.case-cd{--case-color:#69717d;--case-height:166px}.case-vinyl{--case-color:#79648f;--case-height:236px}.case-cassette{--case-color:#807775;--case-height:130px}.case-album{--case-color:#286b54;--case-height:231px}.case-archive{--case-color:#826b48;--case-height:220px}.case-book{--case-color:#985342;--case-height:228px}
+.case-book:nth-child(3n){--case-color:#54737b;--case-height:217px}.case-book:nth-child(3n + 2){--case-color:#977442;--case-height:239px}.case-book .regal-case-top{background:repeating-linear-gradient(90deg,#e9dcc0,#e9dcc0 1px,#bdad91 2px)}
+@media(hover:hover){.shelf-compartment:hover{z-index:6}.shelf-compartment:hover .regal-pull-default{transform:translate3d(0,-14px,95px) rotateX(-12deg)}.regal-spine-wrap:has(.regal-media:hover) .regal-pull-default{transform:none}.regal-spine-wrap .regal-media:hover{transform:translate3d(0,-14px,95px) rotateX(-12deg)}}
+.shelf-compartment:focus-visible .regal-pull-default{transform:translate3d(0,-14px,95px) rotateX(-12deg)}
+.collection-regal .regal-caption{display:flex;flex-direction:column;justify-content:center;align-items:stretch;gap:5px;min-height:71px;box-sizing:border-box;margin:0;padding:18px 0 10px;border:0;background:none;color:var(--text);font-size:.8rem}.regal-caption>strong{display:flex;justify-content:space-between;gap:5px;flex-wrap:wrap}.collection-regal .regal-caption strong span{font-size:.9rem;color:var(--module-accent)}.regal-caption small{font-size:.67rem;line-height:1.4;color:var(--muted);overflow-wrap:anywhere}
+.regal-empty-space{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;text-align:center;min-height:248px;border:2px dashed #aa927875;border-radius:6px;color:#ead3ad;background:radial-gradient(ellipse,#ae855619,transparent 70%);box-sizing:border-box}.regal-empty-space>span{font-size:2.9rem;color:#ffd38f}.regal-empty-space small{max-width:140px;color:#b9ac98;font-size:.78rem}.regal-empty:hover .regal-empty-space,.regal-empty:focus-visible .regal-empty-space{border-color:#ffd38f;background:#ae85561f}
+@media(max-width:1000px){.collection-regal{grid-template-columns:repeat(3,minmax(0,1fr));padding:14px;gap:14px}}
+@media(max-width:720px){.collection-regal{grid-template-columns:repeat(2,minmax(0,1fr));padding:10px;gap:12px;border-width:7px}.collection-regal .shelf-compartment{padding:8px 7px 0}.regal-spine-wrap{gap:3px}.regal-caption>strong{font-size:.73rem}.collection-regal .regal-caption strong span{font-size:.8rem}}
+@media(max-width:370px){.collection-regal{gap:8px;padding:6px}.collection-regal .regal-caption strong span{font-size:.72rem}.regal-heading h2{font-size:1.2rem}}
+@media(prefers-reduced-motion:reduce){.regal-media,.collection-regal .shelf-compartment{transition:none}.shelf-compartment:hover .regal-media,.shelf-compartment:focus-visible .regal-media,.regal-spine-wrap .regal-media:hover{transform:none}}
+.regal-caption small{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden}
+/* A readable shelf label supplements the narrow vertical spine title. */
+.collection-regal .shelf-compartment{min-height:352px}
+.collection-regal .shelf-compartment:after{bottom:93px}
+.collection-regal .regal-caption{min-height:93px}
+.regal-caption .regal-category-label{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:.9rem;color:#ead3ad}
+/* Moulded case rims, paper labels, page edges and format-specific branding. */
+.regal-media{text-decoration:none;color:#fff}
+.regal-case-spine{border-left:2px solid #ffffff38;border-right:2px solid #030609;border-bottom:4px solid #090d12;box-shadow:inset 0 2px 1px #ffffff75,inset 0 -3px 2px #000b,2px 0 5px #0009}
+.regal-case-spine:after{content:'';position:absolute;left:2px;right:2px;top:24px;bottom:9px;border-left:1px solid #ffffff24;border-right:1px solid #0006;pointer-events:none}
+.regal-case-brand{height:18px;box-sizing:border-box;width:100%;font-size:.42rem;font-weight:900;line-height:18px;overflow:hidden;white-space:nowrap;text-align:center;background:#ffffffc9;color:#152130;border-bottom:2px solid #0006;border-radius:2px 2px 0 0}
+.regal-spine-title{position:relative;z-index:1;max-height:calc(100% - 59px);margin-top:8px;font-size:.7rem}
+.case-bluray .regal-case-brand{background:#225f9b;color:#e2f1ff;font-style:italic}.case-uhd .regal-case-brand{background:#0a0a0d;color:#e8dfbd}.case-switch .regal-case-brand{background:#ed2d3d;color:white}.case-xbox360 .regal-case-brand{background:#ddecc9;color:#40781e}
+.case-ps1 .regal-case-brand{background:#141820;color:#eee}.case-ps3 .regal-case-brand{background:#1c1c20;color:white}.case-ps-blue .regal-case-brand{background:#123f91;color:white}
+.case-book .regal-case-brand,.case-album .regal-case-brand,.case-archive .regal-case-brand{background:transparent;color:#ffe9c7;border-bottom:2px solid #dfbc7655}
+.case-book .regal-case-spine{border-right:3px double #0006;border-bottom:2px solid #0004;border-radius:5px 2px 2px 5px;box-shadow:inset 3px 0 3px #ffffff25,2px 0 5px #0008}
+.case-cd .regal-case-spine,.case-ps1 .regal-case-spine{border:2px solid #b8c1ca70;border-radius:1px;background:linear-gradient(90deg,#c4cdd555,#fff2 16%,#1114 24%,transparent 85%,#c4cdd555),var(--case-color)}
+.case-cd .regal-case-top,.case-ps1 .regal-case-top{background:repeating-linear-gradient(90deg,#8c9bac88,#8c9bac88 1px,#d3e0efaa 3px)}
+.regal-side-cover{width:100%;height:100%;display:block;object-fit:cover;opacity:.86}.regal-side-cover[hidden]{display:none}
+.collection-regal .regal-caption{text-decoration:none}.regal-caption:hover .regal-category-label{color:#ffd38f;text-decoration:underline}
+.regal-media:focus-visible,.regal-caption:focus-visible{outline:2px solid #ffd38f;outline-offset:3px}
+.regal-media:focus-visible{transform:translate3d(0,-14px,95px) rotateX(-12deg)}
+.regal-category-spine .regal-case-spine{background:linear-gradient(90deg,#0009,#ffffff38 32%,transparent 65%,#0008),var(--case-color)}
+@media(prefers-reduced-motion:reduce){.regal-media:focus-visible{transform:none}}
+/* The entire case moves; its fixed viewing angle reveals the cover face. */
+.regal-media{--case-depth:145px}
+.regal-case-body{position:absolute;inset:0;display:block;transform-style:preserve-3d;transform-origin:left center;transform:rotateY(-18deg)}
+.case-switch{--case-depth:130px}.case-ps1,.case-cd{--case-depth:140px}.case-book{--case-depth:150px}.case-vinyl{--case-depth:225px}
+.regal-case-side{box-sizing:border-box;box-shadow:inset 0 0 0 3px #0007;background:linear-gradient(125deg,#ffffff25,transparent 32%,#0006),var(--case-color)}
+.regal-case-side:after{content:'';position:absolute;inset:0;pointer-events:none;background:linear-gradient(115deg,#ffffff25,transparent 30%,#0005);border:3px solid #0006;box-sizing:border-box}
+.case-book .regal-case-side{border-radius:2px 7px 7px 2px}.case-book .regal-case-top{border-right:3px solid #6f4632}
+/* Different physical forms: sleeves, albums, handheld cases and loose modules. */
+.case-vinyl{--case-height:236px;max-width:16px}.case-vinyl .regal-case-spine{border:1px solid #cfc4da88;border-radius:0;box-shadow:inset 1px 0 #fff3,2px 0 3px #0009}.case-vinyl .regal-case-top{background:#cbbfd1;height:var(--case-depth)}
+.case-album{max-width:32px}.case-album .regal-case-spine{border-left:5px double #112c23;border-radius:5px 1px 1px 5px}.case-album .regal-case-top{background:repeating-linear-gradient(90deg,#637f74,#637f74 3px,#b8c5bc 4px)}
+.case-ds{--case-color:#e9e8e2;--case-height:170px;--case-depth:133px}.case-ds .regal-spine-title{color:#222;text-shadow:none}.case-ds .regal-case-brand{background:#ddd;color:#171717}
+.case-retro-box{--case-color:#484650;--case-height:210px;--case-depth:140px}.case-retro-box .regal-case-spine{border:1px solid #c7bfa477;border-radius:0}.case-retro-box .regal-case-top{background:#bcae8f}
+.case-gb-cartridge{--case-color:#9b9c9d;--case-height:99px;--case-depth:83px;max-width:23px}.case-n64-cartridge{--case-color:#6d7175;--case-height:95px;--case-depth:155px;max-width:29px}.case-snes-cartridge{--case-color:#a9a9a4;--case-height:115px;--case-depth:155px;max-width:29px}.case-nes-cartridge{--case-color:#9a9b94;--case-height:180px;--case-depth:130px;max-width:29px}
+[class*="-cartridge"] .regal-case-spine{border:2px solid #b8b8b5;border-radius:7px 7px 2px 2px;background:repeating-linear-gradient(0deg,transparent,transparent 7px,#0002 8px),var(--case-color)}
+[class*="-cartridge"] .regal-case-brand{display:none}[class*="-cartridge"] .regal-spine-title{font-size:.58rem;max-height:calc(100% - 26px);margin-top:6px;color:#161819;text-shadow:none}[class*="-cartridge"] .regal-spine-mark{font-size:.5rem;margin-bottom:3px}
+[class*="-cartridge"] .regal-case-top{background:repeating-linear-gradient(90deg,#939691,#939691 5px,#656a65 6px)}
+/* Cabinet motif: wood grain, thick rails and warm recessed compartments. */
+.collection-regal{border-left-color:#785336;border-right-color:#785336;border-top-color:#ab8055;border-bottom-color:#4b3324;background:repeating-linear-gradient(92deg,#38271e 0,#38271e 3px,#3e2b20 4px,#312219 7px);box-shadow:inset 0 0 0 3px #cda37533,inset 0 8px 20px #0009,0 18px 32px #0006}
+.collection-regal .shelf-compartment{background:radial-gradient(ellipse at 50% 30%,#4a362659,transparent 70%),repeating-linear-gradient(89deg,#191917 0,#191917 5px,#241e19 6px,#1b1a18 9px);border-color:#6d503b;box-shadow:inset 6px 0 14px #0006,inset 0 8px 15px #0008}
+.collection-regal .shelf-compartment:after{background:repeating-linear-gradient(1deg,#916342 0,#916342 2px,#a9794d 3px,#68452c 5px);border-top-color:#d4aa70;box-shadow:0 3px 0 #412d21,0 9px 14px #000a}
+.regal-cabinet-shell{position:relative}
+.regal-shake-trigger{position:absolute;right:-8px;bottom:-8px;display:grid;place-items:center;width:28px;height:28px;margin:0;padding:0;border:0;border-radius:50%;background:transparent;box-shadow:none;cursor:pointer}
+.regal-shake-trigger:before{content:'';width:7px;height:7px;border:1px solid #493728;border-radius:50%;background:linear-gradient(135deg,transparent 43%,#35291e 44%,#35291e 55%,transparent 56%),radial-gradient(circle at 35% 30%,#aa8b65,#70553a 65%,#4f3928);box-shadow:inset 0 1px 1px #ddbd8b44,0 1px 1px #0005;pointer-events:none}
+.regal-shake-trigger:focus-visible{outline:2px solid #ffd38f;outline-offset:3px}.regal-shake-status{font-size:.8rem;color:var(--muted);margin-left:.6rem}
+@keyframes cabinet-rattle{0%,100%{transform:rotate(0)}25%{transform:rotate(-.6deg)}75%{transform:rotate(.6deg)}}
+@keyframes media-tumble{0%{transform:translate3d(0,-14px,95px) rotateX(-12deg);opacity:1}65%{transform:translate3d(0,180px,100px) rotateZ(var(--fall-tilt));opacity:1}100%{transform:translate3d(0,230px,100px) rotateZ(var(--fall-tilt));opacity:0}}
+.collection-regal.is-shaking{animation:cabinet-rattle .15s ease 3}
+.collection-regal.is-spilling .regal-media{animation:media-tumble .7s ease-in var(--fall-delay) forwards;pointer-events:none}
+.collection-regal.is-spilling .shelf-compartment{pointer-events:none}
+@media(prefers-reduced-motion:reduce){.collection-regal.is-shaking,.collection-regal.is-spilling .regal-media{animation:none;transform:none;opacity:1}}
+/* Phones and tablets keep two shelf compartments per row. */
+@media(max-width:1120px){.collector-module-grid.collection-regal{grid-template-columns:repeat(2,minmax(0,1fr))}}
+/* Three matching decorative screws; only the existing fourth screw is a control. */
+.regal-corner-screw{position:absolute;width:7px;height:7px;z-index:8;border:1px solid #493728;border-radius:50%;background:linear-gradient(135deg,transparent 43%,#35291e 44%,#35291e 55%,transparent 56%),radial-gradient(circle at 35% 30%,#aa8b65,#70553a 65%,#4f3928);box-shadow:inset 0 1px 1px #ddbd8b44,0 1px 1px #0005;pointer-events:none}.screw-top-left{top:2px;left:2px}.screw-top-right{top:2px;right:2px}.screw-bottom-left{bottom:2px;left:2px}
+.regal-helper{display:none;position:absolute;bottom:96px;left:2px;width:58px;height:73px;z-index:10;pointer-events:none;filter:drop-shadow(2px 3px 2px #0008)}.regal-helper svg{display:block;width:100%;height:100%}.helper-link{--helper-shirt:#509645;--helper-trousers:#947956}.helper-actor{--helper-shirt:#303b52;--helper-trousers:#202b3e}.helper-football{--helper-shirt:#2684bc;--helper-trousers:#eee}.helper-hero{--helper-shirt:#965ab9}
+@keyframes helper-restock{0%{opacity:0;transform:translate(-15px,110px)}20%{opacity:1;transform:translate(0,8px)}45%{transform:translate(60px,-10px)}65%{transform:translate(105px,0)}82%{opacity:1;transform:translate(135px,5px)}100%{opacity:0;transform:translate(160px,105px)}}
+@keyframes helper-reach{0%,100%{transform:rotate(0)}50%{transform:rotate(-24deg)}}
+@keyframes media-restock{0%{opacity:0;transform:translate3d(0,180px,100px) rotateZ(var(--fall-tilt))}30%{opacity:1}75%{transform:translate3d(0,-10px,65px) rotateX(-8deg)}100%{opacity:1;transform:none}}
+.collection-regal.is-restocking .regal-helper{display:block;animation:helper-restock 7.5s ease-in-out both}.is-restocking .helper-arm{transform-origin:53px 48px;animation:helper-reach .7s ease-in-out 10}
+.collection-regal.is-restocking .regal-media{animation:media-restock 2.2s ease-in-out var(--restock-delay) both}
+@media(max-width:720px){.regal-helper{width:42px;height:54px}@keyframes helper-restock{0%{opacity:0;transform:translate(0,100px)}25%{opacity:1;transform:translate(4px,5px)}65%{transform:translate(40px,-5px)}85%{opacity:1;transform:translate(55px,5px)}100%{opacity:0;transform:translate(65px,100px)}}}
+@media(prefers-reduced-motion:reduce){.collection-regal.is-restocking .regal-helper{display:none}.collection-regal.is-restocking .regal-media{animation:none;transform:none;opacity:1}}
+.helper-wizard{--helper-shirt:#7956ba;--helper-trousers:#453364}.helper-detective{--helper-shirt:#c39b65;--helper-trousers:#665344}.helper-musician{--helper-shirt:#4cafbb;--helper-trousers:#352845}.helper-trainer{--helper-shirt:#4c86c5;--helper-trousers:#263e67}.helper-adventurer{--helper-shirt:#739057;--helper-trousers:#735537}
+/* Black glass variant, including four subtle metal mounting points. */
+.regal-skin-glass .collection-regal{border-color:#171e29;border-top-color:#536171;border-bottom-color:#090d13;background:linear-gradient(125deg,#29313c40,transparent 35%,#070b11cc),#090e16;box-shadow:inset 0 0 0 1px #a9bdce40,inset 0 12px 20px #000a,0 15px 35px #0009}
+.regal-skin-glass .shelf-compartment{border-color:#43505f;background:linear-gradient(125deg,#cad8e318,transparent 28%,#04070ca8 75%),linear-gradient(180deg,#17212b,#090e16);box-shadow:inset 0 1px 0 #bdd1dc40,inset 6px 0 14px #0008}
+.regal-skin-glass .shelf-compartment:after{background:linear-gradient(180deg,#acbdcb66,#25313f 35%,#0a0e16 80%,#61748866);border-top:1px solid #bdcfde99;border-bottom:3px solid #0c131c;box-shadow:0 7px 12px #0009}
+.regal-skin-glass .regal-category-label{color:#dce8f1}.regal-skin-glass .regal-empty-space{border-color:#8599ae66;color:#cbdbe9;background:radial-gradient(ellipse,#cadbe918,transparent 70%)}
+.regal-skin-glass .regal-shake-trigger:before,.regal-skin-glass .regal-corner-screw{border-color:#202b39;background:linear-gradient(135deg,transparent 43%,#141e28 44%,#141e28 55%,transparent 56%),radial-gradient(circle at 35% 30%,#8492a0,#384553 65%,#1b2733);box-shadow:inset 0 1px 1px #ccd9e866,0 1px 1px #0008}
+/* One distinct character per compartment, selected again for each Easter egg. */
+.collection-regal.is-restocking .regal-helper{display:none}.collection-regal.is-restocking .regal-helper.is-selected{display:block}
+.helper-luigi{--helper-shirt:#309743;--helper-trousers:#326cc0}.helper-mario{--helper-shirt:#eb3838;--helper-trousers:#326cc0}.helper-hitman{--helper-shirt:#252c34;--helper-trousers:#1b2028}.helper-walter{--helper-shirt:#e4bf29;--helper-trousers:#d0ac23}.helper-conan{--helper-shirt:#416caf;--helper-trousers:#8d9dba;width:46px;height:58px}.helper-ash{--helper-shirt:#4a89cb;--helper-trousers:#315779}.helper-savas{--helper-shirt:#252831;--helper-trousers:#32343e}
+.helper-hitman .helper-hair,.helper-walter .helper-hair{display:none}.helper-mario circle[cx="72"],.helper-luigi circle[cx="72"],.helper-mario circle[cx="8"],.helper-luigi circle[cx="8"]{fill:#fff}
+@keyframes hitman-check{0%,15%,100%{transform:translateX(0)}25%,35%{transform:translateX(-3px)}55%,65%{transform:translateX(3px)}}
+@keyframes pokeball-throw{0%,15%{transform:translate(0,0);opacity:1}35%{transform:translate(70px,-65px);opacity:1}55%{transform:translate(145px,-40px);opacity:1}70%,100%{transform:translate(150px,-20px);opacity:0}}
+@keyframes stage-nod{0%,100%{transform:rotate(-2deg)}50%{transform:rotate(2deg)}}
+.is-restocking .helper-hitman .helper-eyes{animation:hitman-check 2.1s ease-in-out 3}.is-restocking .helper-ash .helper-pokeball{animation:pokeball-throw 2.3s ease-in-out 3}.is-restocking .helper-savas svg{transform-origin:50% 90%;animation:stage-nod .6s ease-in-out 12}
+@media(prefers-reduced-motion:reduce){.is-restocking .regal-helper.is-selected{display:none!important}.is-restocking .helper-eyes,.is-restocking .helper-pokeball,.is-restocking .helper-savas svg{animation:none}}
+/* Larger helpers share one door and travel on ladders in front of the cabinet. */
+.regal-cabinet-shell{padding-bottom:72px}.regal-cabinet-shell:after{content:'';position:absolute;bottom:0;left:0;right:0;height:70px;background:repeating-linear-gradient(2deg,#62432d,#62432d 3px,#735034 4px,#483223 7px);border:3px solid #9c754d;border-top:0;border-radius:0 0 12px 12px;box-sizing:border-box;z-index:0}.regal-skin-glass.regal-cabinet-shell:after{background:linear-gradient(120deg,#4f607329,#0b121ccc),#101721;border-color:#4b5d70}
+.collection-regal{position:relative}.regal-helper-stage{position:absolute;inset:0;z-index:30;pointer-events:none}.regal-helper-set .regal-helper{display:none!important}
+.regal-helper-clone{position:absolute!important;bottom:auto!important;width:90px!important;height:112px!important;transform-origin:50% 100%;z-index:32}.regal-helper-clone svg{overflow:visible}.regal-helper-name{position:absolute;bottom:-17px;left:50%;transform:translateX(-50%);padding:2px 5px;border-radius:5px;background:#0b1220dd;color:#f2f5fa;font-size:11px;font-weight:700;white-space:nowrap;border:1px solid #bdcde455;pointer-events:none}
+.regal-helper-ladder{display:none;position:absolute;width:24px;border-left:3px solid #b4a47e;border-right:3px solid #b4a47e;background:repeating-linear-gradient(0deg,transparent 0,transparent 14px,#c4b792 15px,#c4b792 18px);box-sizing:border-box;opacity:.9;z-index:31}
+.regal-helper-door{position:absolute;bottom:9px;left:50%;transform:translateX(-50%);width:42px;height:54px;background:#05080d;border:3px solid #7e8a98;border-radius:5px 5px 0 0;perspective:180px;z-index:34;box-shadow:0 0 10px #0009;pointer-events:none}.regal-helper-door>span{position:absolute;inset:0;transform-origin:left;transition:transform .7s ease;background:linear-gradient(120deg,#61738a55,#151e2b);border:1px solid #738196}.regal-helper-door>span:after{content:'';position:absolute;right:5px;top:26px;width:4px;height:4px;background:#cfbc82;border-radius:50%}
+.collection-regal:is(.is-helper-arriving,.is-restocking)~.regal-helper-door>span{transform:rotateY(-110deg)}
+@keyframes helper-enter-climb{0%{opacity:0;transform:translate(var(--door-x),var(--door-y)) scale(.35)}12%{opacity:1;transform:translate(var(--door-x),var(--door-y)) scale(.6)}36%{transform:translate(0,var(--door-y)) scale(.9)}49%{transform:translate(0,calc(var(--door-y)*.75)) rotate(-3deg)}62%{transform:translate(0,calc(var(--door-y)*.5)) rotate(3deg)}76%{transform:translate(0,calc(var(--door-y)*.25)) rotate(-3deg)}90%,100%{opacity:1;transform:none}}
+@keyframes helper-work-slow{0%,100%{transform:none}25%{transform:translate(25px,-3px)}50%{transform:translate(55px,0)}75%{transform:translate(25px,-3px)}}
+@keyframes helper-climb-exit{0%{opacity:1;transform:none}30%{transform:translate(0,calc(var(--door-y)*.4)) rotate(3deg)}55%{transform:translate(0,var(--door-y)) scale(.9)}85%{opacity:1;transform:translate(var(--door-x),var(--door-y)) scale(.5)}100%{opacity:0;transform:translate(var(--door-x),var(--door-y)) scale(.35)}}
+.collection-regal.is-helper-arriving .regal-helper-clone{display:block;animation:helper-enter-climb 6s ease-in-out both}.collection-regal.is-restocking .regal-helper-clone{display:block;animation:helper-work-slow 12s ease-in-out both}.collection-regal.is-helper-returning .regal-helper-clone{animation:helper-climb-exit 6s ease-in-out both}
+.collection-regal:is(.is-helper-arriving,.is-restocking) .regal-helper-ladder{display:block}.collection-regal.is-helper-returning .helper-arm,.collection-regal.is-helper-returning .helper-eyes,.collection-regal.is-helper-returning .helper-pokeball,.collection-regal.is-helper-returning .helper-savas svg{animation:none}
+.regal-doorman{display:none;position:absolute;bottom:7px;left:calc(50% + 30px);width:57px;height:78px;z-index:35;pointer-events:none}.regal-doorman svg{width:100%;height:100%}.regal-doorman>span{position:absolute;bottom:-7px;left:0;color:#e9f0f6;background:#101721cf;font-size:9px;padding:1px 3px;border-radius:3px}.regal-cabinet-shell:has(.collection-regal:is(.is-helper-arriving,.is-restocking)) .regal-doorman{display:block}.doorman-wiper,.doorman-finger{display:none}
+@keyframes forehead-wiper{0%,100%{transform:rotate(-25deg)}50%{transform:rotate(25deg)}}
+.regal-cabinet-shell:has(.is-helper-gesture) .doorman-rest{display:none}.regal-cabinet-shell:has(.is-helper-gesture[data-helper-gesture=wiper]) .doorman-wiper{display:block;transform-origin:47px 24px;animation:forehead-wiper .55s ease-in-out 6}.regal-cabinet-shell:has(.is-helper-gesture[data-helper-gesture=finger]) .doorman-finger{display:block}
+@media(max-width:720px){.regal-helper-clone{width:68px!important;height:85px!important}.regal-helper-name{font-size:10px}.regal-doorman{width:45px;height:65px}}
+@media(prefers-reduced-motion:reduce){.collection-regal .regal-helper-clone,.collection-regal .regal-helper-ladder,.regal-cabinet-shell .regal-doorman{display:none!important}.regal-helper-door>span{transition:none}.doorman-wiper{animation:none!important}}
+.regal-cabinet-shell:after{pointer-events:none}.regal-shake-trigger{z-index:40}
+/* The door exists geometrically, but is visible only during the scene. */
+.regal-helper-door{opacity:0;visibility:hidden;transition:opacity .65s ease,visibility 0s linear .65s}.collection-regal.is-shaking~.regal-helper-door{opacity:1;visibility:visible;transition:opacity .65s ease,visibility 0s}.collection-regal.is-helper-gesture~.regal-helper-door>span{transform:rotateY(0)}
+/* Continuous routes with small pauses at the ladder, never tipping the body. */
+@keyframes helper-enter-climb{0%{opacity:0;transform:translate(var(--door-x),var(--door-y)) scale(.45)}12%{opacity:1;transform:translate(var(--door-x),var(--door-y)) scale(.65)}32%,38%{transform:translate(0,var(--door-y)) scale(1)}48%{transform:translate(0,calc(var(--door-y)*.82))}64%{transform:translate(0,calc(var(--door-y)*.5))}80%{transform:translate(0,calc(var(--door-y)*.18))}94%,100%{opacity:1;transform:translate(0,0) scale(1)}}
+@keyframes helper-work-slow{0%,12%,100%{transform:translate(0,0)}32%{transform:translate(20px,0)}50%,62%{transform:translate(40px,0)}82%{transform:translate(20px,0)}}
+@keyframes helper-climb-exit{0%,8%{opacity:1;transform:translate(0,0) scale(1)}20%{transform:translate(0,calc(var(--door-y)*.18))}36%{transform:translate(0,calc(var(--door-y)*.5))}52%{transform:translate(0,calc(var(--door-y)*.82))}62%,68%{transform:translate(0,var(--door-y)) scale(1)}88%{opacity:1;transform:translate(var(--door-x),var(--door-y)) scale(.65)}100%{opacity:0;transform:translate(var(--door-x),var(--door-y)) scale(.45)}}
+@keyframes helper-step-left{0%,100%{transform:rotate(-8deg)}50%{transform:rotate(8deg)}}
+@keyframes helper-step-right{0%,100%{transform:rotate(8deg)}50%{transform:rotate(-8deg)}}
+@keyframes helper-arm-swing{0%,100%{transform:rotate(-7deg)}50%{transform:rotate(7deg)}}
+@keyframes helper-arm-place{0%,100%{transform:rotate(0)}35%{transform:rotate(-12deg)}65%{transform:rotate(-12deg)}}
+.helper-leg-left{transform-origin:32px 71px}.helper-leg-right{transform-origin:50px 71px}.helper-free-arm{transform-origin:27px 49px}
+.collection-regal:is(.is-helper-arriving,.is-helper-returning) .helper-leg-left{animation:helper-step-left .65s ease-in-out var(--gait-delay,0ms) infinite}.collection-regal:is(.is-helper-arriving,.is-helper-returning) .helper-leg-right{animation:helper-step-right .65s ease-in-out var(--gait-delay,0ms) infinite}
+.collection-regal:is(.is-helper-arriving,.is-helper-returning) .helper-free-arm{animation:helper-arm-swing .65s ease-in-out var(--gait-delay,0ms) infinite}.collection-regal:is(.is-helper-arriving,.is-helper-returning) .helper-carried-media{opacity:0}
+.collection-regal.is-restocking .helper-arm{animation:helper-arm-place 2.4s ease-in-out 5}.collection-regal.is-helper-returning .helper-arm{animation:none}
+.collection-regal .regal-helper-clone{animation-timing-function:cubic-bezier(.42,0,.58,1)}
+@media(prefers-reduced-motion:reduce){.regal-helper-door{opacity:0!important;visibility:hidden!important;transition:none}.helper-leg-left,.helper-leg-right,.helper-free-arm,.helper-arm{animation:none!important}}
+/* Articulated thighs, knees, shoulders and elbows, with visible movement. */
+.helper-leg-left{transform-origin:31px 68px}.helper-leg-right{transform-origin:49px 68px}.helper-shin-left{transform-origin:30px 80px}.helper-shin-right{transform-origin:50px 80px}.helper-forearm{transform-origin:62px 59px}.helper-free-forearm{transform-origin:18px 59px}.helper-arm{transform-origin:53px 48px}
+@keyframes helper-step-left{0%,100%{transform:rotate(-20deg)}50%{transform:rotate(20deg)}}
+@keyframes helper-step-right{0%,100%{transform:rotate(20deg)}50%{transform:rotate(-20deg)}}
+@keyframes helper-knee-left{0%,50%,100%{transform:rotate(0)}25%{transform:rotate(-34deg)}}
+@keyframes helper-knee-right{0%,50%,100%{transform:rotate(0)}75%{transform:rotate(34deg)}}
+@keyframes helper-arm-swing{0%,100%{transform:rotate(-22deg)}50%{transform:rotate(22deg)}}
+@keyframes helper-elbow{0%,100%{transform:rotate(-14deg)}50%{transform:rotate(24deg)}}
+@keyframes helper-grasp{0%,100%{transform:rotate(10deg)}50%{transform:rotate(-28deg)}}
+.collection-regal:is(.is-helper-arriving,.is-helper-returning) .helper-shin-left{animation:helper-knee-left .65s ease-in-out var(--gait-delay,0ms) infinite}.collection-regal:is(.is-helper-arriving,.is-helper-returning) .helper-shin-right{animation:helper-knee-right .65s ease-in-out var(--gait-delay,0ms) infinite}
+.collection-regal:is(.is-helper-arriving,.is-helper-returning) .helper-arm{animation:helper-step-right .65s ease-in-out var(--gait-delay,0ms) infinite}.collection-regal:is(.is-helper-arriving,.is-helper-returning) .helper-forearm,.collection-regal:is(.is-helper-arriving,.is-helper-returning) .helper-free-forearm{animation:helper-elbow .65s ease-in-out var(--gait-delay,0ms) infinite}
+.collection-regal.is-restocking:not(.is-helper-returning) .helper-forearm{animation:helper-grasp 2.4s ease-in-out 5}.collection-regal.is-restocking:not(.is-helper-returning) .helper-free-arm{animation:helper-arm-swing 2.4s ease-in-out 5}
+/* The temporary door is in the cabinet itself, with no separate lower plinth. */
+.regal-cabinet-shell{padding-bottom:0}.regal-cabinet-shell:after{display:none}.regal-helper-door{bottom:12px}.regal-doorman{bottom:10px}
+.collection-regal.is-helper-gesture~.regal-helper-door>span{transform:rotateY(-110deg)}.collection-regal.is-door-closing~.regal-helper-door>span{transform:rotateY(0)}
+@keyframes doorman-enter-door{0%,8%{opacity:1;transform:translate(0,0) scale(1)}75%{opacity:1;transform:translate(-50px,-2px) scale(.6)}100%{opacity:0;transform:translate(-59px,-2px) scale(.45)}}
+.regal-cabinet-shell:has(.is-doorman-leaving) .regal-doorman{transform-origin:50% 100%;animation:doorman-enter-door 2.1s ease-in-out both}.regal-cabinet-shell:has(.is-doorman-leaving) .doorman-wiper,.regal-cabinet-shell:has(.is-doorman-leaving) .doorman-finger{display:none!important;animation:none}.regal-cabinet-shell:has(.is-doorman-leaving) .doorman-rest{display:block}.regal-cabinet-shell:has(.is-doorman-leaving) .regal-doorman>span{display:none}
+.regal-cabinet-shell:has(.is-doorman-leaving) .regal-doorman .helper-leg-left{transform-origin:30px 75px;animation:helper-step-left .55s ease-in-out 4}.regal-cabinet-shell:has(.is-doorman-leaving) .regal-doorman .helper-leg-right{transform-origin:49px 75px;animation:helper-step-right .55s ease-in-out 4}
+@media(prefers-reduced-motion:reduce){.helper-shin-left,.helper-shin-right,.helper-forearm,.helper-free-forearm{animation:none!important}.regal-doorman{animation:none!important}}
+/* Four distinct pixel poses rather than rotating a rigid trainer silhouette. */
+.ash-pixel-pose{opacity:0}.ash-pose-0{opacity:1}.helper-ash svg{image-rendering:pixelated}.ash-pixel-media{opacity:0}
+@keyframes ash-pose-0{0%,24.99%{opacity:1}25%,100%{opacity:0}}
+@keyframes ash-pose-1{0%,24.99%{opacity:0}25%,49.99%{opacity:1}50%,100%{opacity:0}}
+@keyframes ash-pose-2{0%,49.99%{opacity:0}50%,74.99%{opacity:1}75%,100%{opacity:0}}
+@keyframes ash-pose-3{0%,74.99%{opacity:0}75%,99.99%{opacity:1}100%{opacity:0}}
+.collection-regal:is(.is-helper-arriving,.is-helper-returning) .ash-pose-0{animation:ash-pose-0 .55s steps(1,end) infinite}.collection-regal:is(.is-helper-arriving,.is-helper-returning) .ash-pose-1{animation:ash-pose-1 .55s steps(1,end) infinite}.collection-regal:is(.is-helper-arriving,.is-helper-returning) .ash-pose-2{animation:ash-pose-2 .55s steps(1,end) infinite}.collection-regal:is(.is-helper-arriving,.is-helper-returning) .ash-pose-3{animation:ash-pose-3 .55s steps(1,end) infinite}
+.collection-regal.is-restocking:not(.is-helper-returning) .ash-pixel-media{opacity:1}
+@media(prefers-reduced-motion:reduce){.ash-pixel-pose{animation:none!important}}
+
+/* rc.16: uploaded sports sprites and shots which transform into the actual media. */
+.sport-sprite{width:100%;height:100%;overflow:hidden!important;image-rendering:pixelated}
+.sport-pose{opacity:0}.sport-pose-6{opacity:1}
+.regal-sport-ball{position:absolute;width:22px;height:22px;font-size:21px;line-height:22px;opacity:0;pointer-events:none;z-index:33;filter:drop-shadow(0 2px 3px #0008)}
+.tennis-ball{width:17px;height:17px;border-radius:50%;background:#cee937;border:1px solid #637a12;box-shadow:inset 2px 1px 0 #f5ffa7}
+@keyframes sport-shot{0%{opacity:0;transform:translate(0,0) scale(.9)}5%{opacity:1}45%{opacity:1;transform:translate(calc(var(--shot-x)*.5),calc(var(--shot-y)*.5 - 45px)) rotate(180deg)}80%{opacity:1;transform:translate(var(--shot-x),var(--shot-y)) rotate(360deg) scale(.8)}88%{opacity:1;transform:translate(var(--shot-x),var(--shot-y)) scale(1.7);filter:drop-shadow(0 0 9px #ffe887)}100%{opacity:0;transform:translate(var(--shot-x),var(--shot-y)) scale(.1)}}
+.collection-regal.is-restocking .regal-sport-ball{animation:sport-shot 1.2s ease-in-out var(--shot-delay) both}
+@keyframes sport-media-appear{0%,45%{opacity:0;transform:translate3d(0,-8px,35px) scale(.75)}55%{opacity:1;filter:brightness(1.8);transform:translate3d(0,-8px,35px) scale(1.08)}100%{opacity:1;filter:none;transform:none}}
+.collection-regal.is-restocking .regal-media.sport-restock{animation:sport-media-appear 2.2s ease-out var(--restock-delay) both}
+.collection-regal.is-restocking:not(.is-helper-returning) .regal-helper-clone:has(.sport-sprite){animation:none!important;display:block}
+.collection-regal:is(.is-helper-arriving,.is-helper-returning) .sport-pose-6{opacity:0}
+@keyframes sport-kick{0%,20%,100%{opacity:0}21%,65%{opacity:1}}
+@keyframes sport-ready{0%,20%,100%{opacity:1}21%,65%{opacity:0}}
+.collection-regal.is-restocking:not(.is-helper-returning) .sport-pose-7{animation:sport-kick 1.2s steps(1,end) 8}
+.collection-regal.is-restocking:not(.is-helper-returning) .sport-pose-6{animation:sport-ready 1.2s steps(1,end) 8}
+@keyframes sport-walk-0{0%{opacity:1}16.667%,100%{opacity:0}}
+.collection-regal:is(.is-helper-arriving,.is-helper-returning) .sport-pose-0{animation:sport-walk-0 .65s steps(1,end) infinite}
+@keyframes sport-walk-1{0%,100%{opacity:0}16.667%{opacity:1}33.333%{opacity:0}}
+.collection-regal:is(.is-helper-arriving,.is-helper-returning) .sport-pose-1{animation:sport-walk-1 .65s steps(1,end) infinite}
+@keyframes sport-walk-2{0%,100%{opacity:0}33.333%{opacity:1}50.0%{opacity:0}}
+.collection-regal:is(.is-helper-arriving,.is-helper-returning) .sport-pose-2{animation:sport-walk-2 .65s steps(1,end) infinite}
+@keyframes sport-walk-3{0%,100%{opacity:0}50.0%{opacity:1}66.667%{opacity:0}}
+.collection-regal:is(.is-helper-arriving,.is-helper-returning) .sport-pose-3{animation:sport-walk-3 .65s steps(1,end) infinite}
+@keyframes sport-walk-4{0%,100%{opacity:0}66.667%{opacity:1}83.333%{opacity:0}}
+.collection-regal:is(.is-helper-arriving,.is-helper-returning) .sport-pose-4{animation:sport-walk-4 .65s steps(1,end) infinite}
+@keyframes sport-walk-5{0%,100%{opacity:0}83.333%{opacity:1}100.0%{opacity:0}}
+.collection-regal:is(.is-helper-arriving,.is-helper-returning) .sport-pose-5{animation:sport-walk-5 .65s steps(1,end) infinite}
+@media(prefers-reduced-motion:reduce){.sport-pose,.regal-sport-ball{animation:none!important}.regal-sport-ball{display:none}.collection-regal.is-restocking .regal-media.sport-restock{animation:none;opacity:1;transform:none}}
+
+/* The corrected sheet has separate climbing poses without painted ladders. */
+.sport-walk-set,.sport-climb-set{opacity:0}.sport-work-set{opacity:1}
+.collection-regal:is(.is-helper-arriving,.is-helper-returning) .sport-work-set{opacity:0}
+@keyframes sport-arrival-walk{0%,35.99%{opacity:1}36%,100%{opacity:0}}
+@keyframes sport-arrival-climb{0%,35.99%{opacity:0}36%,100%{opacity:1}}
+@keyframes sport-return-walk{0%,54.99%{opacity:0}55%,100%{opacity:1}}
+@keyframes sport-return-climb{0%,54.99%{opacity:1}55%,100%{opacity:0}}
+.is-helper-arriving .sport-walk-set{animation:sport-arrival-walk 6s steps(1,end) both}.is-helper-arriving .sport-climb-set{animation:sport-arrival-climb 6s steps(1,end) both}
+.is-helper-returning .sport-walk-set{animation:sport-return-walk 6s steps(1,end) both}.is-helper-returning .sport-climb-set{animation:sport-return-climb 6s steps(1,end) both}
+@keyframes sport-climb-0{0%{opacity:1}25%,100%{opacity:0}}
+.collection-regal:is(.is-helper-arriving,.is-helper-returning) .sport-pose-8{animation:sport-climb-0 .8s steps(1,end) infinite}
+@keyframes sport-climb-1{0%,100%{opacity:0}25%{opacity:1}50%{opacity:0}}
+.collection-regal:is(.is-helper-arriving,.is-helper-returning) .sport-pose-9{animation:sport-climb-1 .8s steps(1,end) infinite}
+@keyframes sport-climb-2{0%,100%{opacity:0}50%{opacity:1}75%{opacity:0}}
+.collection-regal:is(.is-helper-arriving,.is-helper-returning) .sport-pose-10{animation:sport-climb-2 .8s steps(1,end) infinite}
+@keyframes sport-climb-3{0%,100%{opacity:0}75%{opacity:1}100%{opacity:0}}
+.collection-regal:is(.is-helper-arriving,.is-helper-returning) .sport-pose-11{animation:sport-climb-3 .8s steps(1,end) infinite}
+@media(prefers-reduced-motion:reduce){.sport-walk-set,.sport-climb-set{animation:none!important;opacity:0}.sport-work-set{opacity:1}}
+
+/* rc.17: isolated vector clipping and a wind-up/contact/follow-through sequence. */
+@keyframes sport-ready{0%,8%,72%,100%{opacity:1}8.01%,71.99%{opacity:0}}
+@keyframes sport-windup{0%,8%,24%,100%{opacity:0}8.01%,23.99%{opacity:1}}
+@keyframes sport-kick{0%,24%,40%,100%{opacity:0}24.01%,39.99%{opacity:1}}
+@keyframes sport-follow-through{0%,40%,72%,100%{opacity:0}40.01%,71.99%{opacity:1}}
+@keyframes sport-shot-body{0%,8%,72%,100%{transform:none}22%{transform:translate(-4px,-1px) rotate(-5deg)}30%{transform:translate(5px,-2px) rotate(5deg)}48%{transform:translate(3px,-1px) rotate(2deg)}}
+.collection-regal.is-restocking:not(.is-helper-returning) .sport-pose-12{animation:sport-windup 1.2s steps(1,end) 8}
+.collection-regal.is-restocking:not(.is-helper-returning) .sport-pose-13{animation:sport-follow-through 1.2s steps(1,end) 8}
+.collection-regal.is-restocking:not(.is-helper-returning) .sport-work-set{transform-origin:80px 190px;animation:sport-shot-body 1.2s ease-in-out 8}
+@keyframes sport-shot{0%{opacity:1;transform:translate(0,0) scale(.9)}45%{opacity:1;transform:translate(calc(var(--shot-x)*.5),calc(var(--shot-y)*.5 - 45px)) rotate(180deg)}80%{opacity:1;transform:translate(var(--shot-x),var(--shot-y)) rotate(360deg) scale(.8)}88%{opacity:1;transform:translate(var(--shot-x),var(--shot-y)) scale(1.7);filter:drop-shadow(0 0 9px #ffe887)}100%{opacity:0;transform:translate(var(--shot-x),var(--shot-y)) scale(.1)}}
+.collection-regal.is-restocking .regal-sport-ball{animation-duration:.8s}
+@media(prefers-reduced-motion:reduce){.sport-work-set{animation:none!important;transform:none}}
+
+.collection-regal.is-restocking .regal-sport-ball{animation-fill-mode:forwards}
+.collection-regal.is-restocking:not(.is-helper-returning) :is(.sport-pose-6,.sport-pose-7,.sport-pose-12,.sport-pose-13,.sport-work-set){animation-iteration-count:var(--sport-shots,7)}
+
+/* Helpers leave and return through the shared door in a spaced queue. */
+.collection-regal.is-helper-arriving .regal-helper-clone,.collection-regal.is-helper-returning .regal-helper-clone{animation-delay:var(--helper-start,0ms);animation-fill-mode:both}
+.is-helper-arriving :is(.sport-walk-set,.sport-climb-set),.is-helper-returning :is(.sport-walk-set,.sport-climb-set){animation-delay:var(--helper-start,0ms)}
+
+/* rc.18: assembly and retrieval crew with inline sprite images. */
+.regal-security-template{display:none}.regal-security-crew{display:none;position:absolute;width:90px;height:112px;z-index:34;transform-origin:50% 100%;pointer-events:none}
+.security-sprite{width:100%;height:100%;overflow:visible;image-rendering:pixelated}.security-pose{opacity:0}.security-pose-6{opacity:1}
+.regal-cabinet-shell:has(.is-shaking) .regal-doorman{display:block;width:100px;height:96px;left:calc(50% + 18px);bottom:10px;animation:none}
+.regal-cabinet-shell:has(.is-shaking) .regal-helper-door>span{transform:rotateY(-110deg)}.regal-cabinet-shell:has(.is-door-closing) .regal-helper-door>span{transform:rotateY(0)}
+.collection-regal .regal-helper-ladder{display:block;opacity:0;transform:scaleY(0);transform-origin:50% 100%}
+@keyframes ladder-build{0%{opacity:0;transform:scaleY(0) rotate(-7deg)}12%{opacity:1}100%{opacity:1;transform:scaleY(1)}}
+@keyframes ladder-remove{0%{opacity:1;transform:scaleY(1)}88%{opacity:1}100%{opacity:0;transform:scaleY(0) rotate(-7deg)}}
+.collection-regal.is-security-building .regal-helper-ladder{animation:ladder-build 2.2s ease-in-out calc(3.1s + var(--crew-delay,0ms)) both}
+.collection-regal.is-ladders-ready .regal-helper-ladder{opacity:1;transform:scaleY(1);animation:none}
+.collection-regal.is-security-removing .regal-helper-ladder{animation:ladder-remove 2.2s ease-in-out calc(3.1s + var(--crew-delay,0ms)) both}
+@keyframes security-trip{0%{opacity:0;transform:scale(.4)}10%{opacity:1;transform:scale(.6)}32%{opacity:1;transform:translateX(var(--crew-x))}42%{transform:translateX(var(--crew-x)) rotate(-3deg)}54%{transform:translateX(var(--crew-x)) rotate(3deg)}68%{transform:translateX(var(--crew-x))}85%{opacity:1;transform:scale(.6)}100%{opacity:0;transform:scale(.4)}}
+.collection-regal:is(.is-security-building,.is-security-removing) .regal-security-crew{display:block;animation:security-trip 8s ease-in-out var(--crew-start,0ms) both}
+.regal-carried-ladder{position:absolute;left:59%;bottom:8%;width:18px;height:65px;border-left:3px solid #baa980;border-right:3px solid #baa980;background:repeating-linear-gradient(0deg,transparent 0,transparent 10px,#c4b792 11px,#c4b792 13px);transform:rotate(-25deg);transform-origin:50% 100%}
+@keyframes carry-build{0%,36%{opacity:1}40%,100%{opacity:0}}
+@keyframes carry-remove{0%,54%{opacity:0}60%,100%{opacity:1}}
+.is-security-building .regal-carried-ladder{animation:carry-build 8s steps(1,end) var(--crew-start,0ms) both}.is-security-removing .regal-carried-ladder{animation:carry-remove 8s steps(1,end) var(--crew-start,0ms) both}
+@keyframes security-stand{0%,31.99%{opacity:0}32%,67.99%{opacity:1}68%,100%{opacity:0}}
+.collection-regal:is(.is-security-building,.is-security-removing) .regal-security-crew .security-pose-6{animation:security-stand 8s steps(1,end) var(--crew-start,0ms) both}
+.regal-cabinet-shell:has(.is-helper-gesture) .regal-doorman .security-pose-6{opacity:0}.regal-cabinet-shell:has(.is-helper-gesture) .regal-doorman .security-pose-7{opacity:1;transform-origin:105px 190px;animation:security-disapprove .7s ease-in-out 4}
+@keyframes security-disapprove{0%,100%{rotate:-4deg}50%{rotate:4deg}}
+.regal-cabinet-shell:has(.is-doorman-leaving) .regal-doorman{animation:doorman-enter-door 2.1s ease-in-out both}
+@keyframes security-step-0{0%{opacity:1}16.667%,100%{opacity:0}}
+.regal-security-crew .security-pose-0{animation:security-step-0 .65s steps(1,end) infinite}
+@keyframes security-step-1{0%,100%{opacity:0}16.667%{opacity:1}33.333%{opacity:0}}
+.regal-security-crew .security-pose-1{animation:security-step-1 .65s steps(1,end) infinite}
+@keyframes security-step-2{0%,100%{opacity:0}33.333%{opacity:1}50.0%{opacity:0}}
+.regal-security-crew .security-pose-2{animation:security-step-2 .65s steps(1,end) infinite}
+@keyframes security-step-3{0%,100%{opacity:0}50.0%{opacity:1}66.667%{opacity:0}}
+.regal-security-crew .security-pose-3{animation:security-step-3 .65s steps(1,end) infinite}
+@keyframes security-step-4{0%,100%{opacity:0}66.667%{opacity:1}83.333%{opacity:0}}
+.regal-security-crew .security-pose-4{animation:security-step-4 .65s steps(1,end) infinite}
+@keyframes security-step-5{0%,100%{opacity:0}83.333%{opacity:1}100.0%{opacity:0}}
+.regal-security-crew .security-pose-5{animation:security-step-5 .65s steps(1,end) infinite}
+@media(max-width:720px){.regal-security-crew{width:68px;height:90px}.regal-cabinet-shell:has(.is-shaking) .regal-doorman{width:80px;height:76px}.regal-carried-ladder{width:14px;height:45px}}
+@media(prefers-reduced-motion:reduce){.regal-security-crew,.regal-carried-ladder{display:none!important}.security-pose{animation:none!important}}
+
+.security-walk-set{opacity:0}
+@keyframes security-walking{0%,31.99%{opacity:1;transform:scaleX(var(--out-facing,1))}32%,67.99%{opacity:0;transform:scaleX(var(--out-facing,1))}68%,100%{opacity:1;transform:scaleX(var(--return-facing,-1))}}
+.collection-regal:is(.is-security-building,.is-security-removing) .regal-security-crew .security-walk-set{animation:security-walking 8s steps(1,end) var(--crew-start,0ms) both}
+.regal-cabinet-shell:has(.is-doorman-leaving) .regal-doorman .security-pose-6{opacity:0}.regal-cabinet-shell:has(.is-doorman-leaving) .regal-doorman .security-pose-7{opacity:0;animation:none}.regal-cabinet-shell:has(.is-doorman-leaving) .regal-doorman .security-walk-set{opacity:1}
+@media(prefers-reduced-motion:reduce){.security-walk-set{animation:none!important;opacity:0}}
+.regal-cabinet-shell:has(.is-doorman-leaving) .regal-doorman .security-pose-0{animation:security-step-0 .55s steps(1,end) infinite}
+.regal-cabinet-shell:has(.is-doorman-leaving) .regal-doorman .security-pose-1{animation:security-step-1 .55s steps(1,end) infinite}
+.regal-cabinet-shell:has(.is-doorman-leaving) .regal-doorman .security-pose-2{animation:security-step-2 .55s steps(1,end) infinite}
+.regal-cabinet-shell:has(.is-doorman-leaving) .regal-doorman .security-pose-3{animation:security-step-3 .55s steps(1,end) infinite}
+.regal-cabinet-shell:has(.is-doorman-leaving) .regal-doorman .security-pose-4{animation:security-step-4 .55s steps(1,end) infinite}
+.regal-cabinet-shell:has(.is-doorman-leaving) .regal-doorman .security-pose-5{animation:security-step-5 .55s steps(1,end) infinite}
+
+/* rc.19: pirate actions use the same step/climb timing and an inventory reveal. */
+.pirate-sprite{overflow:visible!important}.regal-pirate-burst{position:absolute;width:26px;height:26px;margin:-13px 0 0 -13px;color:#ffd785;font-size:26px;line-height:26px;opacity:0;pointer-events:none;z-index:33;text-shadow:0 0 8px #fff0b6,0 0 14px #fa913b}
+@keyframes pirate-reveal{0%,70%{opacity:0;transform:scale(.2) rotate(-40deg)}85%{opacity:1;transform:scale(1.6) rotate(20deg)}100%{opacity:0;transform:scale(.4) rotate(70deg)}}
+.collection-regal.is-restocking .regal-pirate-burst{animation:pirate-reveal .8s ease-out var(--shot-delay) forwards}
+@media(prefers-reduced-motion:reduce){.regal-pirate-burst{display:none;animation:none!important}}
+
+.detective-sprite,.rapper-sprite{overflow:visible!important}
+
+/* rc.21: the actual Sammelkarten caption is the hinged entrance panel. */
+.regal-helper-stage{z-index:40}.regal-helper-name,.regal-doorman>span{display:none!important}
+.regal-entry-slot{position:relative;min-height:71px;perspective:650px;isolation:isolate}
+.collection-regal .regal-entry-slot .regal-helper-door{inset:0;bottom:auto;left:0;transform:none;width:100%;height:100%;box-sizing:border-box;z-index:0;border:0;border-radius:0 0 3px 3px;background:radial-gradient(ellipse at 50% 90%,#142030,#03060b 70%);box-shadow:inset 8px 0 14px #000,inset 0 6px 14px #000;opacity:0;visibility:hidden;transition:opacity .6s ease,visibility 0s linear .6s}
+.collection-regal .regal-door-panel{position:relative;z-index:1;transform-origin:left center;backface-visibility:hidden;transition:transform .8s cubic-bezier(.35,0,.25,1);background:repeating-linear-gradient(89deg,#191917 0,#191917 5px,#241e19 6px,#1b1a18 9px);box-shadow:inset 0 1px #9f7b5644}
+.regal-skin-glass .collection-regal .regal-door-panel{background:linear-gradient(115deg,#18212d,#0a1019 65%,#192333);box-shadow:inset 0 1px #9caec333}
+.collection-regal.is-shaking:not(.is-door-closing) .regal-door-panel{transform:rotateY(-82deg)}
+.collection-regal.is-shaking .regal-entry-slot .regal-helper-door{opacity:1;visibility:visible;transition:opacity .5s ease .15s,visibility 0s}
+.collection-regal.is-door-closing .regal-entry-slot .regal-helper-door{opacity:0;transition:opacity .6s ease .2s}
+.regal-cabinet-shell:has(.is-shaking) .regal-doorman{z-index:41;bottom:auto;left:var(--guard-left,50%);top:var(--guard-top,0);animation:door-guard-reveal .8s ease both}
+@keyframes door-guard-reveal{0%,75%{opacity:0}100%{opacity:1}}
+@keyframes guard-enter-panel{0%,8%{opacity:1;transform:translate(0,0) scale(1)}75%{opacity:1;transform:translate(var(--guard-door-x,-50px),0) scale(.65)}100%{opacity:0;transform:translate(var(--guard-door-x,-50px),0) scale(.45)}}
+.regal-cabinet-shell:has(.is-doorman-leaving) .regal-doorman{animation:guard-enter-panel 2.1s ease-in-out both}
+@media(prefers-reduced-motion:reduce){.collection-regal .regal-door-panel{transition:none;transform:none!important}.collection-regal .regal-entry-slot .regal-helper-door{display:none}}
+
+/* Walking poses face the horizontal leg of each route, without mirroring climbing. */
+.sport-walk-set,.security-walk-set{transform-box:view-box;transform-origin:50% 50%}
+.collection-regal.is-helper-arriving .regal-helper-clone .sport-walk-set{transform:scaleX(var(--out-facing,1))}
+.collection-regal.is-helper-returning .regal-helper-clone .sport-walk-set{transform:scaleX(var(--return-facing,-1))}
+.collection-regal.is-helper-arriving .regal-helper-clone svg:not(.sport-sprite){transform:scaleX(var(--out-facing,1))}
+.collection-regal.is-helper-returning .regal-helper-clone svg:not(.sport-sprite){transform:scaleX(var(--return-facing,-1))}
+.regal-cabinet-shell:has(.is-doorman-leaving) .regal-doorman .security-walk-set{transform:scaleX(var(--return-facing,-1))}
+/* Lift the whole perspective group above the shelf edge when a case is pulled. */
+.regal-spine-wrap{position:relative;z-index:1}
+@media(hover:hover){.collection-regal:not(.is-shaking) .shelf-compartment:hover .regal-spine-wrap{z-index:6}}
+.collection-regal:not(.is-shaking) .regal-spine-wrap:focus-within{z-index:6}
+
+/* rc.22: cases and boards share a real flow baseline, independent of label height. */
+.collection-regal .shelf-compartment:after{display:none}
+.regal-spine-wrap{perspective-origin:50% 100%;padding-bottom:0}
+.regal-case-spine,.regal-case-side,.regal-case-top{box-sizing:border-box}
+.regal-case-body{transform-origin:left bottom}
+.regal-shelf-board{display:block;position:relative;flex:0 0 14px;height:14px;margin:0 -3px;z-index:4;pointer-events:none;box-sizing:border-box;border-top:2px solid #d4aa70;border-bottom:4px solid #412d21;background:repeating-linear-gradient(1deg,#916342 0,#916342 2px,#a9794d 3px,#68452c 5px);box-shadow:0 6px 9px #0009}
+.regal-shelf-board:before{content:'';position:absolute;left:0;right:0;top:-5px;height:4px;background:linear-gradient(#ac865e,#765133);box-shadow:0 -2px 5px #0008}
+.regal-skin-glass .regal-shelf-board{border-top-color:#9badbd;border-bottom-color:#0b111b;background:linear-gradient(#56697b,#1b2735 45%,#0c131e);box-shadow:0 6px 9px #000a}
+.regal-skin-glass .regal-shelf-board:before{background:linear-gradient(#869aac66,#263443);box-shadow:0 -2px 4px #0009}
+/* Contact shadows anchor resting cases; pulled cases keep the approved movement. */
+.regal-media:after{content:'';position:absolute;left:0;right:-7px;bottom:0;height:3px;transform:translateY(1px);background:#0009;filter:blur(1px);pointer-events:none}
+.collection-regal .regal-caption{padding-top:12px}

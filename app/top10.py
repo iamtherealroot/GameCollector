@@ -1,6 +1,9 @@
-"""Opt-in leaderboards expose only deliberately shared product summaries."""
+"""Opt-out leaderboards expose limited summaries with neutral default aliases."""
 import math
 import secrets
+from types import SimpleNamespace
+from urllib.parse import urlsplit
+from .price_quality import valuation_warnings
 from flask import Blueprint, abort, flash, redirect, render_template, request, session, url_for
 from flask_login import current_user, login_required
 from sqlalchemy.orm import joinedload
@@ -13,31 +16,67 @@ def setup_top10(app,db,m):
     class Top10Consent(db.Model):
         __tablename__='top10_consent'
         collection_id=db.Column(db.Integer,db.ForeignKey('collection_space.id',ondelete='CASCADE'),primary_key=True)
-        enabled=db.Column(db.Boolean,nullable=False,default=False)
+        enabled=db.Column(db.Boolean,nullable=False,default=True)
         collection_alias=db.Column(db.String(80),nullable=False,default='')
         collector_alias=db.Column(db.String(80),nullable=False,default='')
         updated_at=db.Column(db.DateTime,nullable=False,default=m['utc_now'])
     class Top10UserPreference(db.Model):
         __tablename__='top10_user_preference'
         user_id=db.Column(db.Integer,db.ForeignKey('user.id',ondelete='CASCADE'),primary_key=True)
-        enabled=db.Column(db.Boolean,nullable=False,default=False)
+        enabled=db.Column(db.Boolean,nullable=False,default=True)
 
     def available():
         return m['CollectionSpace'].query.count()>1
 
     def user_enabled():
         pref=db.session.get(Top10UserPreference,current_user.id)
-        return bool(pref and pref.enabled and available())
+        return available() and (pref is None or pref.enabled)
+
+    def shared_spaces():
+        return (db.session.query(m['CollectionSpace'],Top10Consent)
+                .outerjoin(Top10Consent,Top10Consent.collection_id==m['CollectionSpace'].id)
+                .filter(db.or_(Top10Consent.collection_id.is_(None),Top10Consent.enabled.is_(True))).all())
+
+    def public_share(space,consent):
+        return SimpleNamespace(enabled=True if consent is None else consent.enabled,
+            collection_alias=(consent.collection_alias if consent else '') or f'Sammlung {space.id}',
+            collector_alias=(consent.collector_alias if consent else '') or f'Sammler {space.id}')
+
+    def owner_names(space):
+        # Inventory user_id is normally a technical collection account, not a
+        # person. Only use administrators actually assigned to this collection.
+        def personal(user):
+            return not user.is_system and user.username.casefold() not in {'admin','test-admin'}
+        if space.owner and personal(space.owner):
+            return [space.owner.username]
+        managers=(m['User'].query.join(m['CollectionPermission'],m['CollectionPermission'].user_id==m['User'].id)
+            .filter(m['CollectionPermission'].collection_id==space.id,
+                    m['CollectionPermission'].role=='manager',m['User'].is_system.is_(False))
+            .order_by(m['User'].username,m['User'].id).all())
+        managers=[user for user in managers if personal(user)]
+        admins=[user for user in managers if user.is_admin or user.role=='admin']
+        return [user.username for user in (admins or managers)]
+
+    def cover_url(raw):
+        value=str(raw or '').strip()
+        if not value or any(ord(c)<32 for c in value):return None
+        try:parsed=urlsplit(value)
+        except ValueError:return None
+        if parsed.scheme in {'http','https'} and parsed.hostname and not parsed.username and not parsed.password:
+            return value
+        if value.startswith('/static/') and not parsed.scheme and not parsed.netloc and '..' not in parsed.path.split('/'):
+            return value
+        return None
 
     @bp.app_context_processor
     def context():
         if not current_user.is_authenticated:return {}
         ready=available();enabled=user_enabled()
-        participants=Top10Consent.query.filter_by(enabled=True).count() if ready else 0
+        participants=len(shared_spaces()) if ready else 0
         if not ready:message='Noch nicht verfügbar: Es müssen mindestens zwei Sammlungsdatenbanken in dieser Installation angelegt sein.'
-        elif not enabled:message='Deine globale Top-10-Ansicht ist deaktiviert. Du kannst sie freiwillig einschalten, ohne deine Sammlung freizugeben.'
+        elif not enabled:message='Deine globale Top-10-Ansicht ist deaktiviert. Ansicht und Teilnahme deiner Sammlung lassen sich getrennt verwalten.'
         elif not participants:message='Anzeige aktiviert, aber noch keine Sammlung hat ihre Teilnahme freigegeben.'
-        else:message=f'Anzeige aktiviert · {participants} freiwillig teilnehmende Sammlungen.'
+        else:message=f'Anzeige aktiviert · {participants} teilnehmende Sammlungen. Teilnahme ist standardmäßig aktiv und jederzeit abwählbar.'
         return dict(top10_available=ready,top10_user_enabled=enabled,top10_status_message=message)
 
     @bp.route('/top10/preferences',methods=['GET','POST'])
@@ -96,7 +135,7 @@ def setup_top10(app,db,m):
             db.session.commit()
             flash('Teilnahme gespeichert.' if enabled else 'Teilnahme beendet. Die Sammlung erscheint nicht mehr in den globalen Top 10.','success')
             return redirect(url_for('top10.index'))
-        return render_template('top10_settings.html',space=space,consent=consent,top10_token=form_token(space))
+        return render_template('top10_settings.html',space=space,consent=public_share(space,consent),top10_token=form_token(space))
 
     @bp.route('/top10')
     @login_required
@@ -105,10 +144,11 @@ def setup_top10(app,db,m):
         if category not in CATEGORIES:abort(404)
         if not user_enabled():
             return render_template('top10_preferences.html',pref=db.session.get(Top10UserPreference,current_user.id),top10_token=None)
-        shares=(db.session.query(Top10Consent,m['CollectionSpace'].owner_user_id)
-                .join(m['CollectionSpace'],Top10Consent.collection_id==m['CollectionSpace'].id)
-                .filter(Top10Consent.enabled.is_(True)).all())
-        owners={owner:consent for consent,owner in shares}
+        owners={}
+        for space,consent in shared_spaces():
+            share=public_share(space,consent)
+            share.owner_names=owner_names(space)
+            owners[space.owner_user_id]=share
         rows=[]
         if owners:
             if category in {'games','hardware','accessories'}:
@@ -126,28 +166,36 @@ def setup_top10(app,db,m):
                 candidates=Model.query.filter(Model.user_id.in_(owners),Model.category==category,value>0).order_by(value.desc(),Model.id).yield_per(100)
             for item in candidates:
                 if category=='games':
+                    cover=cover_url(item.game.cover_url)
                     title=item.game.title;variant=' · '.join(str(v) for v in (item.game.console.name,item.game.region,item.game.edition) if v)
                     amount=m['effective_value'](item);condition=f'{item.media_condition}/10';complete=item.completeness
                 elif category=='hardware':
+                    cover=cover_url(item.model.reference_image)
                     title=item.model.name;variant=' · '.join(str(v) for v in (item.model.model_number,item.model.region,item.model.edition) if v)
                     amount=m['effective_hardware_value'](item);condition=f'{item.condition}/10';complete=item.completeness
                 elif category=='accessories':
+                    cover=cover_url(item.reference_image)
                     title=item.name;variant=item.model_number or item.category
                     amount=m['effective_accessory_value'](item);condition=f'{item.condition}/10';complete='Mit Verpackung' if item.boxed else 'Lose'
                 else:
+                    cover=cover_url(item.cover_url)
                     meta=m['collector_metadata'](item)
                     if meta.get('status','owned')!='owned' or meta.get('ownership_format','physical')=='digital' or str(item.media_type or '').lower()=='digital':continue
                     title=item.title;variant=' · '.join(str(v) for v in (item.media_type,item.edition,item.card_variant) if v)
                     amount=m['collector_effective_value'](item);condition=item.condition or 'Nicht angegeben';complete=item.completeness or 'Nicht angegeben'
                 if amount is None or not math.isfinite(float(amount)) or amount<=0:continue
+                # Keep every exemplar. Equal-price entries share their rank;
+                # include ties at position 10 instead of dropping an owner.
+                if len(rows)>=10 and amount<rows[-1]['value']:break
+                rank=rows[-1]['rank'] if rows and amount==rows[-1]['value'] else len(rows)+1
                 share=owners[item.user_id]
                 fixed=item.fixed_value_eur is not None
                 automatic=item.auto_value_eur is not None
                 rows.append(dict(title=title,variant=variant,value=amount,condition=condition,completeness=complete,
+                    rank=rank,cover_url=cover,owner_names=share.owner_names,warnings=valuation_warnings(item,m['utc_now']()),
                     collection=share.collection_alias,collector=share.collector_alias,
                     source='Manuell fixiert' if fixed else (item.auto_value_source or 'Automatischer Marktwert') if automatic else 'Eigene Schätzung',
                     updated_at=item.fixed_value_at if fixed else item.auto_value_updated_at if automatic else None))
-                if len(rows)==10:break
         return render_template('top10.html',rows=rows,category=category,categories=CATEGORIES,participants=len(owners))
     app.register_blueprint(bp)
     return Top10Consent,Top10UserPreference,user_enabled

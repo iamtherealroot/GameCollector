@@ -9,7 +9,7 @@ TARGET_VERSION=""
 MODE=""
 
 log(){ printf '\n[%s] %s\n' "$(date '+%H:%M:%S')" "$*"; }
-fail(){ printf 'FEHLER: %s\n' "$*" >&2; exit 1; }
+fail(){ printf 'FEHLER: %s\n' "$*" >&2; return 1; }
 need(){ command -v "$1" >/dev/null 2>&1 || fail "Benötigtes Programm fehlt: $1"; }
 random_hex(){ openssl rand -hex "$1"; }
 
@@ -23,6 +23,10 @@ exec 9>"$LOCK_FILE"; flock -n 9 || fail "Eine andere Bibo-Installation läuft be
 [[ -f "$SOURCE_DIR/docker-compose.yml" ]] || fail "Release-Payload docker-compose.yml fehlt."
 TARGET_VERSION="$(sed -n 's/^APP_VERSION = "\([^"]*\)"/\1/p' "$SOURCE_DIR/app/app.py" | head -1)"
 [[ -n "$TARGET_VERSION" ]] || fail "Paketversion konnte nicht ermittelt werden."
+[[ "$TARGET_VERSION" =~ ^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-rc\.[1-9][0-9]*)?$ ]] || fail 'Ungültige Release-Version.'
+if [[ "$TARGET_VERSION" == *-* && "${BIBO_ALLOW_PRERELEASE:-0}" != 1 ]]; then
+  fail "Prüfstand $TARGET_VERSION: bewusst mit BIBO_ALLOW_PRERELEASE=1 starten. Normale Updates verwenden stabile Releases."
+fi
 
 has_env=0
 has_compose=0
@@ -117,6 +121,7 @@ ENV
 }
 
 update_install(){
+  umask 077
   need python3
   local stamp installed_version tries status
   stamp="$(date -u '+%Y%m%dT%H%M%SZ')"
@@ -162,7 +167,11 @@ update_install(){
   trap rollback ERR
 
   make_code_backup
+  log "Schreibende Dienste für konsistentes Backup pausieren"
+  (cd "$INSTALL_DIR" && docker compose stop web scheduler)
   make_database_backup
+  log "Datenbank-Wiederherstellung und Bildarchive isoliert prüfen"
+  BIBO_BACKUP_VERIFIER="$SOURCE_DIR/scripts/verify_backup_archives.py" bash "$SOURCE_DIR/scripts/verify-update-backup.sh" "$INSTALL_DIR" "$BACKUP_DIR"
 
   log "Release v$TARGET_VERSION als Update übernehmen"
   tar --exclude='.git' --exclude='.env' --exclude='uploads' --exclude='app/static/uploads' --exclude='feedback-uploads' \

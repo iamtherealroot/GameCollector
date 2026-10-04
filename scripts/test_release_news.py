@@ -50,4 +50,23 @@ with m.app.app_context():
     assert first.get('/api/tutorial').json['show'] is False
     assert client(a.username).get('/api/tutorial').json['show'] is False
     assert second.get('/api/tutorial').json['show'] is True
+    c=m.User(username='news-returning',password_hash=generate_password_hash('pass'),role='viewer')
+    m.db.session.add(c);m.db.session.commit()
+    returning=client(c.username)
+    state=m.db.session.get(m.app.config['RELEASE_LOGIN_MODEL'],c.id)
+    state.last_version='4.7.1';state.pending='[]';m.db.session.commit()
+    returning=client(c.username)
+    missed=returning.get('/api/release-news').json
+    versions=[row['version'] for row in missed['updates']]
+    assert '5.0.4' in versions and '5.1.0-rc.1' in versions and m.APP_VERSION in versions
+    assert missed['since_version']=='4.7.1' and missed['since_login']
+    assert versions.index('5.0.4') < versions.index(m.APP_VERSION)
+    # A second login before confirmation must not lose skipped-release notices.
+    returning=client(c.username)
+    assert [row['version'] for row in returning.get('/api/release-news').json['updates']]==versions
+    payload=returning.get('/api/release-news').json
+    assert returning.post('/api/release-news/ack',json={'version':m.APP_VERSION,'token':payload['token']}).status_code==200
+    assert all(m.db.session.get(m.ReleaseAcknowledgement,(c.id,v)) is not None for v in versions)
+    assert client(c.username).get('/api/release-news').json['show'] is False
+    assert '5.0.4' in returning.get('/whats-new').get_data(as_text=True)
     print('OK: once-per-user/version release notice, devices, reader access and confirmation tokens')

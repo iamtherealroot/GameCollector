@@ -21,26 +21,40 @@ with m.app.app_context():
     m.db.session.add(m.CollectionSpace(name='PRIVATE-SPACE-SECRET',slug='private-rank',owner_user_id=private.id))
     m.db.session.add(m.CollectionPermission(collection_id=space.id,user_id=manager.id,role='manager',can_edit_items=False))
     console=m.Console(name='Rank Console');m.db.session.add(console);m.db.session.flush()
-    game=m.Game(title='Rank Game',console_id=console.id);m.db.session.add(game);m.db.session.flush()
+    game=m.Game(title='Rank Game',console_id=console.id,cover_url='https://example.org/game-cover.png');m.db.session.add(game);m.db.session.flush()
     for i in range(15):m.db.session.add(m.CollectionItem(user_id=owner.id,game_id=game.id,status='owned',auto_value_eur=100+i,estimated_value=999))
     m.db.session.add_all([m.CollectionItem(user_id=private.id,game_id=game.id,auto_value_eur=9999),
         m.CollectionItem(user_id=owner.id,game_id=game.id,status='wishlist',auto_value_eur=9998),
         m.CollectionItem(user_id=owner.id,game_id=game.id,status='owned',ownership_format='digital',auto_value_eur=9997)])
     for category in ['movies','tv','books','music','cards','custom']:
         m.db.session.add_all([m.CollectorItem(user_id=owner.id,category=category,title='Visible '+category,auto_value_eur=55,estimated_value_eur=900,quantity=20),
-            m.CollectorItem(user_id=private.id,category=category,title='PRIVATE-PRODUCT-SECRET',auto_value_eur=5000),
+            m.CollectorItem(user_id=private.id,category=category,title='PRIVATE-PRODUCT-SECRET',auto_value_eur=5000,cover_url='https://example.org/private-cover.png'),
             m.CollectorItem(user_id=owner.id,category=category,title='WISHLIST-PRODUCT',auto_value_eur=9999,metadata_json=json.dumps({'status':'wishlist'}))])
     model=m.HardwareModel(console_id=console.id,name='Rank Hardware');m.db.session.add(model);m.db.session.flush()
     m.db.session.add_all([m.HardwareItem(user_id=owner.id,hardware_model_id=model.id,auto_value_eur=70),
         m.AccessoryItem(user_id=owner.id,name='Rank Accessory',auto_value_eur=80),
         m.AccessoryItem(user_id=owner.id,name='Component excluded',auto_value_eur=9000,included_in_parent_value=True)])
     m.db.session.commit()
+    generic_admin=m.User(username='admin',password_hash=generate_password_hash('pass'),is_admin=True,role='admin')
+    test_admin=m.User(username='test-admin',password_hash=generate_password_hash('pass'),is_admin=True,role='admin')
+    m.db.session.add_all([generic_admin,test_admin]);m.db.session.flush()
+    for account in [generic_admin,test_admin]:
+        m.db.session.add(m.CollectionPermission(collection_id=space.id,user_id=account.id,role='manager'))
+    m.db.session.commit()
     def login(name,password='pass'):
         c=m.app.test_client();assert c.post('/login',data={'username':name,'password':password}).status_code==302;return c
     user=login(viewer.username);mgr=login(manager.username)
     assert m.app.test_client().get('/top10').status_code==302
     assert user.get('/top10/settings').status_code==403
-    assert 'Rank Game' not in user.get('/top10').get_data(as_text=True)
+    default_page=user.get('/top10').get_data(as_text=True)
+    assert 'Rank Game' in default_page and '9.999,00' in default_page
+    assert 'PRIVATE-OWNER-SECRET' not in default_page and 'PRIVATE-SPACE-SECRET' not in default_page
+    assert 'Sammlung ' in default_page and 'Sammler ' in default_page
+    # An explicit opt-out is respected; updates must not re-enable it.
+    private_space=m.CollectionSpace.query.filter_by(owner_user_id=private.id).one()
+    m.db.session.add(m.Top10Consent(collection_id=private_space.id,enabled=False))
+    m.db.session.commit()
+    assert '9.999,00' not in user.get('/top10').get_data(as_text=True)
     prefpage=user.get('/top10/preferences').get_data(as_text=True)
     preftoken=re.search(r'name="top10_token" value="([^"]+)"',prefpage).group(1)
     assert user.post('/top10/preferences',data={'enabled':'1'}).status_code==400
@@ -52,15 +66,45 @@ with m.app.app_context():
     page=user.get('/top10').get_data(as_text=True)
     assert page.count('class="top10-row"')==10
     assert 'Public Collection' in page and 'Public Collector' in page
+    assert 'https://example.org/game-cover.png' in page and 'alt="Cover von Rank Game"' in page
+    assert 'Besitzer: ranking-admin' in page and 'Besitzer: ranking-manager' not in page
+    assert 'Besitzer: admin' not in page and 'Besitzer: test-admin' not in page
+    assert 'ranking-admin · admin' not in page and 'ranking-admin · test-admin' not in page
+    assert '__bibo_collection_' not in page
     assert 'PRIVATE-OWNER-SECRET' not in page and 'PRIVATE-SPACE-SECRET' not in page and '9.999' not in page
     assert '114,00' in page and '999,00' not in page
     for category in ['movies','tv','books','music','cards','custom']:
         page=user.get('/top10?category='+category).get_data(as_text=True)
         assert 'Visible '+category in page and '55,00' in page
         assert 'PRIVATE-PRODUCT-SECRET' not in page and 'WISHLIST-PRODUCT' not in page
+        assert 'https://example.org/private-cover.png' not in page
     assert 'Rank Hardware' in user.get('/top10?category=hardware').get_data(as_text=True)
     page=user.get('/top10?category=accessories').get_data(as_text=True)
     assert 'Rank Accessory' in page and 'Component excluded' not in page
+    assert 'Kein Cover vorhanden' in page
+    accessory=m.AccessoryItem.query.filter_by(name='Rank Accessory').one()
+    accessory.reference_image='javascript:alert(1)';m.db.session.commit()
+    unsafe=user.get('/top10?category=accessories').get_data(as_text=True)
+    assert 'javascript:alert(1)' not in unsafe and 'Kein Cover vorhanden' in unsafe
+    accessory.reference_image='https://example.org/accessory.png';m.db.session.commit()
+    assert 'https://example.org/accessory.png' in user.get('/top10?category=accessories').get_data(as_text=True)
+    # Same product/price, different collections: retain both owners, also at
+    # the 10th-place boundary. No product or price deduplication is allowed.
+    second_admin=m.User(username='second-owner',password_hash=generate_password_hash('pass'),is_admin=True,role='admin')
+    m.db.session.add(second_admin);m.db.session.flush()
+    m.db.session.add(m.CollectionPermission(collection_id=private_space.id,user_id=second_admin.id,role='manager'))
+    private_game=m.CollectionItem.query.filter_by(user_id=private.id,game_id=game.id).one()
+    private_game.auto_value_eur=105
+    m.db.session.get(m.Top10Consent,private_space.id).enabled=True
+    m.db.session.commit()
+    tied=user.get('/top10').get_data(as_text=True)
+    assert tied.count('class="top10-row"')==11
+    assert tied.count('class="top10-rank">10</strong>')==2
+    assert 'Besitzer: ranking-admin' in tied and 'Besitzer: second-owner' in tied
+    assert 'PRIVATE-OWNER-SECRET' not in tied and 'PRIVATE-SPACE-SECRET' not in tied
+    m.db.session.get(m.Top10Consent,private_space.id).enabled=False
+    m.db.session.commit()
+    assert 'Besitzer: second-owner' not in user.get('/top10').get_data(as_text=True)
     assert user.post('/top10/settings',data={'top10_token':token,'enabled':'1'}).status_code==403
     assert mgr.post('/top10/settings',data={'top10_token':token}).status_code==302
     assert 'Public Collection' not in user.get('/top10').get_data(as_text=True)
@@ -74,4 +118,4 @@ with m.app.app_context():
     assert user.post('/top10/preferences',data={'top10_token':preftoken,'enabled':'1'}).status_code==400
     assert mgr.post('/top10/settings',data={'top10_token':token,'enabled':'1','collection_alias':'Public Collection','collector_alias':'Public Collector'}).status_code==400
     assert 'mindestens zwei' in user.get('/top10').get_data(as_text=True)
-    print('OK: opt-in Top 10, all categories, source precedence, rank limits, privacy, rights and withdrawal')
+    print('OK: default-on Top 10, explicit opt-outs, neutral aliases, two-database guard, all categories, privacy and rights')

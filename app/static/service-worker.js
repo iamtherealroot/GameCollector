@@ -1,4 +1,4 @@
-const VERSION = 'bibo-v5.0.4';
+const VERSION = 'bibo-v5.1.0';
 const STATIC_CACHE = VERSION + '-static';
 const PAGE_CACHE = VERSION + '-pages';
 const APP_SHELL = [
@@ -25,7 +25,7 @@ self.addEventListener('activate', event => {
 function excluded(url) {
   return ['/login', '/logout'].includes(url.pathname) ||
     url.pathname.startsWith('/admin/') || url.pathname.startsWith('/feedback') || url.pathname.startsWith('/top10') || url.pathname.startsWith('/account') ||
-    url.pathname.startsWith('/export/') || url.pathname.startsWith('/api/');
+    url.pathname.startsWith('/export/') || url.pathname.startsWith('/api/') || url.pathname === '/help/tutorial-settings';
 }
 
 function cacheablePage(url) {

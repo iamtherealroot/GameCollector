@@ -27,13 +27,13 @@ Diese Testumgebung ist vorbereitet, aber in der Codex-Arbeitsumgebung mangels Do
 
 ## Mit einer Bash-Datei vom Linux-Desktop starten und öffnen
 
-Den separaten Starter `bibo-tu.sh` und `Bibo-v5.0.4.zip` nebeneinander auf dem Desktop-Rechner ablegen. Der Starter liegt auch im Paket unter `scripts/`. Beispiel mit einem SSH-Ziel, das sudo benutzen darf:
+Den separaten Starter `bibo-tu.sh` und `Bibo-v5.1.0-rc.22.zip` nebeneinander auf dem Desktop-Rechner ablegen. Der Starter liegt auch im Paket unter `scripts/`. Beispiel mit einem SSH-Ziel, das sudo benutzen darf:
 
 ```bash
 bash bibo-tu.sh --ssh benutzer@server
 ```
 
-Der Starter überträgt beide Dateien in seinen temporären Uploadordner auf dem Server, ruft die Servervorbereitung mit sudo auf und entfernt danach nur diese beiden Uploadkopien. Bei `root@server` wird kein sudo benötigt. Auf dem Server wird ausschließlich `/opt/bibo-test/Bibo-v5.0.4` vorbereitet. Vorhandene Zugangsdaten werden aus dem bisherigen versionierten Testordner übernommen. Existierende Test-Volumes bleiben erhalten; falls Zugangsdaten fehlen, wird der Vorgang abgebrochen statt ein neues Passwort für das alte Volume zu setzen.
+Der Starter überträgt beide Dateien in seinen temporären Uploadordner auf dem Server, ruft die Servervorbereitung mit sudo auf und entfernt danach nur diese beiden Uploadkopien. Bei `root@server` wird kein sudo benötigt. Auf dem Server wird ausschließlich `/opt/bibo-test/Bibo-v5.1.0-rc.22` vorbereitet. Vorhandene Zugangsdaten werden aus dem bisherigen versionierten Testordner übernommen. Existierende Test-Volumes bleiben erhalten; falls Zugangsdaten fehlen, wird der Vorgang abgebrochen statt ein neues Passwort für das alte Volume zu setzen.
 
 Anschließend öffnet der Starter einen nur lokal gebundenen SSH-Tunnel, prüft `/health/deep` auf den Testmodus und öffnet den Browser. Das Terminal muss offen bleiben. Enter oder Strg+C schließt nur den eigenen SSH-Tunnel; die TU bleibt auf dem Server bestehen. SSH und sudo können ihr normales Passwort verlangen, der Bibo-Login nicht. Keine SSH-Passwörter im Skript speichern. Hostschlüssel werden normal geprüft, nicht umgangen.
 
@@ -43,7 +43,7 @@ Für eine bereits laufende TU:
 bash bibo-tu.sh --ssh benutzer@server --open-only
 ```
 
-Weitere Optionen: `--package /pfad/Bibo-v5.0.4.zip`, `--port 18096` (lokaler Ersatzport), `--no-open` (Adresse ausgeben, keinen Browser starten). `--help` zeigt den Aufruf. Für reine Vorbereitung ohne GUI direkt auf dem Server: `sudo bash bibo-tu.sh --server /pfad/Bibo-v5.0.4.zip`.
+Weitere Optionen: `--package /pfad/Bibo-v5.1.0-rc.22.zip`, `--port 18096` (lokaler Ersatzport), `--no-open` (Adresse ausgeben, keinen Browser starten). `--help` zeigt den Aufruf. Für reine Vorbereitung ohne GUI direkt auf dem Server: `sudo bash bibo-tu.sh --server /pfad/Bibo-v5.1.0-rc.22.zip`.
 
 Der Starter führt weder `install.sh` für die Produktion noch automatisch eine Produktionsdatenmigration aus.
 
@@ -67,3 +67,8 @@ ssh -N -L 18095:127.0.0.1:18095 root@PokeCollector
 ```
 
 Dann im Browser `http://127.0.0.1:18095` öffnen. Die Sicherungen enthalten private Nutzerdaten und dürfen nicht hochgeladen werden. Dieser Import ist nur **Produktion → Test**, kein Update-/Zurückmigrationsbefehl für die Produktion.
+## Test freigeben und Produktion vorbereiten
+
+Als Systemadministrator in der TU oben „Test freigeben / Produktiv-Update vorbereiten“ oder unter Administration „Test freigeben“ öffnen. Alle Prüfpunkte bestätigen; die Entscheidung wird mit Version und Paketfingerabdruck protokolliert. Bei verändertem Stand ist eine neue Freigabe nötig. Freigabe zurücknehmen ist möglich.
+
+Nach Testfreigabe steht ein validierter Bash-Befehl bereit. Er läuft erst, wenn du ihn bewusst als root auf dem Produktionsserver ausführst. Er installiert Code, niemals TU-Daten oder Test-Zugangsdaten. RC-Installation ist dabei ausdrücklich freigeschaltet; normale Updates ignorieren RCs. Keine automatische GitHub-Veröffentlichung. Die Testergebnisse ersetzen kein vollständiges Produktionsbackup.

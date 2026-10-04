@@ -3,6 +3,7 @@
   if(!root)return;
   const panel=document.getElementById('tour-panel'),spot=document.getElementById('tour-spotlight');
   const back=document.getElementById('tour-back'),next=document.getElementById('tour-next'),skip=document.getElementById('tour-skip');
+  const disable=document.getElementById('tour-disable');
   let active=false,busy=false,index=0,data=null,target=null,details=[],inert=[],previousFocus=null,previousScroll=0;
   const visible=element=>{const r=element.getBoundingClientRect();return r.width>0 && r.height>0;};
   const position=()=>{
@@ -58,10 +59,11 @@
     if(previousFocus && visible(previousFocus))previousFocus.focus({preventScroll:true});
     else document.querySelector('.bibo-nav-home, .brand')?.focus({preventScroll:true});
   };
-  const finish=async()=>{
+  const finish=async(disabled=false)=>{
     if(busy)return;busy=true;next.disabled=back.disabled=skip.disabled=true;
+    if(disable)disable.disabled=true;
     try{
-      const response=await fetch('/api/tutorial/ack',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({token:data.token})});
+      const response=await fetch('/api/tutorial/ack',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({token:data.token,disabled:disabled===true})});
       if(!response.ok)throw new Error('not saved');close();
     }catch(_){
       document.getElementById('tour-error').hidden=false;
@@ -74,7 +76,7 @@
     event.stopPropagation();
     if(event.key==='Escape'){event.preventDefault();if(busy)close();else finish();}
     if(event.key==='Tab'){
-      const buttons=[back,next,skip].filter(button=>!button.disabled);
+      const buttons=[back,next,skip,disable].filter(button=>button && !button.disabled);
       if(!buttons.length){event.preventDefault();return;}
       const first=buttons[0],last=buttons.at(-1);
       if(event.shiftKey && (document.activeElement===first || document.activeElement===panel)){event.preventDefault();last.focus();}
@@ -96,9 +98,10 @@
       index=0;busy=false;active=true;root.hidden=false;
       document.getElementById('tour-error').hidden=true;
       next.disabled=skip.disabled=false;
+      if(disable){disable.disabled=false;disable.onclick=()=>finish(true);}
       back.onclick=()=>{if(index>0){index--;render();}};
       next.onclick=()=>{if(index<data.steps.length-1){index++;render();}else return finish();};
-      skip.onclick=finish;render();
+      skip.onclick=()=>finish(false);render();
     }catch(_){if(active)close();}
   }};
 })();

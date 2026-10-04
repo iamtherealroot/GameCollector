@@ -60,3 +60,11 @@ Anschließend Dienste starten und Bereitschaft prüfen:
 sudo docker compose up -d --build
 curl -fsS http://127.0.0.1:8095/health/deep
 ```
+## Backup-Prüfung ab 5.1.0
+
+Updates pausieren Web und Scheduler für ein konsistentes Datenbank-/Uploadbackup.
+Der Dump wird vor der Paketübernahme in einer temporären separaten Datenbank
+wiederhergestellt; Uploadarchive werden isoliert entpackt und geprüft.
+Fehlgeschlagene Prüfungen verhindern das Update. Zusätzlicher Speicherplatz und
+Datenbankrechte sind erforderlich. Backupverzeichnisse enthalten private Daten.
+Der Code-Rollback ersetzt keine kontrollierte Datenbankwiederherstellung.

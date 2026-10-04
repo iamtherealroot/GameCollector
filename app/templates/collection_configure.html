@@ -57,13 +57,13 @@
       </div>
 
       <div class="row">
-        <label>Medium-Zustand 1–10<input type="number" name="media_condition" min="1" max="10" value="{{ item.media_condition if item else 8 }}"></label>
-        <label>OVP/Hüllen-Zustand 1–10<input type="number" name="box_condition" min="1" max="10" value="{{ item.box_condition if item else 8 }}"></label>
+        <label>Medium-Zustand 1–10<input type="number" name="media_condition" min="1" max="10" value="{{ item.media_condition if item else 8 }}" {% if item and not item.media_present %}disabled{% endif %}></label>
+        <label>OVP/Hüllen-Zustand 1–10<input type="number" name="box_condition" min="1" max="10" value="{{ item.box_condition if item else 8 }}" {% if not item or not item.box_present %}disabled{% endif %} aria-describedby="box-condition-help"><small id="box-condition-help" class="form-help">Nur bewertbar, wenn OVP / Hülle vorhanden ist.</small></label>
       </div>
       <label>Seltenheit 1–5<input type="number" name="rarity" min="1" max="5" value="{{ item.rarity if item else 1 }}"></label>
       <label>Eigener Schätzwert €
         <input type="text" inputmode="decimal" name="estimated_value" value="{{ item.estimated_value if item and item.estimated_value is not none else '' }}" placeholder="z. B. 39,90">
-        <small class="form-help">Akzeptiert 39,90 oder 39.90. Ein eigener Schätzwert hat Vorrang vor dem automatischen Referenzwert.</small>
+        <small class="form-help">Akzeptiert 39,90 oder 39.90. Automatischer Marktwert hat Vorrang; deine Schätzung wird verwendet, wenn kein automatischer Wert vorliegt.</small>
       </label>
       </div>
       <div class="row"><label>Kaufpreis €<input type="text" inputmode="decimal" name="purchase_price" value="{{ item.purchase_price if item and item.purchase_price is not none else '' }}"></label><label>Kaufdatum<input type="date" name="purchase_date" value="{{ item.purchase_date.isoformat() if item and item.purchase_date else '' }}"></label></div>
@@ -155,7 +155,7 @@
 {% if item %}<section class="panel danger-zone"><h2>Exemplar löschen</h2><p class="muted">Löscht nur dieses Exemplar. Der Spiele-Katalogeintrag und weitere Exemplare bleiben erhalten.</p><form method="post" action="{{ url_for('collection_item_delete', item_id=item.id) }}" onsubmit="return confirm('Exemplar #{{ item.id }} wirklich löschen?')">{% if return_to %}<input type="hidden" name="return_to" value="{{ return_to }}">{% endif %}<button class="danger">Exemplar endgültig löschen</button></form></section>{% endif %}
 <div class="mobile-form-dock"><a class="button secondary-link" href="{{ return_to or url_for('game_detail', game_id=game.id) }}">← Zurück</a><button type="submit" form="copy-form">Speichern</button></div>
 {% endblock %}
-{% block scripts %}<script>
+{% block scripts %}<script src="{{ url_for('static',filename='copy-condition.js') }}"></script><script>
 (() => {
   const form = document.getElementById('copy-form');
   if (!form) return;

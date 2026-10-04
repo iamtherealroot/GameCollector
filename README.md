@@ -3,7 +3,7 @@
 </p>
 
 <h1 align="center">Bibo</h1>
-> **5.0.4 – freigegebener Release.** Feedbackportal, freiwillige globale Top 10, einmalige Release-Hinweise, Dashboard-Tour, farbiges Bücherregal und isolierte Docker-Testumgebung mit Desktop-Starter. Der passwortlose test-admin gilt ausschließlich in der TU. [Aktuelle Release-Notizen](RELEASE-NOTES-v5.0.4.md). Noch offene 4.8-/4.9-Punkte: [5.0.1](RELEASE-NOTES-v5.0.1.md). [Docker-Testumgebung](docs/DOCKER-TESTUMGEBUNG.md).
+> **Bibo 5.1.0** – persönlich wählbare Dashboardansichten, animierte Regalhelfer, Musikbestimmung und verbesserte Pokémon-Titelzuordnung. [Release-Notizen](RELEASE-NOTES-v5.1.0.md).
 
 <p align="center"><strong>Deine Sammlung. Dein Server.</strong><br>Spiele, Filme, Bücher, Musik und mehr übersichtlich verwalten.</p>
 <p align="center">

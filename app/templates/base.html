@@ -54,6 +54,12 @@
 <aside id="offline-sync-status" class="offline-sync-status" hidden><span id="offline-sync-label">Verbindungsstatus wird geprüft …</span><a href="{{ url_for('offline_queue') }}">Warteschlange <strong id="offline-sync-count" hidden>0</strong></a></aside>
 {% endif %}
 <main class="container">
+{% if current_user.is_authenticated %}<div class="feedback-alerts" aria-label="Meldungen und Nachrichten">
+{% if feedback_own_open_count %}<a class="button secondary" href="{{ url_for('feedback.index',open=1) }}">📨 {{ feedback_own_open_count }} eigene offene Meldung{{ 'en' if feedback_own_open_count!=1 }}</a>{% endif %}
+{% if current_user.is_admin %}<a class="button secondary" href="{{ url_for('feedback.admin_index',open=1) }}">🛠 Admin-Aufgaben · {{ feedback_open_count }} offen</a>{% endif %}
+{% if feedback_unread_count %}<a class="button" href="{{ url_for('feedback.inbox') }}">🔔 {{ feedback_unread_count }} ungelesene Nachricht{{ 'en' if feedback_unread_count!=1 }}</a>{% endif %}
+{% if current_user.is_admin and tu_release_available %}<a class="button secondary" href="{{ url_for('test_release.index') }}">🧪 Test freigeben / Produktiv-Update vorbereiten</a>{% endif %}
+</div>{% endif %}
 {% for category, message in get_flashed_messages(with_categories=true) %}<div class="flash {{ category }}">{{ message }}</div>{% endfor %}
 {% if current_user.is_authenticated and active_collection_space %}<div class="collection-context shared"><span>🗃️</span><strong>{{ active_collection_label }}</strong><small>{% if current_user.is_admin %}Systemadministrator{% elif collection_permission_role=='manager' %}Verwalten{% elif collection_permission_role=='editor' %}Bearbeiten{% else %}Nur lesen{% endif %}</small></div>{% endif %}
 {% block content %}{% endblock %}
@@ -61,6 +67,7 @@
 {% if current_user.is_authenticated %}<nav class="mobile-quickbar bibo-quickbar" aria-label="Mobile Hauptnavigation"><a href="{{ url_for('collector_home') }}" aria-label="Startseite" title="Startseite" {% if request.endpoint=='collector_home' %}aria-current="page"{% endif %}>{% include '_bookshelf_icon.html' %}</a><a href="{{ url_for('bibo_library') }}" {% if request.endpoint=='bibo_library' %}aria-current="page"{% endif %}>▤<span>Sammlung</span></a>{% if can_collection('edit_items') %}<a href="{{ url_for('collector_identify_start') }}">＋<span>Hinzufügen</span></a>{% endif %}<a href="{{ url_for('dashboard') }}" {% if request.endpoint=='dashboard' %}aria-current="page"{% endif %}>📊<span>Werte</span></a><details class="bibo-mobile-menu"><summary>☰<span>Menü</span></summary><div class="bibo-mobile-panel"><h2>Was möchtest du tun?</h2><label>Funktion suchen<input type="search" data-nav-search placeholder="z. B. Barcode, Feedback, Lagerort"></label><div data-nav-directory>{% include '_navigation_links.html' %}</div><p data-nav-empty hidden role="status">Keine passende Funktion gefunden.</p></div></details></nav>{% endif %}
 <footer><span>Bibo v{{ app_version }}</span>{% if current_user.is_authenticated %}<span>·</span><a href="{{ url_for('whats_new') }}">Was ist neu?</a>{% endif %}<span>·</span><span>{{ now.year }}</span><span>·</span><a href="https://retrobase-collection.com" rel="noreferrer">Retro-Daten: RetroBase Collection</a><span>·</span><a href="https://rawg.io" rel="noreferrer">Spiele-Metadaten: RAWG</a></footer>
 <script defer src="{{ url_for('static', filename='navigation.js') }}?v={{ app_version }}"></script>
+<script defer src="{{ url_for('static', filename='cover-fallback.js') }}?v={{ app_version }}"></script>
 {% if current_user.is_authenticated %}{% include '_release_news.html' %}{% endif %}
 {% block scripts %}{% endblock %}
 <script>

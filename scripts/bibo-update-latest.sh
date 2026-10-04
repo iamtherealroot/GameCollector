@@ -77,9 +77,14 @@ fi
 echo "Ausgewählt: $TAG | Quelle: $SOURCE_KIND | Installiert: ${CURRENT:-unbekannt}"
 if [[ -n "$CURRENT" ]] && python3 - "$CURRENT" "${TAG#v}" <<'PY'
 import re, sys
-if not all(re.fullmatch(r'\d+\.\d+\.\d+', v) for v in sys.argv[1:]):
+def key(v):
+    m = re.fullmatch(r'(\d+)\.(\d+)\.(\d+)(?:-rc\.(\d+))?', v)
+    if not m: raise ValueError(v)
+    return tuple(map(int, m.groups()[:3])) + (1 if m[4] is None else 0, int(m[4] or 0))
+try:
+    raise SystemExit(0 if key(sys.argv[1]) >= key(sys.argv[2]) else 1)
+except ValueError:
     raise SystemExit(1)
-raise SystemExit(0 if tuple(map(int, sys.argv[1].split('.'))) >= tuple(map(int, sys.argv[2].split('.'))) else 1)
 PY
 then
     echo 'Diese oder eine neuere Version ist bereits installiert.'

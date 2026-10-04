@@ -51,9 +51,11 @@ def setup_navigation(app, can_collection, custom_categories):
             item('🔍','Retro-Suche','Retrospiele im Katalog suchen','retro_lookup')]),
           ('💬','Hilfe & Feedback','Funktionen finden und Verbesserungen senden',[
             item('🎓','Einführungstutorial starten','Schritt für Schritt durch die verfügbaren Menüs','collector_home',tutorial=1),
+            item('⚙️','Tutorial-Einstellungen','Automatische Tutorials dauerhaft aus- oder einschalten','release_news.tutorial_settings'),
             item('🧭','Welche Funktion finde ich wo?','Alle Bereiche mit kurzen Erklärungen','navigation_help'),
             item('💬','Feedback senden','Fehler oder Verbesserung mit Bildern melden','feedback.create'),
             item('📨','Meine Meldungen','Antworten und Bearbeitungsstatus verfolgen','feedback.index'),
+            item('🔔','Meine Nachrichten','Öffentliche Antworten und Statusänderungen lesen','feedback.inbox'),
             item('✨','Was ist neu?','Änderungen der aktuellen Version','whats_new'),
             item('⚙️','Mein Konto','Profil, Passwort und Einstellungen','account'),
             item('🏆','Globale Top 10 einstellen','Persönliche Ansicht aktivieren oder deaktivieren','top10.preferences'),
@@ -62,6 +64,8 @@ def setup_navigation(app, can_collection, custom_categories):
             rows[0][3].append(item(category.get('icon','📦'),category['title'],'Eigene Sammlungskategorie','collector_section',section='custom',custom_category=category['id']))
         admin = [item('🛡️','Sammlungsrechte','Mitglieder der aktiven Sammlung verwalten','collection_access','manage_users')]
         if current_user.is_admin:
+            if app.config['TU_RELEASE_AVAILABLE']():
+                admin.append(item('🧪','Test freigeben','Prüfergebnis speichern und Produktionsbefehl anzeigen','test_release.index'))
             admin += [item('📬','Feedback verwalten','Alle Meldungen und interne Notizen','feedback.admin_index'),
                 item('👥','Systemnutzer','Benutzerkonten und Systemrechte','admin_users'),
                 item('🩺','Systemdiagnose','Betrieb und Hintergrundaufgaben prüfen','operations_center'),

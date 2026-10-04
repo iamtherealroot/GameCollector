@@ -2,11 +2,11 @@
 # Linux desktop launcher, or root-only preparation on the headless server.
 set -Eeuo pipefail
 umask 077
-VERSION=5.0.4
+VERSION=5.1.0
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
 usage(){
   echo 'Desktop: bash bibo-tu.sh --ssh benutzer@server [--package ZIP] [--port 18095] [--open-only] [--no-open]'
-  echo 'Server:  sudo bash bibo-tu.sh --server /pfad/Bibo-v5.0.4.zip'
+  echo "Server:  sudo bash bibo-tu.sh --server /pfad/Bibo-v$VERSION.zip"
   echo 'Login in der TU: test-admin, kein Passwort. SSH/sudo behalten ihre Anmeldung.'
 }
 fail(){ echo "FEHLER: $*" >&2;exit 1; }
@@ -15,7 +15,7 @@ need(){ command -v "$1" >/dev/null || fail "Benötigtes Programm fehlt: $1"; }
 if [[ "${1:-}" == --server ]];then
   (( EUID == 0 )) || fail 'Die Vorbereitung braucht Root-Rechte (sudo).'
   PACKAGE="${2:-}"
-  [[ -f "$PACKAGE" ]] || fail 'Release-ZIP fehlt. Aufruf mit --server /pfad/Bibo-v5.0.4.zip'
+  [[ -f "$PACKAGE" ]] || fail "Release-ZIP fehlt. Aufruf mit --server /pfad/Bibo-v$VERSION.zip"
   for command in docker python3 unzip;do need "$command";done
   BASE=/opt/bibo-test
   DEST="$BASE/Bibo-v$VERSION"
@@ -47,9 +47,9 @@ PY
 import pathlib,re,sys
 base,dest=map(pathlib.Path,sys.argv[1:]);candidates=[]
 for p in base.iterdir():
-    m=re.fullmatch(r'Bibo-v(\d+)\.(\d+)\.(\d+)',p.name)
+    m=re.fullmatch(r'Bibo-v(\d+)\.(\d+)\.(\d+)(?:-rc\.(\d+))?',p.name)
     if m and p!=dest and not p.is_symlink() and not (p/'test-runtime').is_symlink() and not (p/'test-runtime/test.env').is_symlink() and (p/'test-runtime/test.env').is_file():
-        candidates.append((tuple(map(int,m.groups())),p))
+        candidates.append((tuple(map(int,m.groups()[:3]))+(1 if m[4] is None else 0, int(m[4] or 0)),p))
 if candidates: print(max(candidates)[1])
 PY
     )"

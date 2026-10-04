@@ -1,0 +1,46 @@
+{% macro compartment(key, title, icon, format, href, count, value, images=[], subtitle='', identifier='', cases=[]) -%}
+<article {% if identifier %}id="{{ identifier }}"{% endif %} class="collector-module collector-module-{{ key }} shelf-compartment" aria-label="{{ title }}, {{ count }} Objekte, {{ eur(value) }}">
+  <div class="regal-spine-wrap" data-shelf-cases='{{ cases|tojson }}' data-category-href="{{ href }}" data-category-title="{{ title }}">
+    {% for case in cases[:7] %}
+    <a class="regal-media regal-item case-{{ case.style }}{% if loop.index == 4 %} regal-pull-default{% endif %}" style="--case-height:{{ case.height }}px" href="{{ case.href or href }}" aria-label="{{ (case.title ~ ' öffnen') if case.title else (title ~ ' öffnen') }}"{% if case.title %} title="{{ case.title }}"{% endif %}>
+      <span class="regal-case-body"><span class="regal-case-side" aria-hidden="true"><img class="regal-side-cover"{% if case.cover %} src="{{ case.cover }}"{% else %} hidden{% endif %} alt="" loading="lazy"></span><span class="regal-case-top" aria-hidden="true"></span>
+      <span class="regal-case-spine" aria-hidden="true"><span class="regal-case-brand">{{ case.format or format }}</span><span class="regal-spine-title">{{ case.title }}</span><span class="regal-spine-mark">{{ icon }}</span></span></span>
+    </a>
+    {% endfor %}
+    <a class="regal-media regal-category-spine case-{{ cases[-1].style if cases else 'archive' }}" style="--case-height:{{ cases[-1].height if cases else 220 }}px" href="{{ href }}" aria-label="{{ title }} öffnen" title="{{ title }} öffnen"><span class="regal-case-body"><span class="regal-case-side" aria-hidden="true"></span><span class="regal-case-top" aria-hidden="true"></span><span class="regal-case-spine" aria-hidden="true"></span></span></a>
+  </div>
+  <span class="regal-shelf-board" aria-hidden="true"></span>
+  {% if key=='cards' %}<div class="regal-entry-slot"><span class="regal-helper-door" aria-hidden="true"></span>{% endif %}
+  <a class="regal-caption{% if key=='cards' %} regal-door-panel{% endif %}" href="{{ href }}" aria-label="{{ title }} öffnen"><strong class="regal-category-label" title="{{ title }}">{{ title }}</strong><strong>{{ count }} Objekte <span>{{ eur(value) }}</span></strong><small>{{ subtitle or 'Sammlung öffnen' }} →</small></a>
+  {% if key=='cards' %}</div>{% endif %}
+  {% include '_shelf_helpers.html' %}
+</article>
+{%- endmacro %}
+<div class="regal-heading"><div><span class="eyebrow">Dein interaktives Sammlungsregal</span><h2>Was möchtest du aus dem Regal nehmen?</h2></div><p class="muted">Beschriftete Rücken öffnen das Medium. Der letzte, unbeschriftete Rücken und das Schild darunter öffnen die Kategorie.{% if can_collection('edit_items') %} Im freien Fach legst du eine neue Kategorie an.{% endif %}</p></div>
+<div class="regal-cabinet-shell{% if dashboard_style=='glass' %} regal-skin-glass{% endif %}">
+<span class="regal-corner-screw screw-top-left" aria-hidden="true"></span><span class="regal-corner-screw screw-top-right" aria-hidden="true"></span><span class="regal-corner-screw screw-bottom-left" aria-hidden="true"></span>
+<section class="collector-module-grid collection-regal" aria-label="Sammlungsregal">
+  {{ compartment('games','Games','🎮','GAME',url_for('collection',status='owned'),game_count+hardware_count+accessory_count,gaming_value,module_images.games,game_count|string+' Spiele · '+hardware_count|string+' Hardware · '+accessory_count|string+' Zubehör',cases=module_cases.games) }}
+  {% for key,title,icon,format,subtitle in [('movies','Filme','🎬','BLU-RAY','DVD · Blu-ray · UHD'),('tv','Serien','📺','BOXSET','Staffeln · Boxsets'),('books','Bücher','📚','BUCH','Ausgaben · Autoren · Reihen'),('music','Musik','💿','MUSIK','CD · Vinyl'),('cards','Sammelkarten','🃏','ALBUM','Sets · Einzelkarten')] %}
+    {% set st=module_stats[key] %}
+    {{ compartment(key,title,icon,format,url_for('collector_section',section=key),st.count,st.value,module_images.get(key,[]),subtitle,cases=module_cases[key]) }}
+  {% endfor %}
+  {% for category in custom_category_tiles %}
+    {{ compartment('more',category.title,category.icon,'SAMMLUNG',url_for('collector_section',section='custom',custom_category=category.id),category.count,category.value,category.images,category.description or 'Eigene Kategorie öffnen','custom-'~category.id,cases=category.cases) }}
+  {% endfor %}
+  {% set st=module_stats['custom'] %}
+  {% if st.count > 0 %}{{ compartment('more','Weitere Sammlungen','📦','ARCHIV',url_for('collector_section',section='custom'),st.count,st.value,module_images.custom,'Alle eigenen Kategorien',cases=module_cases.custom) }}{% endif %}
+  {% if can_collection('edit_items') %}
+  <a class="collector-module collector-module-more shelf-compartment regal-empty dashboard-add-category" href="#custom-category-create" aria-label="Sammlungskategorie hinzufügen">
+    <span class="regal-empty-space"><span aria-hidden="true">＋</span><strong>Freies Fach</strong><small>Platz für deine nächste Sammlung</small></span>
+    <span class="regal-shelf-board" aria-hidden="true"></span>
+    <footer class="regal-caption"><strong>Neue Kategorie</strong><small>Sammlungskategorie hinzufügen ↓</small></footer>
+  </a>
+  {% endif %}
+<div class="regal-helper-stage" aria-hidden="true"></div>
+</section>
+{% include '_regal_doorman.html' %}
+<button type="button" class="regal-shake-trigger" title="Eine etwas lockere Schraube …" aria-label="Am Regal rütteln"></button>
+</div>
+<button type="button" class="secondary regal-rotation-toggle" aria-pressed="false">Titelwechsel pausieren</button>
+<span class="regal-shake-status" role="status" aria-live="polite"></span>
