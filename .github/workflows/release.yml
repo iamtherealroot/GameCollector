@@ -47,11 +47,11 @@ jobs:
             release_flags+=(--prerelease)
           fi
           notes_flags=(--notes-file "RELEASE-NOTES-${tag}.md")
-          if [[ "$RELEASE_VERSION" == "5.1.0" ]]; then
-            notes_flags=(--notes "")
-          fi
           if gh release view "$tag" >/dev/null 2>&1; then
-            echo "Release $tag already exists; preserving it."
+            if [[ "$RELEASE_VERSION" == "5.1.0" ]]; then
+              gh release edit "$tag" "${notes_flags[@]}"
+            fi
+            echo "Release $tag already exists; preserving its tag and assets."
             exit 0
           fi
           gh release create "$tag" \

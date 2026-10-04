@@ -21,6 +21,6 @@ Freigegebener Stand auf Basis von 5.1.0-rc.24. Das ZIP eignet sich zur Neuinstal
 - Mobile Menükacheln untereinander und kompakter Zugang über Menü.
 
 ## Prüfung und Aktualisierung
-Die Freigabe erfolgte durch den Nutzer nach den Prüfentwürfen. Automatisierte Prüfungen decken Erfassung, Berechtigungen, Sammlungsisolation, Dashboard und Release-Abläufe ab.
+Die Freigabe erfolgte durch den Nutzer nach den Prüfentwürfen. Alle GitHub-CI-Prüfungen einschließlich Produktionsstart, Healthcheck und isolierter Docker-Regressionssuite sind erfolgreich. Die Testimage-Konfiguration enthält auch die benötigte Release-Workflow-Datei. Live-Abfragen externer Kataloge und die vollständige Darstellung auf allen Mobilgeräten sind damit nicht abgedeckt.
 
 Vor dem Update sichert der Installer die bestehende Installation. Persönliche Daten und Datenbanken sind nicht im Paket enthalten.
