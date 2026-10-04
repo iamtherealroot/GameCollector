@@ -65,11 +65,13 @@ with m.app.app_context():
     release=client.get('/collector/movies/marvel?branch=MCU&order=release').get_data(as_text=True)
     assert release.index('<h2>Iron Man ')<release.index('<h2>Captain America: The First Avenger')
     marvel=client.get("/collector/movies/marvel").get_data(as_text=True)
-    assert "134 Katalogtitel · 3 physisch vorhanden" not in marvel # default excludes 36 shorts AND one serial
-    assert "133 Katalogtitel · 3 physisch vorhanden" in marvel
+    assert "38 Katalogtitel · 2 physisch vorhanden" in marvel
+    broad=client.get("/collector/movies/marvel?series=Marvel&branch=films").get_data(as_text=True)
+    film_count=sum(e['released'] and e['branch'] not in {'Kurzfilm','Serial'} for e in CATALOG)
+    assert f"{film_count} Katalogtitel · 3 physisch vorhanden" in broad
     upcoming=client.get("/collector/movies/marvel?branch=Angek%C3%BCndigt").get_data(as_text=True)
-    assert "3 Katalogtitel · 0 physisch vorhanden" in upcoming and "Exemplar anlegen" not in upcoming
-    all_titles=client.get("/collector/movies/marvel?branch=all&page=5").get_data(as_text=True)
+    assert "2 Katalogtitel · 0 physisch vorhanden" in upcoming and "Exemplar anlegen" not in upcoming
+    all_titles=client.get("/collector/movies/marvel?series=Marvel&branch=all&page=5").get_data(as_text=True)
     assert "161–170 von 170" in all_titles
     overview=client.get("/collector/collections?type=movies").get_data(as_text=True)
     assert "Marvel" in overview and "Guardians of the Galaxy" in overview
