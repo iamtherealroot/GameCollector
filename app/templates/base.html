@@ -68,6 +68,7 @@
 {% if current_user.is_admin and tu_release_available %}<a class="button secondary" href="{{ url_for('test_release.index') }}">🧪 Test freigeben / Produktiv-Update vorbereiten</a>{% endif %}
 </div>{% endif %}
 {% for category, message in get_flashed_messages(with_categories=true) %}<div class="flash {{ category }}">{{ message }}</div>{% endfor %}
+<div data-metadata-feedback-slot></div>
 {% if current_user.is_authenticated and active_collection_space %}<div class="collection-context shared"><span>🗃️</span><strong>{{ active_collection_label }}</strong><small>{% if current_user.is_admin %}Systemadministrator{% elif collection_permission_role=='manager' %}Verwalten{% elif collection_permission_role=='editor' %}Bearbeiten{% else %}Nur lesen{% endif %}</small></div>{% endif %}
 {% if undo_available %}<div class="flash success"><form action="{{ url_for('undo_item_delete') }}" method="post"><input type="hidden" name="token" value="{{ undo_token }}"><span>Zuletzt gelöschtes Exemplar wiederherstellen (10 Minuten).</span> <button class="button secondary" type="submit">Löschen rückgängig machen</button></form></div>{% endif %}
 {% block content %}{% endblock %}

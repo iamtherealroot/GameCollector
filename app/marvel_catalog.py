@@ -187,6 +187,7 @@ _DATA = """
 """
 
 CATALOG = []
+MCU_ANNOUNCED = {"Avengers: Doomsday", "Avengers: Secret Wars"}
 for line in _DATA.strip().splitlines():
     year, title, series, branch, *aliases = line.split("|")
     CATALOG.append(dict(year=int(year), title=title, series=series, branch=branch, aliases=aliases,
@@ -228,7 +229,7 @@ def seed_catalog(db, ns, upsert_series):
     for entry, work in seeded:
         upsert_series(work, "movies", "Marvel", entry["year"])
         upsert_series(work, "movies", entry["series"], entry["year"])
-        if entry["branch"] == "MCU":
+        if entry["branch"] == "MCU" or entry["title"] in MCU_ANNOUNCED:
             upsert_series(work, "movies", "Marvel Cinematic Universe", entry["year"])
         if entry["title"] == "Deadpool & Wolverine":
             upsert_series(work, "movies", "Wolverine", entry["year"])
@@ -241,8 +242,8 @@ def setup_marvel_catalog(app, db, ns):
     @login_required
     def marvel_movies():
         ns["refresh_bibo_registry"](only_if_changed=True)
-        series = request.args.get("series", "Marvel")
-        selected_branch = request.args.get("branch", "films")
+        series = request.args.get("series", "Marvel Cinematic Universe")
+        selected_branch = request.args.get("branch", "MCU" if series == "Marvel Cinematic Universe" else "films")
         query = request.args.get("q", "").strip()
         selected_order = request.args.get("order", session.get("marvel_catalog_order", "release"))
         if selected_order not in {"release", "timeline"}:
@@ -258,12 +259,12 @@ def setup_marvel_catalog(app, db, ns):
         rows = []
         for entry in sorted(CATALOG, key=lambda e:entry_order(e, selected_order)[0]):
             families = {"Marvel", entry["series"]}
-            if entry["branch"] == "MCU": families.add("Marvel Cinematic Universe")
+            if entry["branch"] == "MCU" or entry["title"] in MCU_ANNOUNCED: families.add("Marvel Cinematic Universe")
             if entry["series"] in {"Wolverine", "Deadpool"}: families.add("X-Men")
             if entry["title"] == "Deadpool & Wolverine": families.add("Wolverine")
             if series not in families:
                 continue
-            if selected_branch == "films" and entry["branch"] in {"Kurzfilm", "Serial"}:
+            if selected_branch == "films" and (entry["branch"] in {"Kurzfilm", "Serial"} or not entry["released"]):
                 continue
             if selected_branch not in {"all", "films"} and entry["branch"] != selected_branch:
                 continue
@@ -292,11 +293,14 @@ def setup_marvel_catalog(app, db, ns):
         found=[(row,entry) for row,entry in found if entry
                and ns["collector_metadata"](row).get("status","owned")=="owned"
                and ns["collector_metadata"](row).get("ownership_format", "digital" if str(row.media_type or "").casefold()=="digital" else "physical")=="physical"]
-        if not found:return None
-        return {"name":"Marvel","type":"movies","label":"Filmreihen · übergreifend","icon":"🎬",
-                "owned":len({entry["key"] for row,entry in found}),"total":None,"pct":None,"missing":None,
+        catalog_keys={entry["key"] for entry in CATALOG if entry["released"] and entry["branch"] == "MCU"}
+        found=[(row,entry) for row,entry in found if entry["key"] in catalog_keys]
+        owned_count=len({entry["key"] for row,entry in found})
+        total=len(catalog_keys)
+        return {"name":"Marvel Cinematic Universe (MCU)","type":"movies","label":"Filmreihen","icon":"🎬",
+                "owned":owned_count,"total":total,"pct":round(100*owned_count/total) if total else 0,"missing":total-owned_count,
                 "value":sum(ns["collector_effective_value"](row) or 0 for row,entry in found),"cover":next((row.cover_url for row,entry in found if row.cover_url),None),
                 "copy_count":len(found),"valued_count":sum(bool(ns["collector_effective_value"](row)) for row,entry in found),
                 "items":[{"title":row.title,"url":url_for("collector_item_detail",item_id=row.id)} for row,entry in found],
-                "detail_url":url_for("marvel_movies"),"catalog_umbrella":True}
+                "detail_url":url_for("marvel_movies",series="Marvel Cinematic Universe",branch="MCU"),"catalog_umbrella":True}
     return overview_group

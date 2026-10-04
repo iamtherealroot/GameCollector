@@ -18,13 +18,14 @@
 .simple-desktop-menu .bibo-nav-group{display:block;width:100%}
 .page-loading,.metadata-loading{position:fixed;top:16px;left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:12px;max-width:calc(100vw - 32px);box-sizing:border-box;padding:8px 16px;background:var(--panel,#10182b);color:var(--text,#eef2ff);border:1px solid var(--line,#394560);border-radius:14px;box-shadow:0 6px 24px #0005;z-index:200;pointer-events:none}
 .page-loading[hidden]{display:none}
+.metadata-loading[hidden]{display:none!important}
 .catalog-search-results>[data-catalog-feedback]{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);display:flex;align-items:center;gap:12px;max-width:calc(100vw - 32px);box-sizing:border-box;padding:16px 24px;background:var(--panel,#10182b);color:var(--text,#eef2ff);border:1px solid var(--line,#394560);border-radius:14px;box-shadow:0 6px 24px #0005;z-index:199;pointer-events:none}
 .catalog-search-results>[data-catalog-feedback][hidden]{display:none}
 .page-loading,.metadata-loading{top:50%;transform:translate(-50%,-50%)}
 .metadata-loading{z-index:199;pointer-events:auto;font-size:.9rem}
 .metadata-loading.is-complete .bibo-loading-runner{display:none}
-.bibo-loading-runner{flex:none;width:56.25px;height:72px;background:url('loading-runner.svg') 0 0/225px 72px no-repeat;image-rendering:pixelated;animation:bibo-runner .48s steps(4) infinite}
-@keyframes bibo-runner{to{background-position:-225px 0}}
+.bibo-loading-runner{flex:none;width:120px;height:60px;background:url('loading-runner.svg') 0 0/2880px 60px no-repeat;image-rendering:pixelated;animation:bibo-runner 1.26s steps(9,end) infinite}
+@keyframes bibo-runner{to{background-position:-1080px 0}}
 @media(prefers-reduced-motion:reduce){.bibo-loading-runner{animation:none}}
 @media(max-width:1120px){
   /* JS measures the actual quickbar, including the iPhone safe area. */
@@ -68,3 +69,44 @@
 
 /* Separate season selection from the condition fields below it. */
 .media-wizard .season-action-field{margin-bottom:1rem}
+
+/* The complete confirmation tile activates its native checkbox. */
+.media-wizard .wizard-confirm{width:100%;box-sizing:border-box;min-height:56px;cursor:pointer;user-select:none}
+.media-wizard .wizard-confirm input{flex:none;cursor:pointer;margin:0}
+.media-wizard .wizard-confirm span{flex:1}
+.media-wizard .wizard-confirm:hover{background:#a7bdff0b}
+.media-wizard .wizard-confirm:has(input:checked){border-color:#92e2a2;background:#92e2a20c}
+.media-wizard .wizard-confirm:has(input:focus-visible){outline:3px solid #acbaff;outline-offset:3px}
+
+.bibo-loading-runner.is-finishing{order:1;animation:bibo-runner-finish 4.02s steps(1,end) forwards}
+@keyframes bibo-runner-finish{0.0000%{background-position:-1080px 0}4.4776%{background-position:-1200px 0}7.9602%{background-position:-1320px 0}11.4428%{background-position:-1440px 0}15.6716%{background-position:-1560px 0}19.9005%{background-position:-1680px 0}28.6070%{background-position:-1800px 0}39.8010%{background-position:-1920px 0}50.9950%{background-position:-2040px 0}56.9652%{background-position:-2160px 0}62.9353%{background-position:-2280px 0}68.9055%{background-position:-2400px 0}74.8756%{background-position:-2520px 0}80.8458%{background-position:-2640px 0}86.3184%{background-position:-2760px 0}100%{background-position:-2760px 0}}
+.metadata-loading.is-complete .bibo-loading-runner.is-finishing{display:block}
+@media(prefers-reduced-motion:reduce){.bibo-loading-runner.is-finishing{order:1;animation:none;display:none}}
+
+.bibo-loading-runner[hidden]{display:none!important}
+
+/* Completed metadata feedback shares the top message area. */
+.metadata-loading.is-inline{position:static;top:auto;left:auto;transform:none;z-index:auto;width:100%;max-width:100%;margin:0 0 16px;padding:13px 15px;box-shadow:none;flex-wrap:wrap;font-size:1rem;background:#243453;border-color:#344566}
+[data-metadata-feedback-slot]:empty{display:none}
+
+.ean-preview-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.ean-preview-card{display:flex;gap:12px;padding:14px;background:var(--panel,#10182b);border:1px solid var(--line,#394560);border-radius:12px;color:inherit;text-decoration:none;min-width:0}
+.ean-preview-card img{width:58px;height:82px;object-fit:contain;flex:none;border-radius:5px}
+.ean-preview-card h3{font-size:1rem;margin:.5rem 0;overflow-wrap:anywhere}
+.ean-preview-card small{color:var(--muted,#9caec7)}
+@media(max-width:700px){.ean-preview-grid{grid-template-columns:1fr}}
+.media-simple-form > .collector-actions { margin-top: 1.25rem; }
+
+/* Match the collection colours already used on the dashboard. */
+.bibo-menu-panel .bibo-nav-links a[class*="collector-module-"]{border-color:color-mix(in srgb,var(--module-accent) 55%,#35415c);background:color-mix(in srgb,var(--module-accent) 12%,#172138)}
+.bibo-menu-panel .bibo-nav-links a[class*="collector-module-"]>span:first-child{color:var(--module-accent);background:color-mix(in srgb,var(--module-accent) 18%,#172138)}
+.bibo-menu-panel .bibo-nav-links a[class*="collector-module-"]:hover,.bibo-menu-panel .bibo-nav-links a[class*="collector-module-"][aria-current=page]{border-color:var(--module-accent);background:color-mix(in srgb,var(--module-accent) 24%,#172138)}
+.bibo-menu-panel .bibo-nav-links a[class*="collector-module-"]:focus-visible{outline-color:var(--module-accent)}
+
+.media-copy-parts{margin:1rem 0;padding:1rem;border:1px solid var(--line);border-radius:12px}
+.media-copy-parts legend{font-weight:700;padding:0 .35rem}
+.media-copy-parts-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.5rem}
+.media-copy-parts-grid label{display:flex;align-items:center;gap:.7rem;min-height:44px;margin:0;padding:.4rem .6rem;border-radius:8px;cursor:pointer;background:#ffffff06}
+.media-copy-parts-grid input[type=checkbox]{width:20px;height:20px;flex:none;margin:0;accent-color:#9584ff}
+.media-copy-parts[hidden]{display:none!important}
+@media(max-width:480px){.media-copy-parts-grid{grid-template-columns:1fr}}

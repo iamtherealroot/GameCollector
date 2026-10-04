@@ -2,7 +2,7 @@
 # Linux desktop launcher, or root-only preparation on the headless server.
 set -Eeuo pipefail
 umask 077
-VERSION=5.1.1
+VERSION=5.1.2
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
 usage(){
   echo 'Desktop: bash bibo-tu.sh --ssh benutzer@server [--package ZIP] [--port 18095] [--open-only] [--no-open]'

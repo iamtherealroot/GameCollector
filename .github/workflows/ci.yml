@@ -21,6 +21,12 @@ jobs:
         run: python -m pip install -r requirements.txt
       - name: Game price stability regression tests
         run: python3 scripts/test_game_price_stability.py
+      - name: Film EAN title fallbacks and loading feedback
+        run: |
+          python3 scripts/test_media_ean_titles.py
+          python3 scripts/test_mcu_series.py
+          python3 scripts/test_media_parts.py
+          node scripts/ui_auto_metadata_test.cjs
       - name: Custom category deletion regression tests
         run: python3 scripts/test_custom_category_delete.py
       - name: Private feedback and navigation regression tests

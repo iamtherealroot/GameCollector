@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<meta name="color-scheme" content="dark">
+<title>Bibo · Gerade nicht erreichbar</title>
+<style>
+*{box-sizing:border-box}body{margin:0;min-height:100svh;display:grid;place-items:center;padding:28px 18px;background:radial-gradient(ellipse at 50% 15%,#203453 0,transparent 60%),#090e18;color:#eef3ff;font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}main{width:min(100%,540px);text-align:center}.brand{display:flex;align-items:center;justify-content:center;gap:10px;font-size:23px;font-weight:750;letter-spacing:.02em}.brand span{font-size:28px}.card{margin-top:26px;padding:36px 26px 28px;border:1px solid #35415c;border-radius:26px;background:linear-gradient(145deg,#1c2940e8,#111a2bea);box-shadow:0 22px 75px #0005}.shelf{height:122px;max-width:260px;margin:0 auto 28px;border-bottom:9px solid #ab8459;display:flex;align-items:flex-end;justify-content:center;gap:7px;box-shadow:0 5px 0 #5d432e;border-radius:3px}.book{width:25px;border:1px solid #ffffff24;border-radius:4px 4px 0 0;box-shadow:inset 4px 0 #ffffff12;background:var(--color);height:var(--height);position:relative}.book:before,.book:after{content:"";position:absolute;left:6px;right:6px;height:2px;background:#ffffff70}.book:before{top:12px}.book:after{bottom:12px}.gap{width:35px;height:84px;border:2px dashed #91a6cb60;border-radius:4px;animation:breathe 2.8s ease-in-out infinite}.badge{display:inline-block;background:#f4c37f14;color:#f4c37f;border:1px solid #f4c37f35;padding:6px 11px;border-radius:20px;font-size:12px;font-weight:650;letter-spacing:.04em}h1{font-size:clamp(25px,5.5vw,34px);line-height:1.16;margin:18px 0 14px;letter-spacing:-.035em}p{color:#b5c1d8;font-size:16px;line-height:1.6;margin:0 auto;max-width:400px}.action{display:inline-flex;align-items:center;justify-content:center;min-height:48px;margin-top:26px;padding:12px 22px;border-radius:13px;background:#a7bdff;color:#101931;font-weight:750;text-decoration:none;transition:background .2s}.action:hover{background:#c7d5ff}.action:focus-visible{outline:3px solid #fff;outline-offset:5px}.status{display:flex;align-items:center;justify-content:center;gap:9px;margin-top:22px;min-height:36px;color:#a9b8d2;font-size:13px}.dot{flex:none;width:7px;height:7px;border-radius:50%;background:#f4c37f}.ready .dot{background:#6fe0ac}footer{margin:20px 0 0;color:#8291ac;font-size:12px}noscript p{font-size:13px;margin-top:18px}@keyframes breathe{50%{opacity:.4}}@media(prefers-reduced-motion:reduce){.gap{animation:none}.action{transition:none}}@media(max-width:380px){.card{padding:28px 18px}.shelf{height:108px}}
+</style>
+</head>
+<body>
+<main>
+  <div class="brand"><span aria-hidden="true">📚</span> Bibo</div>
+  <section class="card" aria-labelledby="title">
+    <div class="shelf" aria-hidden="true">
+      <i class="book" style="--color:#558a68;--height:78px"></i>
+      <i class="book" style="--color:#577fba;--height:104px"></i>
+      <i class="book" style="--color:#ad6f79;--height:92px"></i>
+      <i class="gap"></i>
+      <i class="book" style="--color:#af925e;--height:111px"></i>
+      <i class="book" style="--color:#8471b2;--height:84px"></i>
+    </div>
+    <span class="badge">KURZE PAUSE</span>
+    <h1 id="title">Dein Regal ist gleich wieder da.</h1>
+    <p>Bibo ist gerade nicht erreichbar. Vielleicht läuft ein Update oder ein Neustart. Versuche es in einem Moment noch einmal.</p>
+    <a class="action" href="/">Erneut versuchen <span aria-hidden="true">&nbsp;↗</span></a>
+    <div class="status" role="status" aria-live="polite"><span class="dot" aria-hidden="true"></span><span id="status">Erreichbarkeit wird geprüft …</span></div>
+    <noscript><p>Du kannst die Seite mit „Erneut versuchen“ erneut öffnen.</p></noscript>
+  </section>
+  <footer>Vorübergehend nicht erreichbar · HTTP 502 / 503 / 504</footer>
+</main>
+<script>
+(() => {
+  const label=document.querySelector('#status'),status=label.parentElement;
+  let checking=false,timer;
+  async function check(){
+    if(checking||document.hidden)return;
+    checking=true;
+    const controller=new AbortController();
+    const timeout=setTimeout(()=>controller.abort(),5000);
+    try{
+      const response=await fetch('/health',{cache:'no-store',credentials:'omit',signal:controller.signal,headers:{Accept:'application/json'}});
+      const data=response.ok ? await response.json() : null;
+      if(data?.status==='ok' && typeof data.version==='string'){
+        label.textContent='Bibo ist wieder erreichbar.';status.classList.add('ready');
+        document.querySelector('.action').firstChild.textContent='Bibo öffnen ';
+        clearInterval(timer);
+      }else label.textContent='Noch nicht erreichbar · nächste Prüfung in 15 Sekunden';
+    }catch(_){label.textContent='Noch nicht erreichbar · nächste Prüfung in 15 Sekunden';}
+    finally{clearTimeout(timeout);checking=false;}
+  }
+  timer=setInterval(check,15000);
+  document.addEventListener('visibilitychange',()=>{if(!document.hidden)check();});
+  check();
+})();
+</script>
+</body>
+</html>

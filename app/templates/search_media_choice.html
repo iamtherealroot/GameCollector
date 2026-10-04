@@ -8,8 +8,15 @@
     <button type="submit">Weiter</button><a class="button secondary" href="{{ url_for('scanner') }}">📷 Scannen</a>
   </form>
 </section>
+{% if ean %}
+<section class="panel ean-preview" {% if preview_url %}data-catalog-url="{{ preview_url }}" data-catalog-error="EAN-Vorschau derzeit nicht erreichbar. Wähle unten eine Medienart, um gezielt zu suchen."{% endif %}>
+<h2>Vorschau zur EAN</h2><p class="muted">Bis zu drei Treffer. Kataloghinweise bitte prüfen; du kannst darunter weiterhin eine Medienart wählen.</p>
+{% if preview_url %}<p data-catalog-feedback role="status" aria-live="polite">EAN-Treffer werden gesucht …</p>{% endif %}
+<div data-catalog-results>{% include '_ean_preview.html' %}</div>
+</section>
+{% endif %}
 {% if query %}
-<section class="panel"><h2>Was ist „{{ query }}“?</h2><p>Wähle die Medienart, um passende Treffer zu sehen.</p>
+<section class="panel" id="media-choice"><h2>Was ist „{{ query }}“?</h2><p>Wähle die Medienart, um passende Treffer zu sehen.</p>
   <div class="media-choice-grid">{% for key,label in media_choices.items() %}<a class="button" href="{{ url_for('universal_search',q=query,type=key) }}">{{ label }}</a>{% endfor %}</div>
 </section>
 {% endif %}

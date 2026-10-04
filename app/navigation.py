@@ -9,7 +9,12 @@ def setup_navigation(app, can_collection, custom_categories):
             if capability and not can_collection(capability):
                 return None
             active = request.endpoint == endpoint and all(str(request.args.get(k, (request.view_args or {}).get(k, ''))) == str(v) for k,v in params.items())
-            return dict(icon=icon,title=title,description=description,url=url_for(endpoint,**params),active=active)
+            category = params.get('section') or {
+                'collection':'games', 'hardware':'games', 'accessories':'games',
+                'games':'games', 'standalone_games':'games', 'consoles':'games',
+                'retro_lookup':'games', 'collection_bulk':'games',
+            }.get(endpoint, '')
+            return dict(icon=icon,title=title,description=description,url=url_for(endpoint,**params),active=active,category=category)
         rows = [
           ('📚','Meine Sammlung','Spiele, Medien und eigene Kategorien',[
             item('▤','Alle Sammlungsobjekte','Bibliothek durchsuchen und filtern','bibo_library'),

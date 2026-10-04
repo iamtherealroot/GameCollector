@@ -27,14 +27,24 @@ with m.app.app_context():
     copy=m.CollectionItem(game_id=game.id,user_id=owner.id,status='owned',estimated_value=12)
     m.db.session.add(copy)
     m.db.session.add_all([m.CollectorItem(user_id=owner.id,category='movies',title=f'Search Film {n:03}',barcode='4000000000001' if n==0 else None,media_type='Blu-ray',estimated_value_eur=10) for n in range(85)])
-    m.db.session.add(m.CollectorItem(user_id=foreign.id,category='movies',title='Search PRIVATE FILM',media_type='DVD'))
+    m.db.session.add(m.CollectorItem(user_id=foreign.id,category='movies',title='Search PRIVATE FILM',media_type='DVD',barcode='4000000000001'))
     m.db.session.commit();client=m.app.test_client();client.post('/login',data={'username':'ui-admin','password':'ui-pass'})
-    # Enter query first; neither results nor external calls before category choice.
+    # EAN previews are bounded and local-first; title search still chooses category first.
     old_urlopen=m.urlopen
     def no_network(*a,**kw):raise AssertionError('Network call during local search/list')
     m.urlopen=no_network
     choice=client.get('/find?q=4000000000001').get_data(as_text=True)
-    assert 'Medienart' in choice and 'Search Film 000' not in choice and 'Search Game' not in choice
+    assert 'Medienart' in choice and 'Search Film 000' in choice and 'Search Game' in choice
+    assert choice.count('class="ean-preview-card"') == 2 and 'data-catalog-url=' in choice
+    assert 'Search Film 000' not in client.get('/find?q=Search').get_data(as_text=True)
+    old_lookup=m.lookup_barcode_external
+    m.lookup_barcode_external=lambda code: [dict(name='Preview Film DVD',category='Film'),dict(name='Other DVD'),dict(name='Extra DVD')]
+    preview=client.get('/find/ean-preview?q=4000000000001').get_data(as_text=True)
+    assert 'PRIVATE FILM' not in preview
+    assert preview.count('class="ean-preview-card"') == 3 and 'Preview Film DVD' in preview and 'Other DVD' not in preview
+    assert 'type=movies' in preview
+    assert client.get('/find/ean-preview?q=Search').status_code == 400
+    m.lookup_barcode_external=old_lookup
     films=client.get('/find?q=4000000000001&type=movies').get_data(as_text=True)
     assert 'Search Film 000' in films and 'Search Game' not in films and 'Neu anlegen' in films
     games=client.get('/find?q=4000000000001&type=games').get_data(as_text=True)
@@ -96,6 +106,8 @@ with m.app.app_context():
     snapshot=m.db.session.get(m.UndoDeletion,expired_token);snapshot.expires_at=m.utc_now()-timedelta(seconds=1);m.db.session.commit()
     client.post('/collection/undo-delete',data={'token':expired_token});assert not m.CollectorItem.query.filter_by(title='Search Film 000').first()
     home=client.get('/').get_data(as_text=True)
+    for category in ('games','movies','tv','books','music','cards'):
+        assert f'data-nav-link class="collector-module-{category}"' in home
     assert len(home)<160000 and 'data-character=' not in home and 'regal-shake-status' not in home
     lookup=[]
     old_resolver=m.collector_media_ean_results

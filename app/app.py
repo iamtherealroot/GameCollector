@@ -38,7 +38,7 @@ from pathlib import Path
 from html.parser import HTMLParser
 from itsdangerous import BadSignature, URLSafeSerializer
 
-APP_VERSION = "5.1.1"
+APP_VERSION = "5.1.2"
 APP_NAME = "Bibo"
 DISPLAY_TIMEZONE_NAME = os.environ.get("TZ", "Europe/Berlin")
 try:
@@ -7845,8 +7845,8 @@ def collector_collections():
         "groups": len(all_groups),
         "owned": sum(int(b.get("owned") or 0) for b in all_groups if not b.get("catalog_umbrella")),
         "value": sum(float(b.get("value") or 0) for b in all_groups if not b.get("catalog_umbrella")),
-        "complete": sum(1 for b in all_groups if b.get("total") and int(b.get("owned") or 0) >= int(b["total"])),
-        "unresolved": sum(1 for b in all_groups if not b.get("total")),
+        "complete": sum(1 for b in all_groups if not b.get("catalog_umbrella") and b.get("total") and int(b.get("owned") or 0) >= int(b["total"])),
+        "unresolved": sum(1 for b in all_groups if not b.get("catalog_umbrella") and not b.get("total")),
     }
     if query_text:
         needle = _search_text(query_text)
@@ -8794,16 +8794,46 @@ def _collector_media_ean_terms(code):
     return out, ebay_status
 
 
+def _collector_media_title_queries(title):
+    """Try the product title first, then bounded work-title fallbacks.
+
+    Format/condition/store annotations describe the physical copy, not TMDB's
+    work. Shorter queries are candidate searches, never automatic identities.
+    """
+    raw = clean_collector_provider_title(title)
+    cleaned = re.sub(r"(?i)\s*[|]\s*(?:zustand|condition|neu|gebraucht|wie neu|sehr gut|gut)\b.*$", "", raw)
+    cleaned = re.sub(r"(?i)[\[(][^\])]*(?:dvd|blu[- ]?ray|uhd|steelbook|fsk|discs?)[^\])]*[\])]", " ", cleaned)
+    cleaned = re.sub(r"(?i)\s*(?:[|–—-]\s*)?(?:dvd|blu[- ]?ray|4k\s*uhd|steelbook)\b.*$", "", cleaned)
+    cleaned = re.sub(r"(?i)^(?:walt\s+)?disney(?:['’]s)?\s*[:–—-]?\s+", "", cleaned)
+    cleaned = " ".join(cleaned.split()).strip(" -–—:|")
+    short = re.split(r"\s+[-–—]\s+|:\s+", cleaned, maxsplit=1)[0].strip()
+    queries = []
+    for value in (raw, cleaned, short):
+        if len(value) >= 3 and value.casefold() not in {q.casefold() for q in queries}:
+            queries.append(value)
+    return queries
+
+
 def collector_media_ean_results(code, limit=12):
     terms, ebay_status = _collector_media_ean_terms(code)
-    results, seen = [], set()
+    results, seen, searches = [], set(), {}
     # Strong TV hints search TV first; otherwise allow both media types.
     for term, product, hint in terms[:10]:
         kinds = [hint] if hint else ["movie", "tv"]
         for kind in kinds:
             endpoint = "search/tv" if kind == "tv" else "search/movie"
-            data = tmdb_json(endpoint, {"query": term, "language": "de-DE", "include_adult": "false"})
-            for hit in ((data or {}).get("results") or [])[:5] if isinstance(data, dict) else []:
+            candidates = []
+            for query in _collector_media_title_queries(term):
+                search_key = (kind, query.casefold())
+                if search_key not in searches:
+                    searches[search_key] = tmdb_json(endpoint, {"query": query, "language": "de-DE", "include_adult": "false"})
+                data = searches[search_key]
+                if data is None:
+                    break  # Credentials/network errors are not empty title matches.
+                candidates = (data.get("results") or [])[:5] if isinstance(data, dict) else []
+                if candidates:
+                    break
+            for hit in candidates:
                 hid = str(hit.get("id") or "")
                 key = (kind, hid)
                 if not hid or key in seen: continue
@@ -13459,13 +13489,65 @@ def franchise_manage(name):
 SEARCH_MEDIA = {"games": "Spiele", "movies": "Filme", "tv": "Serien", "books": "Bücher", "music": "Musik", "cards": "Sammelkarten", "hardware": "Hardware", "accessories": "Zubehör", "custom": "Weitere Sammlungen"}
 
 
+def _search_ean_code(query):
+    code = clean_barcode(query)
+    return code if re.fullmatch(r"[0-9\s-]+", query or "") and len(code) in {8, 10, 12, 13, 14} else ""
+
+
+def _ean_preview_local(code):
+    results, seen = [], set()
+    def add(title, kind, cover, url, source):
+        key = (kind, str(title).casefold())
+        if key not in seen and len(results) < 3:
+            seen.add(key)
+            results.append(dict(title=title, category=SEARCH_MEDIA.get(kind, "Medienart wählen"), cover_url=cover, url=url, source=source))
+    for row in CollectorItem.query.filter_by(user_id=active_collection_user_id(), barcode=code).order_by(CollectorItem.title, CollectorItem.id).limit(6).all():
+        add(row.title, row.category, row.cover_url, url_for("collector_item_detail", item_id=row.id), "Deine Sammlung")
+    if len(results) < 3:
+        for row in Game.query.filter_by(barcode=code).order_by(Game.title, Game.id).limit(6).all():
+            if game_is_physical_candidate(row):
+                add(row.title, "games", row.cover_url, url_for("game_detail", game_id=row.id), "Lokaler Spielekatalog")
+    if len(results) < 3:
+        for row in scoped_accessory_query().filter_by(barcode=code).order_by(AccessoryItem.name, AccessoryItem.id).limit(3).all():
+            add(row.name, "accessories", None, url_for("universal_search", q=code, type="accessories"), "Deine Sammlung")
+    return results
+
+
+@app.route("/find/ean-preview")
+@login_required
+def search_ean_preview():
+    code = _search_ean_code(request.args.get("q", ""))
+    if not code:
+        abort(400)
+    results = _ean_preview_local(code)
+    seen = {row["title"].casefold() for row in results}
+    if len(results) < 3:
+        for product in (lookup_barcode_external(code) or [])[:12]:
+            title = str(product.get("name") or product.get("title") or "").strip()
+            if not title or title.casefold() in seen:
+                continue
+            hint = classify_collector_candidate(product)
+            blob = (title + " " + str(product.get("category") or "")).casefold()
+            if re.search(r"\b(staffel|season|serien|series)\b", blob): hint = "tv"
+            elif normalize_isbn(code) or re.search(r"\b(book|books|buch|bücher)\b", blob): hint = "books"
+            elif re.search(r"\b(music|musik|vinyl|audio cd)\b", blob): hint = "music"
+            url = url_for("universal_search", q=code, type=hint) if hint in SEARCH_MEDIA else url_for("universal_search", q=code) + "#media-choice"
+            results.append(dict(title=title, category=SEARCH_MEDIA.get(hint, "Medienart wählen"), cover_url=product.get("cover_url"), url=url, source="EAN-Kataloghinweis"))
+            seen.add(title.casefold())
+            if len(results) == 3:
+                break
+    return render_template("_ean_preview.html", previews=results)
+
+
 @app.route("/find")
 @login_required
 def universal_search():
     q = " ".join((request.args.get("q") or "").split())[:500]
     selected = (request.args.get("type") or "").strip().lower()
     if not q or selected not in SEARCH_MEDIA:
-        return render_template("search_media_choice.html", query=q, media_choices=SEARCH_MEDIA)
+        barcode = _search_ean_code(q)
+        previews = _ean_preview_local(barcode) if barcode else []
+        return render_template("search_media_choice.html", query=q, media_choices=SEARCH_MEDIA, ean=barcode, previews=previews, preview_url=url_for("search_ean_preview", q=barcode) if barcode and len(previews) < 3 else None)
     uid = active_collection_user_id()
     like = f"%{q}%"
     games, collector, hardware, accessories = [], [], [], []
@@ -14001,11 +14083,10 @@ def collector_media_search():
     year_filter = str(request.args.get("year") or "").strip()
     if year_filter and (not year_filter.isdigit() or len(year_filter) != 4):
         year_filter = ""
-    result_sort = (request.args.get("sort") or "newest").strip().lower()
-    if result_sort not in {"newest", "oldest", "relevance"}:
-        result_sort = "newest"
+    # Preserve the provider's search relevance, including links with old sort values.
+    result_sort = "relevance"
     results, barcode_products = [], []
-    search_terms = [q] if q else []
+    search_terms = _collector_media_title_queries(q) if q else []
     if ean:
         # Use the shared physical-media resolver so direct Film/Serien EAN search
         # and central Rootchen Identify cannot disagree. This includes eBay Browse
@@ -14063,10 +14144,6 @@ def collector_media_search():
                                 "barcode": ean or None})
         if results and ean:
             break
-    if result_sort == "newest":
-        results.sort(key=lambda x: (x.get("year") is not None, x.get("date") or "", x.get("popularity") or 0), reverse=True)
-    elif result_sort == "oldest":
-        results.sort(key=lambda x: (x.get("year") is None, x.get("date") or "9999", -(x.get("popularity") or 0)))
     owned_rows = CollectorItem.query.filter_by(user_id=active_collection_user_id(), category=section).all()
     owned_by_tmdb = {}
     for row in owned_rows:
@@ -14200,7 +14277,7 @@ def collector_media_questionnaire():
     title = " ".join((request.form.get("title") or "").split()).strip()
     if category not in allowed or not title:
         flash("Titel: Bitte einen Titel eingeben.", "warning")
-        return render_template("collector_media_simple.html", selected_category=category if category in allowed else "movies", sections=COLLECTOR_SECTIONS, prefill=request.form.to_dict(), custom_categories=custom_collection_categories(active_collection_user_id())), 400
+        return render_template("collector_media_questionnaire.html" if request.form.get("media_intake_mode")=="advanced" else "collector_media_simple.html", selected_category=category if category in allowed else "movies", sections=COLLECTOR_SECTIONS, prefill=request.form.to_dict(), custom_categories=custom_collection_categories(active_collection_user_id())), 400
     errors = []
     for field, label in (("purchase_price_eur", "Kaufpreis"), ("estimated_value_eur", "Eigene Schätzung")):
         value = (request.form.get(field) or "").strip()
@@ -14212,7 +14289,7 @@ def collector_media_questionnaire():
     if errors:
         for message in errors: flash(message, "warning")
         session["media_questionnaire_prefill"] = request.form.to_dict()
-        return render_template("collector_media_simple.html", selected_category=category, sections=COLLECTOR_SECTIONS, prefill=request.form.to_dict(), custom_categories=custom_collection_categories(active_collection_user_id())), 400
+        return render_template("collector_media_questionnaire.html" if request.form.get("media_intake_mode")=="advanced" else "collector_media_simple.html", selected_category=category, sections=COLLECTOR_SECTIONS, prefill=request.form.to_dict(), custom_categories=custom_collection_categories(active_collection_user_id())), 400
     raw_barcode = (request.form.get("barcode") or "").strip()
     barcode = (normalize_isbn(raw_barcode) if category == "books" else clean_barcode(raw_barcode)) or None
     year_raw = (request.form.get("release_year") or "").strip()
@@ -14281,6 +14358,10 @@ def collector_media_questionnaire():
             "track_count": max(0, min(request.form.get("track_count", type=int) or 0, 9999)) or None,
 
         })
+
+    if category in {"movies", "tv", "music"} and request.form.get("copy_parts_submitted") == "1" and ownership_format == "physical":
+        for key in ("has_original_packaging", "disc_present", "booklet_present", "slipcover_present", "bonus_disc_present", "sealed"):
+            meta[key] = request.form.get(key) == "1"
 
     source_name = (request.form.get("source") or "").strip()[:80]
     source_id = (request.form.get("source_id") or "").strip()[:160]

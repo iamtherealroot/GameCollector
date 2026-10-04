@@ -1,0 +1,10 @@
+<fieldset class="wide media-copy-parts" data-copy-parts {% if selected_category not in ['movies','tv','music'] or prefill.get('ownership_format')=='digital' %}hidden{% endif %}>
+  <legend>Was ist vorhanden?</legend>
+  <input type="hidden" name="copy_parts_submitted" value="1">
+  <div class="media-copy-parts-grid">
+  {% for key,label in [('has_original_packaging','OVP / Originalverpackung'),('disc_present','Disc(s) / Tonträger'),('booklet_present','Booklet / Beilagen'),('slipcover_present','Schuber'),('bonus_disc_present','Bonus-Disc'),('sealed','Versiegelt')] %}
+    {% set present = prefill.get(key)=='1' if prefill.get('copy_parts_submitted') else prefill.get(key,True) not in [False,'0',0] %}
+    <label><input type="checkbox" name="{{ key }}" value="1" {% if present %}checked{% endif %}>{{ label }}</label>
+  {% endfor %}
+  </div>
+</fieldset>
