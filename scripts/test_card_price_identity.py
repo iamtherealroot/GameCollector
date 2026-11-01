@@ -21,7 +21,7 @@ with m.app.app_context():
     valid='Roter Apparat YGLD-DEB18 Common NM Deutsch Einzelkarte'
     assert m.card_offer_matches(card,hit(valid))
     assert m.card_offer_matches(card,hit(valid+" Yugi's Legendary Decks"))
-    for title in ["Yu-Gi-Oh Yugi's Legendary Decks komplett 66,27 Euro",'Gelber Apparat YGLD-DEB19 Common NM Deutsch',valid+' Deck komplett',valid+' Booster',valid+' Playset 3x',valid+' PSA 10',valid.replace('DEB18','ENB18'),valid.replace('DEB18','DEB19'),valid+' English',valid+' damaged',valid+' YGLD-DEB19',valid+' Proxy',valid.replace('Common','Ultra Rare')]:
+    for title in ["Yu-Gi-Oh Yugi's Legendary Decks komplett 66,27 Euro",'Gelber Apparat YGLD-DEB19 Common NM Deutsch',valid+' Deck komplett',valid+' Booster',valid+' Playset 3x',valid+' PSA 10',valid.replace('DEB18','ENB18'),valid.replace('DEB18','DEB19'),valid+' English',valid+' damaged',valid+' YGLD-DEB19',valid+' Proxy',valid+' 10x',valid+' 100 Karten',valid+' Auswahl',valid.replace('Common','Ultra Rare')]:
         assert not m.card_offer_matches(card,hit(title)),title
     queries=[]
     offers=[hit("Yu-Gi-Oh Yugi's Legendary Decks komplett",66.27,'deck'),hit(valid,1.5,'a'),hit(valid,2.5,'b'),hit(valid,100,'a')]

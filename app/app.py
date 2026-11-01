@@ -8778,7 +8778,7 @@ def card_offer_matches(row, hit):
     title = str(hit.get("name") or "")
     key = _match_key(title)
     if not key: return False
-    bundle = r"\b(?:deck|decks|booster|boosters|display|displays|lot|lots|bundle|bundles|konvolut|sammlung|collection|sealed|versiegelt|komplett|complete|playset|playsets|repack|proxy|proxies|reprint|orica|fake|codekarte|code card|leerhulle)\b|\b[2-9]\d*\s*(?:x|karten|cards|stuck)\b|\b(?:x|set of|lot of)\s*[2-9]\d*\b"
+    bundle = r"\b(?:deck|decks|booster|boosters|display|displays|lot|lots|bundle|bundles|konvolut|sammlung|collection|sealed|versiegelt|komplett|complete|playset|playsets|repack|proxy|proxies|reprint|orica|fake|codekarte|code card|leerhulle|auswahl|choose|pick|selection|sammelangebot|random|zufall|verschiedene)\b|\b(?:[2-9]|[1-9]\d+)\s*(?:x|karten|cards|stuck)\b|\b(?:x|set of|lot of)\s*(?:[2-9]|[1-9]\d+)\b"
     # A set name such as "Legendary Decks" may appear on a real single card.
     # Remove only the exact known set phrase before testing for bundles.
     set_key = _match_key(row.card_set)
