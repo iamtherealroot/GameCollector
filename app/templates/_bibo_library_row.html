@@ -1,0 +1,21 @@
+  <article class="bibo-register-row">
+    {% if row.bulk_key and can_collection('edit_items') %}<label class="library-copy-select"><input type="checkbox" form="library-selection" name="item_keys" value="{{ row.bulk_key }}" class="library-select-copy"><span class="sr-only">{{ row.work.title }} · Exemplar {{ row.copy_row.id }} auswählen</span></label>{% endif %}
+    <div class="bibo-register-cover">
+      {% if row.edition.image_url or row.work.cover_url %}<img src="{{ row.edition.image_url or row.work.cover_url }}" alt="" loading="lazy">{% else %}<span>{{ row.kind_label[:1] }}</span>{% endif %}
+    </div>
+    <div class="bibo-register-main">
+      <span class="badge">{{ row.kind_label }}</span>
+      <h2><a href="{{ row.link }}">{{ row.work.title }}</a></h2>
+      {% if row.work.series_name %}<small>Reihe: <a href="{{ url_for('collector_collections',type={'games':'games','movies':'movies','tv':'tv','books':'books','hardware':'consoles'}.get(row.work.media_kind,'all'),q=row.work.series_name) }}">{{ row.work.series_name }}</a></small>{% endif %}
+      <p>{{ row.subtitle or 'Standardausgabe' }}{% if row.edition.release_year %} · {{ row.edition.release_year }}{% endif %}</p>
+    </div>
+    <div class="bibo-register-copy">
+      <strong>{{ row.copy_row.quantity }}× {{ 'Digital' if row.copy_row.ownership_format == 'digital' else 'Physisch' }}</strong>
+      <small>{{ {'owned':'Im Besitz','wishlist':'Wunschliste','missing':'Fehlt'}.get(row.copy_row.status,row.copy_row.status) }}</small><small>{{ row.copy_row.storage_location or 'Lagerort offen' }}</small>
+    </div>
+    <div class="bibo-register-value">
+      <strong>{{ eur(row.total_value) if row.total_value is not none else '–' }}</strong>
+      {% if row.value is not none and row.copy_row.quantity > 1 %}<small>{{ eur(row.value) }} je Exemplar</small>{% endif %}
+    </div>
+    <div class="bibo-register-actions"><a class="button secondary" href="{{ row.link }}">Details</a>{% if row.bulk_key and can_collection('edit_items') %}<a href="{{ url_for('bibo_copy_edit',copy_id=row.copy_row.id) }}">Exemplar bearbeiten</a>{% endif %}{% if filters.quality != 'all' %}<small>{{ quality_labels[filters.quality] }}</small>{% endif %}</div>
+  </article>

@@ -19,6 +19,7 @@
   <link rel="stylesheet" href="{{ url_for('static', filename='simple-ui.css') }}?v={{ app_version }}">
   <script>window.GC_CURRENT_USER_ID={{ current_user.id|tojson if current_user.is_authenticated else 'null' }};</script>
   <script defer src="{{ url_for('static', filename='offline-queue.js') }}?v={{ app_version }}"></script>
+  <link rel="stylesheet" href="{{ url_for('static', filename='v6.css') }}?v={{ app_version }}">
   {% block head %}{% endblock %}
 </head>
 <body>

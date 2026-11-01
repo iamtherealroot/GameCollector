@@ -3,8 +3,23 @@
 {% block head %}{{ super() }}<link rel="stylesheet" href="{{ url_for('static',filename='collection-shelf.css') }}?v={{ app_version }}">{% endblock %}
 {% block content %}
 <section class="collector-hero dashboard-simple-hero" data-dashboard-tour-home>
-  <div><span class="eyebrow">{{ active_collection_label }}</span><h1>{% if greeting_enabled %}{{ greeting_word }}, {{ greeting_name }}{% else %}Deine Sammlung{% endif %}</h1><p>{{ collector_count }} Objekte · {{ eur(collector_value) }} Gesamtwert</p></div>
-  <a class="button secondary" href="{{ url_for('bibo_library') }}">Sammlung öffnen →</a>
+  <div><span class="eyebrow">{{ active_collection_label }}</span><h1>{% if greeting_enabled %}{{ greeting_word }}, {{ greeting_name }}{% else %}Deine Sammlung{% endif %}</h1><p>{{ collector_count }} Objekte in deiner Sammlung</p></div>
+  <div class="home-portfolio" aria-label="Gesamtwert deiner Sammlung">
+    <span class="eyebrow">Aktueller Gesamtwert</span>
+    <strong class="home-portfolio-total">{{ eur(collector_value) }}</strong>
+    {% set change = value_history.day_delta %}
+    <span class="home-portfolio-change {{ 'up' if change is not none and change > 0 else 'down' if change is not none and change < 0 else 'neutral' }}">
+    {% if change is not none %}{{ '▲ +' if change > 0 else '▼ ' if change < 0 else '→ ' }}{{ eur(change) }}{% if value_history.day_percent is not none %} · {{ '+' if value_history.day_percent > 0 else '' }}{{ '%.2f'|format(value_history.day_percent)|replace('.', ',') }} %{% endif %}<small>24-Stunden-Veränderung · Vergleichsstand {{ value_history.day_base_label }}</small>{% else %}<small>Tagesvergleich noch nicht verfügbar</small>{% endif %}</span>
+    <a href="{{ url_for('bibo_library') }}">Sammlung öffnen →</a>
+  </div>
+</section>
+<section class="panel home-value-chart" aria-labelledby="home-value-title">
+  <div class="home-value-chart-head"><h2 id="home-value-title">Wertentwicklung</h2><nav aria-label="Zeitraum der Wertentwicklung">{% for key, config in value_history.periods.items() %}<a href="{{ url_for('collector_home',value_period=key) }}#home-value-title" class="{{ 'active' if key == value_history.period }}" {% if key == value_history.period %}aria-current="true"{% endif %}>{{ {'24h':'24h','7d':'7T','1m':'1M','1y':'1J','all':'Gesamt'}[key] }}</a>{% endfor %}</nav></div>
+  {% if value_history.has_history %}
+  <svg viewBox="0 0 700 160" role="img" aria-labelledby="home-value-svg-title"><title id="home-value-svg-title">Gespeicherter Sammlungswert: {{ value_history.periods[value_history.period][0] }}. Tiefstwert {{ eur(value_history.low) }}, Höchstwert {{ eur(value_history.high) }}.</title><path class="home-chart-grid" d="M18 24 H682 M18 80 H682 M18 136 H682"/><path class="home-chart-line {{ 'up' if value_history.delta is not none and value_history.delta > 0 else 'down' if value_history.delta is not none and value_history.delta < 0 else 'neutral' }}" d="{{ value_history.path }}"/><circle cx="{{ value_history.last[0] }}" cy="{{ value_history.last[1] }}" r="4" class="home-chart-dot"/></svg>
+  <div class="home-chart-labels"><span>{{ value_history.start_label }}</span><span>{{ value_history.end_label }}</span></div><div class="home-chart-labels"><span>Min. {{ eur(value_history.low) }} · Max. {{ eur(value_history.high) }}</span>{% if value_history.delta is not none %}<strong class="home-portfolio-change {{ 'up' if value_history.delta > 0 else 'down' if value_history.delta < 0 else 'neutral' }}">{{ '+' if value_history.delta > 0 else '' }}{{ eur(value_history.delta) }} im Zeitraum</strong>{% endif %}</div>
+  {% else %}<p class="muted">Für diesen Zeitraum liegen noch nicht genügend Wertstände vor. Bibo speichert den aktuellen Stand und baut den Verlauf ab jetzt auf.</p>{% endif %}
+  <small class="muted">Gespeicherte Wertstände einschließlich Käufen, Verkäufen und Preiskorrekturen. Zwischen Messpunkten wird der zuletzt bekannte Wert gehalten.</small>
 </section>
 <section class="panel dashboard-search"><h2>Was möchtest du finden?</h2>
   <form action="{{ url_for('universal_search') }}" method="get" class="dashboard-search-form"><label>EAN oder Titel<input type="search" name="q" required maxlength="500" placeholder="EAN oder Titel eingeben" autocomplete="off"></label><button type="submit">Weiter →</button><a class="button secondary" href="{{ url_for('scanner') }}">📷 Scannen</a></form>

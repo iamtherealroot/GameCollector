@@ -38,7 +38,7 @@ from pathlib import Path
 from html.parser import HTMLParser
 from itsdangerous import BadSignature, URLSafeSerializer
 
-APP_VERSION = "5.1.5"
+APP_VERSION = "6.0.0-rc.2"
 APP_NAME = "Bibo"
 DISPLAY_TIMEZONE_NAME = os.environ.get("TZ", "Europe/Berlin")
 try:
@@ -1487,7 +1487,7 @@ def enforce_viewer_read_only():
     if not current_user.is_authenticated or request.method not in {"POST", "PUT", "PATCH", "DELETE"}:
         return None
     # Viewer may update their own display name/password and log out, but cannot alter shared data.
-    if request.endpoint in {"account", "logout", "collection_switch", "personal_review_edit", "collection_access_request", "dashboard_style_save"}:
+    if request.endpoint in {"account", "logout", "collection_switch", "personal_review_edit", "collection_access_request", "dashboard_style_save", "bibo_library_preferences"}:
         return None
     endpoint = request.endpoint or ""
     # Feedback is personal, not a mutation of the active collection. Its own
@@ -2854,6 +2854,10 @@ def ebay_offer_valuation(item):
 
 
 VALUATION_STATUS_MESSAGES = {
+    "card_no_safe_results": "Für diese Kartenausgabe wurden nicht mindestens zwei eindeutig passende Einzelkartenangebote gefunden. Decks, Pakete und unklare Ausgaben werden nicht als Kartenpreis verwendet.",
+    "card_identity_missing": "Für eine sichere Einzelkartenbewertung fehlen Set und eindeutige Kartennummer. Bitte die konkrete Ausgabe ergänzen.",
+    "card_grade_unsupported": "Bewertete Karten benötigen eine gesonderte Preisquelle für Anbieter und Bewertungsstufe. Einzelkartenangebote werden dafür nicht verwendet.",
+    "card_revaluation_required": "Der bisherige eBay-Kartenwert wurde wegen ungesicherter Zuordnung zurückgestellt. Bitte die konkrete Ausgabe neu bewerten.",
     "unsupported_platform": "PrixRetro unterstützt diese Plattform derzeit nicht.",
     "no_automatic_price_source": "Für diese Plattform ist derzeit keine automatische Preisquelle verfügbar. Ein manueller Schätzwert kann weiterhin gepflegt werden.",
     "invalid_title": "Der Titel kann nicht für die Preissuche aufbereitet werden.",
@@ -4927,7 +4931,10 @@ def collection_market_movement(period, game_items, hardware_items, accessory_ite
     for item in collector_items or []:
         if is_pokemon_card(item):
             continue
-        activity = sorted(item.collector_price_activity, key=lambda row: row.recorded_at or datetime.min)
+        activity = sorted((entry for entry in item.collector_price_activity
+                           if not (item.category == "cards" and "ebay" in str(entry.source or "").casefold()
+                                   and (entry.source != CARD_EBAY_SOURCE or collector_metadata(item).get("card_ebay_identity") != card_ebay_identity(item)))),
+                          key=lambda row: row.recorded_at or datetime.min)
         if not activity:
             continue
         if period == "latest":
@@ -5233,14 +5240,100 @@ def undo_item_delete():
     return redirect(url_for("bibo_library"))
 
 
+LIBRARY_FILTER_DEFAULTS = {"kind": "all", "status": "all", "custom_category": "", "sort": "title", "view": "list", "quality": "all"}
+LIBRARY_QUALITY_LABELS = {"all": "Alle Einträge", "cover": "Cover fehlt", "condition": "Zustand fehlt", "storage": "Lagerort fehlt", "duplicate": "Mögliche Dubletten"}
+
+
+def library_filter_values(values):
+    result = {key: str(values.get(key, default)).strip() for key, default in LIBRARY_FILTER_DEFAULTS.items()}
+    if result["kind"] not in {"all", *BIBO_KIND_LABELS}: result["kind"] = "all"
+    if result["status"] not in {"all", "owned", "wishlist", "missing"}: result["status"] = "all"
+    if result["sort"] not in {"title", "title_desc", "value_desc", "newest"}: result["sort"] = "title"
+    if result["view"] not in {"list", "grid", "series"}: result["view"] = "list"
+    if result["quality"] not in LIBRARY_QUALITY_LABELS: result["quality"] = "all"
+    if result["kind"] != "custom": result["custom_category"] = ""
+    allowed_categories = {row["id"] for row in custom_collection_categories(active_collection_user_id())}
+    if result["custom_category"] not in allowed_categories: result["custom_category"] = ""
+    return result
+
+
+@app.route("/library/preferences", methods=["POST"])
+@login_required
+def bibo_library_preferences():
+    # Display preferences belong to the signed-in user, including readers.
+    if not session.get("library_preferences_token") or request.form.get("token") != session["library_preferences_token"]:
+        abort(400)
+    values = library_filter_values(request.form)
+    key = f"library_preferences_{current_user.id}_{active_collection_user_id()}"
+    app_setting_set(key, json.dumps(values))
+    db.session.commit()
+    return redirect(url_for("bibo_library", **values, q=request.form.get("q", "")[:500]))
+
+
+def library_copy_source(copy):
+    models = {"game": CollectionItem, "collector": CollectorItem, "hardware": HardwareItem, "accessory": AccessoryItem}
+    model = models.get(copy.source_kind)
+    if not model or not str(copy.source_id).isdigit(): return None
+    return model.query.filter_by(id=int(copy.source_id), user_id=active_collection_user_id()).first()
+
+
+@app.route("/library/copy/<int:copy_id>/edit")
+@login_required
+def bibo_copy_edit(copy_id):
+    copy = BiboCopy.query.filter_by(id=copy_id, active=True, owner_id=active_collection_user_id()).first_or_404()
+    if not collection_capability("edit_items"): abort(403)
+    source = library_copy_source(copy)
+    if not source: abort(404)
+    if copy.source_kind == "game": target = url_for("collection_configure", game_id=source.game_id, item_id=source.id, return_to=url_for("bibo_work_detail", work_id=copy.edition.work_id))
+    elif copy.source_kind == "collector": target = url_for("collector_item_edit", item_id=source.id)
+    elif copy.source_kind == "hardware": target = url_for("hardware_item_edit", item_id=source.id)
+    else: target = url_for("accessory_item_edit", item_id=source.id)
+    return redirect(target)
+
+
+def library_series_groups(rows, sort="title"):
+    groups = {}
+    for row in rows:
+        work = row["work"]
+        memberships = [entry for entry in work.series_memberships if entry.active and entry.series.active]
+        membership = next((entry for entry in memberships if entry.series.title == work.series_name), memberships[0] if memberships else None)
+        title = work.series_name or (membership.series.title if membership else None) or row.get("card_set")
+        kind = work.media_kind
+        key = (kind, row.get("tcg") or "", _match_key(title) if title else "")
+        if key not in groups:
+            series_type = {"games": "games", "movies": "movies", "tv": "tv", "books": "books", "hardware": "consoles"}.get(kind)
+            groups[key] = {"title": title or "Ohne Reihe", "kind_label": (BIBO_KIND_LABELS.get(kind, kind) + (" · " + row["tcg"] if row.get("tcg") else "")), "rows": [], "value": 0,
+                           "completion_url": url_for("collector_collections", type=series_type, q=title) if series_type and title else None}
+        group = groups[key]
+        group["rows"].append(row)
+        group["value"] += row["total_value"] or 0
+    result = list(groups.values())
+    for group in result:
+        group["works"] = len({row["work"].id for row in group["rows"]})
+        group["copies"] = sum(max(row["copy_row"].quantity or 1, 1) for row in group["rows"])
+    result.sort(key=lambda group: (group["title"].casefold(), group["kind_label"]))
+    if sort == "title_desc": result.reverse()
+    elif sort == "value_desc": result.sort(key=lambda group: group["value"], reverse=True)
+    elif sort == "newest": result.sort(key=lambda group: max(row["copy_row"].id for row in group["rows"]), reverse=True)
+    return result
+
+
 @app.route("/library")
 @login_required
 def bibo_library():
     refresh_bibo_registry(only_if_changed=True)
+    session.setdefault("library_preferences_token", secrets.token_urlsafe(32))
+    key = f"library_preferences_{current_user.id}_{active_collection_user_id()}"
+    if not request.args:
+        try: saved = json.loads(app_setting_get(key, "{}"))
+        except (ValueError, TypeError): saved = {}
+        if isinstance(saved, dict) and saved and library_filter_values(saved) != LIBRARY_FILTER_DEFAULTS:
+            return redirect(url_for("bibo_library", **library_filter_values(saved)))
+    filters = library_filter_values(request.args)
     query_text = request.args.get("q", "").strip()
-    selected_kind = request.args.get("kind", "all").strip()
-    selected_status = request.args.get("status", "all").strip()
-    selected_custom_category = request.args.get("custom_category", "").strip() if selected_kind in {"all", "custom"} else ""
+    selected_kind = filters["kind"]
+    selected_status = filters["status"]
+    selected_custom_category = filters["custom_category"]
     copies = BiboCopy.query.options(joinedload(BiboCopy.edition).joinedload(BiboEdition.work).selectinload(BiboWork.series_memberships)).filter_by(active=True, owner_id=active_collection_user_id()).all()
     source_models = {"game": CollectionItem, "collector": CollectorItem, "hardware": HardwareItem, "accessory": AccessoryItem}
     sources = {}
@@ -5248,6 +5341,13 @@ def bibo_library():
         ids = [int(copy.source_id) for copy in copies if copy.source_kind == kind]
         # One query per source type, instead of one per library entry.
         sources[kind] = {row.id: row for row in model.query.filter(model.id.in_(ids), model.user_id == active_collection_user_id()).all()} if ids else {}
+    # Match edition identity within this collection; copies can be intentional.
+    identities = {}
+    for copy in copies:
+        edition = copy.edition
+        identity = (edition.work_id, edition.platform or "", edition.format_label or "", edition.region or "", copy.ownership_format)
+        identities[identity] = identities.get(identity, 0) + 1
+    quality_counts = {key: 0 for key in LIBRARY_QUALITY_LABELS if key != "all"}
     rows = []
     for copy in copies:
         source = None
@@ -5279,6 +5379,16 @@ def bibo_library():
                 value, link = effective_accessory_value(source), url_for("accessory_item_edit", item_id=source.id)
         total_value = (float(value) * max(copy.quantity or 1, 1)) if value is not None else None
         row = {"copy_row": copy, "edition": edition, "work": work, "kind_label": BIBO_KIND_LABELS.get(work.media_kind, work.media_kind), "subtitle": subtitle, "value": value, "total_value": total_value, "legacy_link": link, "link": url_for("bibo_work_detail", work_id=work.id)}
+        identity = (edition.work_id, edition.platform or "", edition.format_label or "", edition.region or "", copy.ownership_format)
+        row["quality_flags"] = [key for key, missing in {
+            "cover": not (edition.image_url or work.cover_url),
+            "condition": copy.status == "owned" and copy.ownership_format != "digital" and not copy.condition_label,
+            "storage": copy.status == "owned" and copy.ownership_format != "digital" and not copy.storage_location,
+            "duplicate": identities[identity] > 1,
+        }.items() if missing]
+        row["bulk_key"] = f"{copy.source_kind}:{copy.source_id}" if source else None
+        row["card_set"] = source.card_set if source and copy.source_kind == "collector" and source.category == "cards" else None
+        row["tcg"] = collector_card_tcg_name(source) if source and copy.source_kind == "collector" and source.category == "cards" else None
         haystack = " ".join((work.title, work.series_name or "", subtitle)).casefold()
         if query_text and query_text.casefold() not in haystack:
             continue
@@ -5288,8 +5398,13 @@ def bibo_library():
             continue
         if selected_status != "all" and copy.status != selected_status:
             continue
+        for flag in row["quality_flags"]: quality_counts[flag] += 1
+        if filters["quality"] != "all" and filters["quality"] not in row["quality_flags"]: continue
         rows.append(row)
     rows.sort(key=lambda row: (row["work"].sort_title, row["edition"].platform or "", row["copy_row"].id))
+    if filters["sort"] == "title_desc": rows.reverse()
+    elif filters["sort"] == "newest": rows.sort(key=lambda row: row["copy_row"].id, reverse=True)
+    elif filters["sort"] == "value_desc": rows.sort(key=lambda row: (row["total_value"] is not None, row["total_value"] or 0), reverse=True)
     stats = {
         "works": len({row["work"].id for row in rows}),
         "series": len({membership.series_id for row in rows for membership in row["work"].series_memberships if membership.active}),
@@ -5298,8 +5413,12 @@ def bibo_library():
         "value": round(sum(row["total_value"] or 0 for row in rows), 2),
     }
     kinds = sorted({row.edition.work.media_kind for row in copies}, key=lambda key: BIBO_KIND_LABELS.get(key, key))
-    rows, pagination = collection_page(rows)
-    return render_template("bibo_library.html", rows=rows, pagination=pagination, stats=stats, kinds=kinds, kind_labels=BIBO_KIND_LABELS, selected_kind=selected_kind, selected_status=selected_status, query_text=query_text, selected_custom_category=selected_custom_category, custom_categories=custom_collection_categories(active_collection_user_id()))
+    series_groups = []
+    if filters["view"] == "series":
+        series_groups, pagination = collection_page(library_series_groups(rows, filters["sort"]), page_size=8)
+    else:
+        rows, pagination = collection_page(rows)
+    return render_template("bibo_library.html", series_groups=series_groups, rows=rows, pagination=pagination, stats=stats, kinds=kinds, kind_labels=BIBO_KIND_LABELS, selected_kind=selected_kind, selected_status=selected_status, query_text=query_text, selected_custom_category=selected_custom_category, custom_categories=custom_collection_categories(active_collection_user_id()), filters=filters, quality_counts=quality_counts, quality_labels=LIBRARY_QUALITY_LABELS)
 
 
 def bibo_registry_health(owner_id=None):
@@ -5330,6 +5449,10 @@ def bibo_work_detail(work_id):
     for copy in copies:
         legacy_link = None
         coverage = []
+        source = library_copy_source(copy)
+        duplicate_link = None
+        if source and copy.source_kind == "game": duplicate_link = url_for("collection_configure", game_id=source.game_id, new_copy=1)
+        elif source and copy.source_kind == "collector": duplicate_link = url_for("collector_item_new_copy", item_id=source.id)
         try:
             source_id = int(copy.source_id)
         except (TypeError, ValueError):
@@ -5352,7 +5475,7 @@ def bibo_work_detail(work_id):
             legacy_link = url_for("discovery_preview", token=_discovery_token(payload)) if payload else url_for("discovery_center", type=work.media_kind)
         elif copy.source_kind == "accessory" and source_id:
             legacy_link = url_for("accessory_item_edit", item_id=source_id)
-        rows.append({"copy": copy, "edition": copy.edition, "legacy_link": legacy_link, "coverage": coverage})
+        rows.append({"copy": copy, "edition": copy.edition, "legacy_link": legacy_link, "coverage": coverage, "editable": bool(source), "duplicate_link": duplicate_link})
     memberships = [membership for membership in work.series_memberships if membership.active and membership.series.active]
     return render_template("bibo_work_detail.html", work=work, rows=rows, memberships=memberships, kind_label=BIBO_KIND_LABELS.get(work.media_kind, work.media_kind))
 
@@ -5692,8 +5815,9 @@ def dashboard_collection_data(user_id):
     cached = db.session.get(DashboardSummary, user_id)
     if cached and cached.revision == revision:
         try:
-            return json.loads(cached.payload)
-        except (ValueError, TypeError):
+            payload = json.loads(cached.payload)
+            if payload.get("accounting_version") == 2: return payload
+        except (ValueError, TypeError, AttributeError):
             pass
     data = build_dashboard_collection_data(user_id)
     db.session.execute(text("INSERT INTO dashboard_summary (owner_id, revision, payload) VALUES (:uid, :revision, :payload) ON CONFLICT (owner_id) DO UPDATE SET revision = :revision, payload = :payload"), {"uid": user_id, "revision": revision, "payload": json.dumps(data, ensure_ascii=False)})
@@ -5703,13 +5827,13 @@ def dashboard_collection_data(user_id):
 def build_dashboard_collection_data(user_id):
     owned_items = [i for i in CollectionItem.query.options(joinedload(CollectionItem.game).joinedload(Game.console)).filter_by(status="owned", user_id=user_id).all() if game_is_physical_candidate(i.game)]
     game_value = sum((effective_value(i) or 0) for i in owned_items)
-    hardware_items = scoped_hardware_query().options(joinedload(HardwareItem.model).joinedload(HardwareModel.console)).all()
-    accessory_items = scoped_accessory_query().options(joinedload(AccessoryItem.console)).all()
+    hardware_items = scoped_hardware_query().filter_by(status="owned").options(joinedload(HardwareItem.model).joinedload(HardwareModel.console)).all()
+    accessory_items = scoped_accessory_query().filter_by(status="owned").options(joinedload(AccessoryItem.console)).all()
     hardware_value = sum((effective_hardware_value(i) or 0) for i in hardware_items)
     accessory_value = sum((effective_accessory_value(i) or 0) * max(i.quantity or 1, 1) for i in accessory_items if accessory_counts_in_total(i))
     gaming_value = game_value + hardware_value + accessory_value
 
-    module_rows = CollectorItem.query.filter_by(user_id=user_id).all()
+    module_rows = [row for row in CollectorItem.query.filter_by(user_id=user_id).all() if collector_metadata(row).get("status", "owned") == "owned"]
     module_stats = {}
     def media_bucket(category, row):
         media = str(row.media_type or "").strip().casefold()
@@ -5837,20 +5961,73 @@ def build_dashboard_collection_data(user_id):
             url_for('collector_item_detail', item_id=row.id), row.cover_url or "") for row in module_rows
             if row.category == "custom" and collector_metadata(row).get("custom_category") == category["id"]
             and collector_metadata(row).get("status", "owned") == "owned"])
+    totals = portfolio_totals(owned_items, hardware_items, accessory_items, module_rows)
     return dict(
+        accounting_version=2,
         module_cases=module_cases,
         game_count=len(owned_items), gaming_value=gaming_value,
         hardware_count=len(hardware_items),
         accessory_count=sum(max(i.quantity or 1, 1) for i in accessory_items),
         module_stats=module_stats,
-        collector_count=gaming_count + other_count,
-        collector_value=gaming_value + other_value,
+        collector_count=totals["count"],
+        collector_value=totals["value"],
+        collector_valued_count=totals["valued_count"],
         active_modules=active_modules,
         top_card_tcgs=top_card_tcgs,
         game_breakdown=game_breakdown,
         module_images=module_images,
         custom_category_tiles=custom_category_tiles,
     )
+
+
+HOME_VALUE_PERIODS = {"24h": ("24 Stunden", timedelta(hours=24)), "7d": ("7 Tage", timedelta(days=7)),
+                      "1m": ("1 Monat", timedelta(days=30)), "1y": ("1 Jahr", timedelta(days=365)), "all": ("Gesamt", None)}
+
+
+def home_value_history(owner_id, current_value, period="7d", now=None):
+    now = now or utc_now()
+    if period not in HOME_VALUE_PERIODS: period = "7d"
+    duration = HOME_VALUE_PERIODS[period][1]
+    rows = CollectorValueSnapshot.query.filter(CollectorValueSnapshot.collection_user_id == owner_id,
+             CollectorValueSnapshot.recorded_at <= now).order_by(CollectorValueSnapshot.recorded_at, CollectorValueSnapshot.id).all()
+    points = [{"at": row.recorded_at, "value": float(row.total_value_eur)} for row in rows if math.isfinite(float(row.total_value_eur))]
+    day_cutoff = now - timedelta(hours=24)
+    day_base = next((point for point in reversed(points) if point["at"] <= day_cutoff), None)
+    # Very old readings cannot stand in for yesterday's value.
+    if day_base and day_base["at"] < day_cutoff - timedelta(hours=24): day_base = None
+    day_delta = round(float(current_value) - day_base["value"], 2) if day_base else None
+    day_percent = round(day_delta / day_base["value"] * 100, 2) if day_base and day_base["value"] else None
+    cutoff = now - duration if duration else (points[0]["at"] if points else now)
+    baseline = next((point for point in reversed(points) if point["at"] <= cutoff), None)
+    selected = [point for point in points if point["at"] >= cutoff]
+    if baseline and (not selected or selected[0]["at"] != baseline["at"]):
+        selected.insert(0, {"at": cutoff, "value": baseline["value"]})
+    # The current value is measured now, not extrapolated from an old reading.
+    if selected and selected[-1]["at"] == now: selected[-1]["value"] = float(current_value)
+    else: selected.append({"at": now, "value": float(current_value)})
+    # Bucket samples for a small SVG, preserving the low/high and final sample.
+    if len(selected) > 360:
+        sampled = [selected[0]]
+        size = math.ceil(len(selected) / 110)
+        for start in range(1, len(selected), size):
+            bucket = selected[start:start+size]
+            extrema = {min(range(len(bucket)), key=lambda i: bucket[i]["value"]), max(range(len(bucket)), key=lambda i: bucket[i]["value"]), len(bucket)-1}
+            sampled.extend(bucket[i] for i in sorted(extrema))
+        selected = sampled
+    low = min(point["value"] for point in selected); high = max(point["value"] for point in selected)
+    span = high - low
+    y = lambda value: 24 + (high - value) / span * 112 if span else 80
+    seconds = max((now-cutoff).total_seconds(), 1)
+    coords = [(18 + max(0, (point["at"]-cutoff).total_seconds()) / seconds * 664, y(point["value"])) for point in selected]
+    path = f"M {coords[0][0]:.2f} {coords[0][1]:.2f}"
+    for x, yy in coords[1:]: path += f" H {x:.2f} V {yy:.2f}"
+    delta = round(float(current_value) - baseline["value"],2) if baseline else None
+    return dict(period=period, periods=HOME_VALUE_PERIODS, points=selected, path=path, last=coords[-1],
+                low=low, high=high, has_history=len(selected)>1, delta=delta,
+                start_label=local_datetime(cutoff).strftime("%d.%m.%Y %H:%M"),
+                end_label=local_datetime(now).strftime("%d.%m.%Y %H:%M"),
+                day_delta=day_delta, day_percent=day_percent,
+                day_base_label=local_datetime(day_base["at"]).strftime("%d.%m.%Y %H:%M") if day_base else None)
 
 
 @app.route("/")
@@ -5863,7 +6040,17 @@ def collector_home():
         {'uid':current_user.id,'nonce':nonce})
     user_id = active_collection_user_id()
     data = dashboard_collection_data(user_id)
-    local_now = local_datetime(utc_now())
+    now = utc_now()
+    period_key = f"home_value_period_{current_user.id}_{user_id}"
+    period = request.args.get("value_period") or app_setting_get(period_key, "7d")
+    if period not in HOME_VALUE_PERIODS: period = "7d"
+    if request.args.get("value_period") in HOME_VALUE_PERIODS: app_setting_set(period_key, period)
+    history = home_value_history(user_id, data["collector_value"], period, now)
+    # One observation per hour while the dashboard is in use, plus value changes.
+    latest = CollectorValueSnapshot.query.filter_by(collection_user_id=user_id).order_by(CollectorValueSnapshot.recorded_at.desc(), CollectorValueSnapshot.id.desc()).first()
+    if not latest or latest.recorded_at <= now - timedelta(hours=1) or abs(latest.total_value_eur - data["collector_value"]) >= .005:
+        db.session.add(CollectorValueSnapshot(collection_user_id=user_id, total_value_eur=round(data["collector_value"],2), owned_count=data["collector_count"], valued_count=data["collector_valued_count"], recorded_at=now))
+    local_now = local_datetime(now)
     greeting_word = "Guten Morgen" if local_now.hour < 11 else ("Guten Tag" if local_now.hour < 18 else "Guten Abend")
     greeting_enabled = app_setting_get(f"greeting_enabled_user_{current_user.id}", "1") != "0"
     greeting_style = app_setting_get(f"greeting_style_user_{current_user.id}", "friendly")
@@ -5879,7 +6066,7 @@ def collector_home():
         dashboard_style=dashboard_style, dashboard_style_token=dashboard_style_token,
         greeting_enabled=greeting_enabled, greeting_style=greeting_style,
         greeting_word=greeting_word, greeting_name=current_user.display_name or current_user.username,
-        new_activity_count=new_activity_count)
+        new_activity_count=new_activity_count, value_history=history)
 
 
 
@@ -7966,9 +8153,50 @@ def collector_section(section):
                            category_move_token=custom_category_form_token("move-items") if section == "custom" and collection_capability("edit_items") else None)
 
 
+CARD_EBAY_SOURCE = "eBay-Einzelkarte · geprüfte Ausgabe v2"
+
+
+def card_ebay_identity(row):
+    return [_match_key(getattr(row, name, None)) for name in
+            ("tcg_game", "title", "card_set", "card_number", "card_language", "card_variant", "card_rarity", "card_grade", "condition")]
+
+
+def unverified_card_ebay_value(row):
+    return (getattr(row, "category", None) == "cards"
+            and "ebay" in str(getattr(row, "auto_value_source", None) or "").casefold()
+            and (row.auto_value_source != CARD_EBAY_SOURCE
+                 or collector_metadata(row).get("card_ebay_identity") != card_ebay_identity(row)))
+
+
+def invalidate_unverified_card_ebay_value(row):
+    if not unverified_card_ebay_value(row): return False
+    meta = collector_metadata(row)
+    # Preserve the previous result for inspection instead of rewriting history.
+    archived = meta.get("unverified_card_ebay_values")
+    archived = archived if isinstance(archived, list) else []
+    archived.append({"value": row.auto_value_eur, "low": row.auto_value_low_eur,
+                     "high": row.auto_value_high_eur, "source": row.auto_value_source,
+                     "checked_at": row.auto_value_updated_at.isoformat() if row.auto_value_updated_at else None})
+    meta["unverified_card_ebay_values"] = archived[-10:]
+    row.metadata_json = json.dumps(meta, ensure_ascii=False)
+    row.auto_value_eur = row.auto_value_low_eur = row.auto_value_high_eur = None
+    row.auto_value_source = None
+    row.auto_value_status = "card_revaluation_required"
+    row.auto_value_updated_at = None
+    return True
+
+
+def repair_card_ebay_valuations():
+    changed = sum(invalidate_unverified_card_ebay_value(row)
+                  for row in CollectorItem.query.filter_by(category="cards").all() if not is_pokemon_card(row))
+    if changed: db.session.commit()
+    return changed
+
+
 def collector_effective_value(row):
     if getattr(row, "fixed_value_eur", None) is not None:
         return row.fixed_value_eur
+    if unverified_card_ebay_value(row): return row.estimated_value_eur
     return row.auto_value_eur if row.auto_value_eur is not None else row.estimated_value_eur
 
 
@@ -8069,29 +8297,31 @@ def record_collector_price(row, previous_value, value, low, high, source):
     db.session.add(CollectorPriceActivity(collector_item_id=row.id, previous_value_eur=previous, value_eur=current, delta_eur=delta, change_type=change, source=source or "Automatischer Marktwert", recorded_at=now))
 
 
+def portfolio_totals(games, hardware, accessories, generic):
+    value = sum(effective_value(row) or 0 for row in games)
+    value += sum(effective_hardware_value(row) or 0 for row in hardware)
+    value += sum((effective_accessory_value(row) or 0) * max(row.quantity or 1, 1) for row in accessories if accessory_counts_in_total(row))
+    value += collector_rows_total_value(generic, authoritative_pokemon=True)
+    count = len(games) + len(hardware) + sum(max(row.quantity or 1, 1) for row in accessories) + sum(max(row.quantity or 1, 1) for row in generic)
+    valued = sum(effective_value(row) is not None for row in games) + sum(effective_hardware_value(row) is not None for row in hardware)
+    valued += sum(max(row.quantity or 1, 1) for row in accessories if accessory_counts_in_total(row) and effective_accessory_value(row) is not None)
+    valued += sum(max(row.quantity or 1, 1) for row in generic if collector_effective_value(row) is not None)
+    return {"value": round(value, 2), "count": count, "valued_count": valued}
+
+
 def collector_total_value_snapshot(user_id=None):
     """Store one total-value point for games, hardware, accessories and all Collector modules."""
     uid = user_id or active_collection_user_id()
-    games = [i for i in CollectionItem.query.filter_by(user_id=uid, status="owned").filter(CollectionItem.ownership_format != "digital").all() if game_is_physical_candidate(i.game)]
-    hardware = scoped_hardware_query().filter_by(status="owned").all()
-    accessories = scoped_accessory_query().filter_by(status="owned").all()
-    generic = CollectorItem.query.filter_by(user_id=uid).all()
-    values=[]
-    values += [effective_value(i) for i in games]
-    values += [effective_hardware_value(i) for i in hardware]
-    values += [(effective_accessory_value(i) * max(i.quantity or 1,1)) if effective_accessory_value(i) is not None and accessory_counts_in_total(i) else None for i in accessories]
-    pokemon_rows = [i for i in generic if i.category == "cards" and collector_card_tcg_name(i) == "Pokémon"]
-    pc_total = pokecollector_portfolio_value() if pokemon_rows else None
-    if pc_total is None:
-        values += [(collector_effective_value(i) * max(i.quantity or 1,1)) if collector_effective_value(i) is not None else None for i in generic]
-    else:
-        values += [(collector_effective_value(i) * max(i.quantity or 1,1)) if collector_effective_value(i) is not None else None for i in generic if i not in pokemon_rows]
-        values.append(float(pc_total))
-    valued=[v for v in values if v is not None]
-    owned_count=len(games)+len(hardware)+sum(max(i.quantity or 1,1) for i in accessories if accessory_counts_in_total(i))+sum(max(i.quantity or 1,1) for i in generic)
-    snap=CollectorValueSnapshot(collection_user_id=uid, total_value_eur=round(sum(float(v) for v in valued),2), owned_count=owned_count, valued_count=len(valued), recorded_at=utc_now())
+    games = [row for row in CollectionItem.query.filter_by(user_id=uid, status="owned").all() if game_is_physical_candidate(row.game)]
+    hardware = HardwareItem.query.filter_by(user_id=uid, status="owned").all()
+    accessories = AccessoryItem.query.filter_by(user_id=uid, status="owned").all()
+    generic = [row for row in CollectorItem.query.filter_by(user_id=uid).all() if collector_metadata(row).get("status", "owned") == "owned"]
+    totals = portfolio_totals(games, hardware, accessories, generic)
+    snap = CollectorValueSnapshot(collection_user_id=uid, total_value_eur=totals["value"],
+        owned_count=totals["count"], valued_count=totals["valued_count"], recorded_at=utc_now())
     db.session.add(snap)
     return snap
+
 
 
 def collector_owned_row(item_id):
@@ -8517,6 +8747,7 @@ def collector_item_edit(item_id):
                 meta["season_number"] = int(season) if season.isdigit() else None
                 meta["physical_episode_count"] = int(episodes) if episodes.isdigit() else None
         row.metadata_json = json.dumps(meta, ensure_ascii=False)
+        invalidate_unverified_card_ebay_value(row)
         db.session.commit()
         flash(f"{row.title} wurde gespeichert.", "success")
         return redirect(url_for("collector_item_detail", item_id=row.id, return_to=safe_local_url(request.values.get("return_to")) or safe_local_url(session.get("collector_return_to"))))
@@ -8542,15 +8773,74 @@ def collector_item_delete(item_id):
     return redirect(url_for("collector_section", section=section))
 
 
+def card_offer_matches(row, hit):
+    """Require a concrete single-card printing; never accept a deck by set name."""
+    title = str(hit.get("name") or "")
+    key = _match_key(title)
+    if not key: return False
+    bundle = r"\b(?:deck|decks|booster|boosters|display|displays|lot|lots|bundle|bundles|konvolut|sammlung|collection|sealed|versiegelt|komplett|complete|playset|playsets|repack|proxy|proxies|reprint|orica|fake|codekarte|code card|leerhulle|auswahl|choose|pick|selection|sammelangebot|random|zufall|verschiedene)\b|\b(?:[2-9]|[1-9]\d+)\s*(?:x|karten|cards|stuck)\b|\b(?:x|set of|lot of)\s*(?:[2-9]|[1-9]\d+)\b"
+    # A set name such as "Legendary Decks" may appear on a real single card.
+    # Remove only the exact known set phrase before testing for bundles.
+    set_key = _match_key(row.card_set)
+    product_key = (" " + key + " ").replace(" " + set_key + " ", " ") if set_key else key
+    if re.search(bundle, product_key): return False
+    if re.search(r"\b(?:psa|bgs|cgc|sgc|graded|slab|zertifiziert)\b", key): return False
+    number = _match_key(row.card_number)
+    if not number or (" " + number + " ") not in (" " + key + " "): return False
+    if collector_card_tcg_name(row) == "Yu-Gi-Oh!":
+        codes = {_match_key(code) for code in re.findall(r"\b[A-Za-z0-9]+-[A-Za-z]{1,3}[A-Za-z0-9]+\b", title) if re.search(r"\d", code)}
+        if codes != {number}: return False
+    if collector_card_tcg_name(row) != "Yu-Gi-Oh!" and (not set_key or (" " + set_key + " ") not in (" " + key + " ")): return False
+    names = [row.title]
+    meta = collector_metadata(row)
+    names += [meta.get(name) for name in ("oracle_name", "english_name", "original_name")]
+    if not any(_match_key(name) and (" " + _match_key(name) + " ") in (" " + key + " ") for name in names): return False
+    # Full Yu-Gi-Oh printing codes include the physical language marker.
+    lang = str(row.card_language or "").casefold()
+    aliases = {"de": "de", "deutsch": "de", "german": "de", "en": "en", "englisch": "en", "english": "en", "fr": "fr", "französisch": "fr", "french": "fr", "it": "it", "italienisch": "it"}
+    wanted_lang = aliases.get(lang)
+    langs = {"de": r"\b(?:deutsch|german|ger|de)\b", "en": r"\b(?:englisch|english|eng|en)\b", "fr": r"\b(?:franzosisch|french|fr)\b", "it": r"\b(?:italienisch|italian|it)\b"}
+    if collector_card_tcg_name(row) == "Yu-Gi-Oh!" and wanted_lang and _ygo_code_language(row.card_number) != wanted_lang: return False
+    offered_langs = {code for code, pattern in langs.items() if re.search(pattern, key)}
+    if wanted_lang and offered_langs and offered_langs != {wanted_lang}: return False
+    if wanted_lang and collector_card_tcg_name(row) != "Yu-Gi-Oh!" and wanted_lang not in offered_langs: return False
+    variant = _match_key(row.card_variant)
+    foil = bool(re.search(r"\b(?:foil|holo|holofoil|reverse)\b", variant)) and not re.search(r"\b(?:non foil|nonfoil|nicht holo)\b", variant)
+    offered_foil = bool(re.search(r"\b(?:foil|holo|holofoil|reverse)\b", key)) and not re.search(r"\b(?:non foil|nonfoil|nicht holo)\b", key)
+    if collector_card_tcg_name(row) != "Yu-Gi-Oh!" and foil != offered_foil: return False
+    for finish in ("reverse", "etched"):
+        if (finish in variant) != (finish in key): return False
+    rarity = _match_key(row.card_rarity)
+    known_rarities = ("ultra rare", "super rare", "secret rare", "ultimate rare", "common")
+    if rarity in known_rarities and rarity not in key: return False
+    first = bool(re.search(r"\b(?:1st|first|erste|1) (?:edition|auflage|ed)\b", variant))
+    offered_first = bool(re.search(r"\b(?:1st|first|erste|1) (?:edition|auflage|ed)\b", key))
+    if first and not offered_first: return False
+    if "unlimited" in variant and offered_first: return False
+    conditions = {"near mint": r"\b(?:nm|near mint)\b", "light played": r"\b(?:lp|light played|lightly played)\b", "excellent": r"\b(?:ex|excellent)\b", "played": r"\b(?:played|mp|hp)\b", "damaged": r"\b(?:damaged|dmg|beschadigt|defekt)\b"}
+    wanted_condition = _match_key(row.condition)
+    wanted_condition = {"nm": "near mint", "lp": "light played", "ex": "excellent", "dmg": "damaged"}.get(wanted_condition, wanted_condition)
+    if wanted_condition in conditions and not re.search(conditions[wanted_condition], key): return False
+    if wanted_condition != "damaged" and re.search(conditions["damaged"], key): return False
+    return True
+
+
 def collector_ebay_valuation(row):
     if is_pokemon_card(row):
         return None, None, None, "pokecollector_only"
     if row.category not in {"movies", "tv", "books", "music", "cards", "custom"}:
         return None, None, None, "unsupported"
+    is_card = row.category == "cards"
+    if is_card:
+        if str(row.card_grade or "raw").strip().casefold() not in {"", "raw", "ungraded", "unbewertet"}:
+            return None, None, None, "card_grade_unsupported"
+        number = str(row.card_number or "").strip()
+        if not number or (collector_card_tcg_name(row) == "Yu-Gi-Oh!" and not re.fullmatch(r"[A-Za-z0-9]+-[A-Za-z]{1,3}[A-Za-z0-9]+", number)) or (collector_card_tcg_name(row) != "Yu-Gi-Oh!" and not row.card_set):
+            return None, None, None, "card_identity_missing"
     queries = []
-    if row.barcode:
+    if row.barcode and not is_card:
         queries.append(row.barcode)
-    descriptive = " ".join(x for x in (row.title, row.media_type, row.edition) if x)
+    descriptive = " ".join(x for x in ((row.title, row.card_number, row.card_set if collector_card_tcg_name(row) != "Yu-Gi-Oh!" else None) if is_card else (row.title, row.media_type, row.edition)) if x)
     if descriptive and descriptive not in queries:
         queries.append(descriptive)
     found, last_status = [], "ebay_no_results"
@@ -8563,20 +8853,33 @@ def collector_ebay_valuation(row):
     wanted = {_match_key(x) for x in (row.title, row.media_type) if x}
     unwanted = ("player", "recorder", "leerhülle", "empty case", "case only", "download", "digital", "lot", "konvolut", "sammlung")
     values=[]
+    accepted, seen = [], set()
     for hit in found:
         if hit.get("currency") != "EUR" or hit.get("price") is None: continue
+        identity = str(hit.get("id") or hit.get("url") or (str(hit.get("name")), hit.get("price"), hit.get("shipping")))
+        if identity in seen: continue
+        seen.add(identity)
+        if is_card and not card_offer_matches(row, hit): continue
         key=_match_key(hit.get("name"))
-        if any(x in key for x in unwanted): continue
+        if not is_card and any(x in key for x in unwanted): continue
         # Barcode queries are already precise; text queries require title overlap.
-        if not row.barcode and wanted and not any(w and w in key for w in wanted): continue
-        total=float(hit["price"])+float(hit.get("shipping") or 0)
-        if .25 <= total <= 5000: values.append(total)
+        if not is_card and not row.barcode and wanted and not any(w and w in key for w in wanted): continue
+        try: total=float(hit["price"])+float(hit.get("shipping") or 0)
+        except (TypeError, ValueError): continue
+        if math.isfinite(total) and .25 <= total <= 5000:
+            values.append(total)
+            accepted.append({"id": hit.get("id"), "title": hit.get("name"), "url": hit.get("url"), "total_eur": total})
     if len(values) < 2:
-        return None, None, None, "ebay_too_few_results"
+        return None, None, None, "card_no_safe_results" if is_card else "ebay_too_few_results"
     center=statistics.median(values)
     values=[v for v in values if center*.35 <= v <= center*2.5]
     if len(values) < 2:
-        return None, None, None, "ebay_too_few_results"
+        return None, None, None, "card_no_safe_results" if is_card else "ebay_too_few_results"
+    if is_card:
+        meta = collector_metadata(row)
+        meta["card_ebay_identity"] = card_ebay_identity(row)
+        meta["card_ebay_evidence"] = [hit for hit in accepted if hit["total_eur"] in values][:50]
+        row.metadata_json = json.dumps(meta, ensure_ascii=False)
     factor = collector_video_copy_factor(row)
     return round(statistics.median(values)*factor,2), round(min(values)*factor,2), round(max(values)*factor,2), "ok"
 
@@ -8658,6 +8961,7 @@ def collector_scryfall_valuation(row):
 @login_required
 def collector_item_value(item_id):
     row=collector_owned_row(item_id)
+    previous_value = collector_effective_value(row)
     if is_pokemon_card(row):
         flash("Pokémon-Marktwerte werden ausschließlich aus PokéCollector übernommen. Bitte PokéCollector synchronisieren.", "info")
         return redirect_back("collector_item_detail", item_id=row.id)
@@ -8677,9 +8981,10 @@ def collector_item_value(item_id):
     row.auto_value_status=status
     row.auto_value_updated_at=utc_now()
     if value is not None:
-        previous = row.auto_value_eur
-        row.auto_value_eur=value; row.auto_value_low_eur=low; row.auto_value_high_eur=high; row.auto_value_source="eBay-Angebote"
-        record_collector_price(row, previous, value, low, high, "eBay-Angebote")
+        previous = previous_value
+        source = CARD_EBAY_SOURCE if row.category == "cards" else "eBay-Angebote"
+        row.auto_value_eur=value; row.auto_value_low_eur=low; row.auto_value_high_eur=high; row.auto_value_source=source
+        record_collector_price(row, previous, value, low, high, source)
         flash(f"Automatischer Marktwert: {format_eur(value)}", "success")
     else:
         flash(VALUATION_STATUS_MESSAGES.get(status, "Für diesen Eintrag konnte noch kein belastbarer Marktwert ermittelt werden."), "warning")
@@ -8703,12 +9008,12 @@ def _valuation_worker(job_id,user_id,section,tcg):
         for row in rows:
             st["current"]=row.title; _valuation_job_write(job_id,st)
             if is_pokemon_card(row): st["checked"]+=1; st["unchanged"]+=1; _valuation_job_write(job_id,st); continue
-            old=row.auto_value_eur
+            old=collector_effective_value(row)
             try:
                 value=low=high=None; source=None; status=None
                 if row.category=="cards" and (row.tcg_game or "").strip().casefold()=="magic: the gathering":
                     value,low,high,source=collector_scryfall_valuation(row); status="ok" if value is not None else None
-                if value is None: value,low,high,status=collector_ebay_valuation(row); source="eBay-Angebote" if value is not None else None
+                if value is None: value,low,high,status=collector_ebay_valuation(row); source=(CARD_EBAY_SOURCE if row.category == "cards" else "eBay-Angebote") if value is not None else None
                 row.auto_value_status=status or "no_price"; row.auto_value_updated_at=utc_now()
                 if value is not None:
                     row.auto_value_eur=value; row.auto_value_low_eur=low; row.auto_value_high_eur=high; row.auto_value_source=source; record_collector_price(row,old,value,low,high,source)
@@ -11667,6 +11972,8 @@ def collection_configure(game_id):
             flash(f"Exemplar gespeichert · eigener Schätzwert: {item.estimated_value:.2f} €", "success")
         else:
             flash("Exemplar in der gemeinsamen Sammlung gespeichert.", "success")
+        if request.form.get("save_action") == "scan_next":
+            return redirect(url_for("scanner"))
         if request.form.get("save_action") == "stay":
             return redirect(url_for("collection_configure", game_id=game.id, item_id=item.id, return_to=return_to, ean_flow=1 if ean_flow else None, retro_flow=1 if retro_flow else None))
         if ean_flow or retro_flow:
@@ -13560,6 +13867,7 @@ def search_ean_preview():
     return render_template("_ean_preview.html", previews=results)
 
 
+@app.route("/add")
 @app.route("/find")
 @login_required
 def universal_search():
@@ -14441,6 +14749,7 @@ def collector_media_questionnaire():
     session.pop("media_questionnaire_prefill", None)
     refresh_bibo_registry()
     flash(f"{title} wurde vollständig angelegt. Du kannst Angaben jederzeit nachbearbeiten.", "success")
+    if request.form.get("save_action") == "scan_next": return redirect(url_for("scanner"))
     return redirect(url_for("collector_item_detail", item_id=row.id))
 
 @app.route("/identify")
@@ -15481,6 +15790,7 @@ def collection_bulk():
         type_filter = "all"
     query_text = (request.values.get("q") or "").strip()
 
+    preselected_keys = set(request.args.getlist("item_keys"))
     game_items = CollectionItem.query.join(Game).filter(CollectionItem.user_id == uid).order_by(Game.title, CollectionItem.id).all()
     collector_items = CollectorItem.query.filter_by(user_id=uid).order_by(CollectorItem.category, CollectorItem.title, CollectorItem.id).all()
     hardware_items = scoped_hardware_query().options(joinedload(HardwareItem.model).joinedload(HardwareModel.console)).order_by(HardwareItem.id).all()
@@ -15517,6 +15827,7 @@ def collection_bulk():
             return redirect(url_for("collection_bulk", type=type_filter, q=query_text))
 
         selected_by_type = {"game":[], "collector":[], "hardware":[], "accessory":[]}
+        selected_keys = {row["key"] for row in selected_rows}
         for key in selected_keys:
             prefix, sep, raw_id = key.partition(":")
             if sep and prefix in selected_by_type and raw_id.isdigit():
@@ -15602,7 +15913,7 @@ def collection_bulk():
     counts = {key: 0 for key in labels}
     for row in rows: counts[row["kind"]] = counts.get(row["kind"], 0) + 1
     return render_template("bulk_edit.html", rows=rows, counts=counts, labels=labels, icons=icons, selected_type=type_filter,
-                           query_text=query_text, consoles=Console.query.order_by(Console.name).all())
+                           query_text=query_text, consoles=Console.query.order_by(Console.name).all(), preselected_keys=preselected_keys)
 
 
 @app.route("/standalone")
@@ -18485,6 +18796,7 @@ def initialize_database():
             app.logger.exception("Bibo registry refresh skipped during startup")
         split_grouped_video_copies()
         repair_pokemon_card_valuation_artifacts()
+        repair_card_ebay_valuations()
         # Alias collisions must be merged before curated/online series data is
         # touched; otherwise legacy Pokemon/Pokémon rows can violate the unique key.
         repair_v116_franchise_aliases()

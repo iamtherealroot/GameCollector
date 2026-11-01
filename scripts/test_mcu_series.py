@@ -49,7 +49,8 @@ with m.app.app_context():
     assert not next(x for x in page['rows'] if x['entry']['title']=='Iron Man')['owned']
     owned_row=next(x for x in page['rows'] if x['entry']['title']=='Iron Man 2')
     response=client.get(owned_row['detail_url'])
-    assert response.status_code==200 and 'Originaldatensatz bearbeiten' in response.get_data(as_text=True)
+    assert response.status_code==200 and 'Exemplar bearbeiten' in response.get_data(as_text=True)
+    assert '/library/copy/' in response.get_data(as_text=True)
     assert '4,72' in response.get_data(as_text=True) or '4.72' in response.get_data(as_text=True)
     response=client.get(group['detail_url']+'&order=release')
     assert 'collection-compact-head' in response.get_data(as_text=True) and 'collection-compact-price' in response.get_data(as_text=True)
