@@ -34,7 +34,7 @@ def setup_navigation(app, can_collection, custom_categories):
             item('🤝','Ausleihen','Verliehene Objekte im Blick behalten','loans'),
             item('🧹','Datenqualität','Fehlende oder widersprüchliche Daten','quality'),
             item('📬','Daten prüfen','Vorgeschlagene Änderungen kontrollieren','review_inbox'),
-            item('✏️','Mehrere Spiele bearbeiten','Gemeinsame Änderungen durchführen','collection_bulk','edit_items'),
+            item('✏️','Auswahl bearbeiten','Mehrere Medien gemeinsam ändern','collection_bulk','edit_items'),
             item('🗓️','Planungszentrale','Sammlungsausbau planen','collection_planner'),
             item('🎯','Ziele','Persönliche Sammlungsziele','goals'),
             item('🛠️','Projekte','Sammlungsprojekte verwalten','collection_projects'),

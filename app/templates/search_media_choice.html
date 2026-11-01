@@ -2,12 +2,13 @@
 {% block title %}Suchen und hinzufügen · Bibo{% endblock %}
 {% block content %}
 <section class="panel dashboard-search">
-  <h1>Suchen und hinzufügen</h1>
+  <span class="eyebrow">1. Finden · 2. Prüfen · 3. Speichern</span><h1>Was möchtest du hinzufügen?</h1><p>EAN scannen oder Titel suchen. Wähle einen Treffer und prüfe die vorausgefüllten Angaben vor dem Speichern.</p>
   <form action="{{ url_for('universal_search') }}" method="get" class="dashboard-search-form">
     <label>EAN oder Titel<input type="search" name="q" value="{{ query }}" required maxlength="500" placeholder="EAN scannen oder Titel eingeben" autofocus></label>
     <button type="submit">Weiter</button><a class="button secondary" href="{{ url_for('scanner') }}">📷 Scannen</a>
   </form>
 </section>
+{% if not query and can_collection('edit_items') %}<details class="panel"><summary>Ohne Suche manuell erfassen</summary><div class="media-choice-grid">{% for key,label in media_choices.items() %}{% if key not in ['games','hardware','accessories'] %}<a class="button secondary" href="{{ url_for('collector_media_questionnaire',category=key) }}">{{ label }}</a>{% elif key == 'games' %}<a class="button secondary" href="{{ url_for('games',guided_add=1) }}">{{ label }}</a>{% elif key == 'hardware' %}<a class="button secondary" href="{{ url_for('hardware') }}">{{ label }}</a>{% else %}<a class="button secondary" href="{{ url_for('accessories') }}">{{ label }}</a>{% endif %}{% endfor %}</div></details>{% endif %}
 {% if ean %}
 <section class="panel ean-preview" {% if preview_url %}data-catalog-url="{{ preview_url }}" data-catalog-error="EAN-Vorschau derzeit nicht erreichbar. Wähle unten eine Medienart, um gezielt zu suchen."{% endif %}>
 <h2>Vorschau zur EAN</h2><p class="muted">Bis zu drei Treffer. Kataloghinweise bitte prüfen; du kannst darunter weiterhin eine Medienart wählen.</p>

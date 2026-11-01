@@ -38,7 +38,7 @@ from pathlib import Path
 from html.parser import HTMLParser
 from itsdangerous import BadSignature, URLSafeSerializer
 
-APP_VERSION = "5.1.5"
+APP_VERSION = "6.0.0-rc.1"
 APP_NAME = "Bibo"
 DISPLAY_TIMEZONE_NAME = os.environ.get("TZ", "Europe/Berlin")
 try:
@@ -1487,7 +1487,7 @@ def enforce_viewer_read_only():
     if not current_user.is_authenticated or request.method not in {"POST", "PUT", "PATCH", "DELETE"}:
         return None
     # Viewer may update their own display name/password and log out, but cannot alter shared data.
-    if request.endpoint in {"account", "logout", "collection_switch", "personal_review_edit", "collection_access_request", "dashboard_style_save"}:
+    if request.endpoint in {"account", "logout", "collection_switch", "personal_review_edit", "collection_access_request", "dashboard_style_save", "bibo_library_preferences"}:
         return None
     endpoint = request.endpoint or ""
     # Feedback is personal, not a mutation of the active collection. Its own
@@ -5233,14 +5233,73 @@ def undo_item_delete():
     return redirect(url_for("bibo_library"))
 
 
+LIBRARY_FILTER_DEFAULTS = {"kind": "all", "status": "all", "custom_category": "", "sort": "title", "view": "list", "quality": "all"}
+LIBRARY_QUALITY_LABELS = {"all": "Alle Einträge", "cover": "Cover fehlt", "condition": "Zustand fehlt", "storage": "Lagerort fehlt", "duplicate": "Mögliche Dubletten"}
+
+
+def library_filter_values(values):
+    result = {key: str(values.get(key, default)).strip() for key, default in LIBRARY_FILTER_DEFAULTS.items()}
+    if result["kind"] not in {"all", *BIBO_KIND_LABELS}: result["kind"] = "all"
+    if result["status"] not in {"all", "owned", "wishlist", "missing"}: result["status"] = "all"
+    if result["sort"] not in {"title", "title_desc", "value_desc", "newest"}: result["sort"] = "title"
+    if result["view"] not in {"list", "grid"}: result["view"] = "list"
+    if result["quality"] not in LIBRARY_QUALITY_LABELS: result["quality"] = "all"
+    if result["kind"] != "custom": result["custom_category"] = ""
+    allowed_categories = {row["id"] for row in custom_collection_categories(active_collection_user_id())}
+    if result["custom_category"] not in allowed_categories: result["custom_category"] = ""
+    return result
+
+
+@app.route("/library/preferences", methods=["POST"])
+@login_required
+def bibo_library_preferences():
+    # Display preferences belong to the signed-in user, including readers.
+    if not session.get("library_preferences_token") or request.form.get("token") != session["library_preferences_token"]:
+        abort(400)
+    values = library_filter_values(request.form)
+    key = f"library_preferences_{current_user.id}_{active_collection_user_id()}"
+    app_setting_set(key, json.dumps(values))
+    db.session.commit()
+    return redirect(url_for("bibo_library", **values, q=request.form.get("q", "")[:500]))
+
+
+def library_copy_source(copy):
+    models = {"game": CollectionItem, "collector": CollectorItem, "hardware": HardwareItem, "accessory": AccessoryItem}
+    model = models.get(copy.source_kind)
+    if not model or not str(copy.source_id).isdigit(): return None
+    return model.query.filter_by(id=int(copy.source_id), user_id=active_collection_user_id()).first()
+
+
+@app.route("/library/copy/<int:copy_id>/edit")
+@login_required
+def bibo_copy_edit(copy_id):
+    copy = BiboCopy.query.filter_by(id=copy_id, active=True, owner_id=active_collection_user_id()).first_or_404()
+    if not collection_capability("edit_items"): abort(403)
+    source = library_copy_source(copy)
+    if not source: abort(404)
+    if copy.source_kind == "game": target = url_for("collection_configure", game_id=source.game_id, item_id=source.id, return_to=url_for("bibo_work_detail", work_id=copy.edition.work_id))
+    elif copy.source_kind == "collector": target = url_for("collector_item_edit", item_id=source.id)
+    elif copy.source_kind == "hardware": target = url_for("hardware_item_edit", item_id=source.id)
+    else: target = url_for("accessory_item_edit", item_id=source.id)
+    return redirect(target)
+
+
 @app.route("/library")
 @login_required
 def bibo_library():
     refresh_bibo_registry(only_if_changed=True)
+    session.setdefault("library_preferences_token", secrets.token_urlsafe(32))
+    key = f"library_preferences_{current_user.id}_{active_collection_user_id()}"
+    if not request.args:
+        try: saved = json.loads(app_setting_get(key, "{}"))
+        except (ValueError, TypeError): saved = {}
+        if isinstance(saved, dict) and saved and library_filter_values(saved) != LIBRARY_FILTER_DEFAULTS:
+            return redirect(url_for("bibo_library", **library_filter_values(saved)))
+    filters = library_filter_values(request.args)
     query_text = request.args.get("q", "").strip()
-    selected_kind = request.args.get("kind", "all").strip()
-    selected_status = request.args.get("status", "all").strip()
-    selected_custom_category = request.args.get("custom_category", "").strip() if selected_kind in {"all", "custom"} else ""
+    selected_kind = filters["kind"]
+    selected_status = filters["status"]
+    selected_custom_category = filters["custom_category"]
     copies = BiboCopy.query.options(joinedload(BiboCopy.edition).joinedload(BiboEdition.work).selectinload(BiboWork.series_memberships)).filter_by(active=True, owner_id=active_collection_user_id()).all()
     source_models = {"game": CollectionItem, "collector": CollectorItem, "hardware": HardwareItem, "accessory": AccessoryItem}
     sources = {}
@@ -5248,6 +5307,13 @@ def bibo_library():
         ids = [int(copy.source_id) for copy in copies if copy.source_kind == kind]
         # One query per source type, instead of one per library entry.
         sources[kind] = {row.id: row for row in model.query.filter(model.id.in_(ids), model.user_id == active_collection_user_id()).all()} if ids else {}
+    # Match edition identity within this collection; copies can be intentional.
+    identities = {}
+    for copy in copies:
+        edition = copy.edition
+        identity = (edition.work_id, edition.platform or "", edition.format_label or "", edition.region or "", copy.ownership_format)
+        identities[identity] = identities.get(identity, 0) + 1
+    quality_counts = {key: 0 for key in LIBRARY_QUALITY_LABELS if key != "all"}
     rows = []
     for copy in copies:
         source = None
@@ -5279,6 +5345,14 @@ def bibo_library():
                 value, link = effective_accessory_value(source), url_for("accessory_item_edit", item_id=source.id)
         total_value = (float(value) * max(copy.quantity or 1, 1)) if value is not None else None
         row = {"copy_row": copy, "edition": edition, "work": work, "kind_label": BIBO_KIND_LABELS.get(work.media_kind, work.media_kind), "subtitle": subtitle, "value": value, "total_value": total_value, "legacy_link": link, "link": url_for("bibo_work_detail", work_id=work.id)}
+        identity = (edition.work_id, edition.platform or "", edition.format_label or "", edition.region or "", copy.ownership_format)
+        row["quality_flags"] = [key for key, missing in {
+            "cover": not (edition.image_url or work.cover_url),
+            "condition": copy.status == "owned" and copy.ownership_format != "digital" and not copy.condition_label,
+            "storage": copy.status == "owned" and copy.ownership_format != "digital" and not copy.storage_location,
+            "duplicate": identities[identity] > 1,
+        }.items() if missing]
+        row["bulk_key"] = f"{copy.source_kind}:{copy.source_id}" if source else None
         haystack = " ".join((work.title, work.series_name or "", subtitle)).casefold()
         if query_text and query_text.casefold() not in haystack:
             continue
@@ -5288,8 +5362,13 @@ def bibo_library():
             continue
         if selected_status != "all" and copy.status != selected_status:
             continue
+        for flag in row["quality_flags"]: quality_counts[flag] += 1
+        if filters["quality"] != "all" and filters["quality"] not in row["quality_flags"]: continue
         rows.append(row)
     rows.sort(key=lambda row: (row["work"].sort_title, row["edition"].platform or "", row["copy_row"].id))
+    if filters["sort"] == "title_desc": rows.reverse()
+    elif filters["sort"] == "newest": rows.sort(key=lambda row: row["copy_row"].id, reverse=True)
+    elif filters["sort"] == "value_desc": rows.sort(key=lambda row: (row["total_value"] is not None, row["total_value"] or 0), reverse=True)
     stats = {
         "works": len({row["work"].id for row in rows}),
         "series": len({membership.series_id for row in rows for membership in row["work"].series_memberships if membership.active}),
@@ -5299,7 +5378,7 @@ def bibo_library():
     }
     kinds = sorted({row.edition.work.media_kind for row in copies}, key=lambda key: BIBO_KIND_LABELS.get(key, key))
     rows, pagination = collection_page(rows)
-    return render_template("bibo_library.html", rows=rows, pagination=pagination, stats=stats, kinds=kinds, kind_labels=BIBO_KIND_LABELS, selected_kind=selected_kind, selected_status=selected_status, query_text=query_text, selected_custom_category=selected_custom_category, custom_categories=custom_collection_categories(active_collection_user_id()))
+    return render_template("bibo_library.html", rows=rows, pagination=pagination, stats=stats, kinds=kinds, kind_labels=BIBO_KIND_LABELS, selected_kind=selected_kind, selected_status=selected_status, query_text=query_text, selected_custom_category=selected_custom_category, custom_categories=custom_collection_categories(active_collection_user_id()), filters=filters, quality_counts=quality_counts, quality_labels=LIBRARY_QUALITY_LABELS)
 
 
 def bibo_registry_health(owner_id=None):
@@ -5330,6 +5409,10 @@ def bibo_work_detail(work_id):
     for copy in copies:
         legacy_link = None
         coverage = []
+        source = library_copy_source(copy)
+        duplicate_link = None
+        if source and copy.source_kind == "game": duplicate_link = url_for("collection_configure", game_id=source.game_id, new_copy=1)
+        elif source and copy.source_kind == "collector": duplicate_link = url_for("collector_item_new_copy", item_id=source.id)
         try:
             source_id = int(copy.source_id)
         except (TypeError, ValueError):
@@ -5352,7 +5435,7 @@ def bibo_work_detail(work_id):
             legacy_link = url_for("discovery_preview", token=_discovery_token(payload)) if payload else url_for("discovery_center", type=work.media_kind)
         elif copy.source_kind == "accessory" and source_id:
             legacy_link = url_for("accessory_item_edit", item_id=source_id)
-        rows.append({"copy": copy, "edition": copy.edition, "legacy_link": legacy_link, "coverage": coverage})
+        rows.append({"copy": copy, "edition": copy.edition, "legacy_link": legacy_link, "coverage": coverage, "editable": bool(source), "duplicate_link": duplicate_link})
     memberships = [membership for membership in work.series_memberships if membership.active and membership.series.active]
     return render_template("bibo_work_detail.html", work=work, rows=rows, memberships=memberships, kind_label=BIBO_KIND_LABELS.get(work.media_kind, work.media_kind))
 
@@ -11667,6 +11750,8 @@ def collection_configure(game_id):
             flash(f"Exemplar gespeichert · eigener Schätzwert: {item.estimated_value:.2f} €", "success")
         else:
             flash("Exemplar in der gemeinsamen Sammlung gespeichert.", "success")
+        if request.form.get("save_action") == "scan_next":
+            return redirect(url_for("scanner"))
         if request.form.get("save_action") == "stay":
             return redirect(url_for("collection_configure", game_id=game.id, item_id=item.id, return_to=return_to, ean_flow=1 if ean_flow else None, retro_flow=1 if retro_flow else None))
         if ean_flow or retro_flow:
@@ -13560,6 +13645,7 @@ def search_ean_preview():
     return render_template("_ean_preview.html", previews=results)
 
 
+@app.route("/add")
 @app.route("/find")
 @login_required
 def universal_search():
@@ -14441,6 +14527,7 @@ def collector_media_questionnaire():
     session.pop("media_questionnaire_prefill", None)
     refresh_bibo_registry()
     flash(f"{title} wurde vollständig angelegt. Du kannst Angaben jederzeit nachbearbeiten.", "success")
+    if request.form.get("save_action") == "scan_next": return redirect(url_for("scanner"))
     return redirect(url_for("collector_item_detail", item_id=row.id))
 
 @app.route("/identify")
@@ -15481,6 +15568,7 @@ def collection_bulk():
         type_filter = "all"
     query_text = (request.values.get("q") or "").strip()
 
+    preselected_keys = set(request.args.getlist("item_keys"))
     game_items = CollectionItem.query.join(Game).filter(CollectionItem.user_id == uid).order_by(Game.title, CollectionItem.id).all()
     collector_items = CollectorItem.query.filter_by(user_id=uid).order_by(CollectorItem.category, CollectorItem.title, CollectorItem.id).all()
     hardware_items = scoped_hardware_query().options(joinedload(HardwareItem.model).joinedload(HardwareModel.console)).order_by(HardwareItem.id).all()
@@ -15517,6 +15605,7 @@ def collection_bulk():
             return redirect(url_for("collection_bulk", type=type_filter, q=query_text))
 
         selected_by_type = {"game":[], "collector":[], "hardware":[], "accessory":[]}
+        selected_keys = {row["key"] for row in selected_rows}
         for key in selected_keys:
             prefix, sep, raw_id = key.partition(":")
             if sep and prefix in selected_by_type and raw_id.isdigit():
@@ -15602,7 +15691,7 @@ def collection_bulk():
     counts = {key: 0 for key in labels}
     for row in rows: counts[row["kind"]] = counts.get(row["kind"], 0) + 1
     return render_template("bulk_edit.html", rows=rows, counts=counts, labels=labels, icons=icons, selected_type=type_filter,
-                           query_text=query_text, consoles=Console.query.order_by(Console.name).all())
+                           query_text=query_text, consoles=Console.query.order_by(Console.name).all(), preselected_keys=preselected_keys)
 
 
 @app.route("/standalone")

@@ -5,7 +5,8 @@
   <div>
     <span class="eyebrow">DEINE SAMMLUNG</span>
     <h1>Sammlung</h1>
-    <p>Werke, Ausgaben und einzelne Exemplare aus allen Sammlungsbereichen in einer Ansicht.</p>
+    <p>Alles an einem Ort. Finden, prüfen und gemeinsam bearbeiten.</p>
+    {% if can_collection('edit_items') %}<a class="button" href="{{ url_for('universal_search') }}">＋ Hinzufügen</a>{% endif %}
   </div>
   <img src="{{ url_for('static', filename='branding/bibo-icon-master.png') }}?v={{ app_version }}" alt="Bibo">
 </section>
@@ -14,18 +15,22 @@
 <h2 id="library-area-heading">Sammlungsbereich wählen</h2>
 {% set area_icons = {'games':'🎮','movies':'🎬','tv':'📺','books':'📚','music':'💿','cards':'🃏','hardware':'🕹️','accessories':'🎧','custom':'📦'} %}
 <nav class="library-area-grid" aria-label="Sammlungsbereiche">
-<a class="library-area-button {{ 'active' if selected_kind == 'all' and not selected_custom_category }}" {% if selected_kind == 'all' and not selected_custom_category %}aria-current="page"{% endif %} href="{{ url_for('bibo_library',q=query_text,status=selected_status) }}"><span aria-hidden="true">▦</span><strong>Alle Bereiche</strong></a>
-{% for kind in kinds %}<a class="library-area-button {{ 'active' if selected_kind == kind and not selected_custom_category }}" {% if selected_kind == kind and not selected_custom_category %}aria-current="page"{% endif %} href="{{ url_for('bibo_library',kind=kind,q=query_text,status=selected_status) }}"><span aria-hidden="true">{{ area_icons.get(kind,'📦') }}</span><strong>{{ kind_labels.get(kind,kind) }}</strong></a>{% endfor %}
-{% for category in custom_categories %}<a class="library-area-button {{ 'active' if selected_custom_category == category.id }}" {% if selected_custom_category == category.id %}aria-current="page"{% endif %} href="{{ url_for('bibo_library',kind='custom',custom_category=category.id,q=query_text,status=selected_status) }}"><span aria-hidden="true">{{ category.icon }}</span><strong>{{ category.title }}</strong></a>{% endfor %}
+<a class="library-area-button {{ 'active' if selected_kind == 'all' and not selected_custom_category }}" {% if selected_kind == 'all' and not selected_custom_category %}aria-current="page"{% endif %} href="{{ url_for('bibo_library',q=query_text,status=selected_status,sort=filters.sort,view=filters.view,quality=filters.quality) }}"><span aria-hidden="true">▦</span><strong>Alle Bereiche</strong></a>
+{% for kind in kinds %}<a class="library-area-button {{ 'active' if selected_kind == kind and not selected_custom_category }}" {% if selected_kind == kind and not selected_custom_category %}aria-current="page"{% endif %} href="{{ url_for('bibo_library',kind=kind,q=query_text,status=selected_status,sort=filters.sort,view=filters.view,quality=filters.quality) }}"><span aria-hidden="true">{{ area_icons.get(kind,'📦') }}</span><strong>{{ kind_labels.get(kind,kind) }}</strong></a>{% endfor %}
+{% for category in custom_categories %}<a class="library-area-button {{ 'active' if selected_custom_category == category.id }}" {% if selected_custom_category == category.id %}aria-current="page"{% endif %} href="{{ url_for('bibo_library',kind='custom',custom_category=category.id,q=query_text,status=selected_status,sort=filters.sort,view=filters.view,quality=filters.quality) }}"><span aria-hidden="true">{{ category.icon }}</span><strong>{{ category.title }}</strong></a>{% endfor %}
 </nav>
 </section>
 <section class="panel bibo-library-controls">
-  <form method="get" class="filter-grid">
+  <form method="post" action="{{ url_for('bibo_library_preferences') }}" class="filter-grid">
+    <input type="hidden" name="token" value="{{ session.library_preferences_token }}">
     {% if selected_custom_category %}<input type="hidden" name="custom_category" value="{{ selected_custom_category }}">{% endif %}
     <label>Suche<input name="q" value="{{ query_text }}" placeholder="Titel, Reihe, Plattform oder Format"></label>
-    <label>Bereich<select name="kind"><option value="all">Alle Bereiche</option>{% for kind in kinds %}<option value="{{ kind }}" {% if selected_kind == kind and not selected_custom_category %}selected{% endif %}>{{ kind_labels.get(kind, kind) }}</option>{% endfor %}</select></label>
+    <label>Bereich<select name="kind"><option value="all">Alle Bereiche</option>{% for kind in kinds %}<option value="{{ kind }}" {% if selected_kind == kind %}selected{% endif %}>{{ kind_labels.get(kind, kind) }}</option>{% endfor %}</select></label>
     <label>Status<select name="status"><option value="all">Alle Status</option><option value="owned" {% if selected_status == 'owned' %}selected{% endif %}>Im Besitz</option><option value="wishlist" {% if selected_status == 'wishlist' %}selected{% endif %}>Wunschliste</option><option value="missing" {% if selected_status == 'missing' %}selected{% endif %}>Fehlt</option></select></label>
-    <button type="submit">Anwenden</button><a class="button secondary" href="{{ url_for('bibo_library') }}">Zurücksetzen</a>
+    <label>Sortierung<select name="sort">{% for key,label in [('title','Titel A–Z'),('title_desc','Titel Z–A'),('value_desc','Wert absteigend'),('newest','Zuletzt hinzugefügt')] %}<option value="{{ key }}" {% if filters.sort == key %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></label>
+    <label>Ansicht<select name="view"><option value="list" {% if filters.view == 'list' %}selected{% endif %}>Liste</option><option value="grid" {% if filters.view == 'grid' %}selected{% endif %}>Cover</option></select></label>
+    <label>Daten prüfen<select name="quality">{% for key,label in quality_labels.items() %}<option value="{{ key }}" {% if filters.quality == key %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></label>
+    <button type="submit">Anwenden & merken</button><a class="button secondary" href="{{ url_for('bibo_library',kind='all',status='all',sort='title',view='list',quality='all') }}">Filter zurücksetzen</a>
   </form>
   <div class="bibo-library-stats">
     <span><strong>{{ stats.works }}</strong> Werke</span>
@@ -34,30 +39,34 @@
     <span><strong>{{ stats.copies }}</strong> Exemplare</span>
     <span><strong>{{ eur(stats.value) }}</strong> Wert</span>
   </div>
-  <p class="muted"><a href="{{ url_for('bibo_registry_status') }}">Register prüfen und aktualisieren →</a></p>
+  <p class="muted">Ansicht und Filter werden beim Anwenden für dein Konto und diese Sammlung gespeichert. Suchbegriffe werden nicht gespeichert.</p>
+  <details class="library-quality"><summary>Datenqualität prüfen</summary><p>Hinweise helfen beim Nachpflegen. Mehrere Exemplare derselben Ausgabe können beabsichtigt sein; es wird nichts automatisch zusammengeführt.</p><div class="library-quality-links">{% for key,count in quality_counts.items() %}<a class="button secondary" href="{{ url_for('bibo_library',kind=selected_kind,status=selected_status,custom_category=selected_custom_category,q=query_text,sort=filters.sort,view=filters.view,quality=key) }}">{{ quality_labels[key] }} <strong>{{ count }}</strong></a>{% endfor %}</div></details>
 </section>
 
-<section class="bibo-register" aria-label="Bibliothekseinträge">
+{% if can_collection('edit_items') %}<form method="get" action="{{ url_for('collection_bulk') }}" id="library-selection"><input type="hidden" name="type" value="all"></form>
+<div class="library-selection-toolbar"><label><input type="checkbox" id="library-select-page"> Diese Seite auswählen</label><button type="submit" form="library-selection" id="library-edit-selected" disabled>Auswahl bearbeiten</button><span id="library-selection-count" role="status" aria-live="polite">0 ausgewählt</span></div>{% endif %}
+<section class="bibo-register library-view-{{ filters.view }}" aria-label="Bibliothekseinträge">
   {% for row in rows %}
   <article class="bibo-register-row">
+    {% if row.bulk_key and can_collection('edit_items') %}<label class="library-copy-select"><input type="checkbox" form="library-selection" name="item_keys" value="{{ row.bulk_key }}" class="library-select-copy"><span class="sr-only">{{ row.work.title }} · Exemplar {{ row.copy_row.id }} auswählen</span></label>{% endif %}
     <div class="bibo-register-cover">
-      {% if row.edition.image_url %}<img src="{{ row.edition.image_url }}" alt="" loading="lazy">{% else %}<span>{{ row.kind_label[:1] }}</span>{% endif %}
+      {% if row.edition.image_url or row.work.cover_url %}<img src="{{ row.edition.image_url or row.work.cover_url }}" alt="" loading="lazy">{% else %}<span>{{ row.kind_label[:1] }}</span>{% endif %}
     </div>
     <div class="bibo-register-main">
       <span class="badge">{{ row.kind_label }}</span>
-      <h2>{{ row.work.title }}</h2>
+      <h2><a href="{{ row.link }}">{{ row.work.title }}</a></h2>
       {% if row.work.series_name %}<small>Reihe: {{ row.work.series_name }}</small>{% endif %}
       <p>{{ row.subtitle or 'Standardausgabe' }}{% if row.edition.release_year %} · {{ row.edition.release_year }}{% endif %}</p>
     </div>
     <div class="bibo-register-copy">
       <strong>{{ row.copy_row.quantity }}× {{ 'Digital' if row.copy_row.ownership_format == 'digital' else 'Physisch' }}</strong>
-      <small>{{ 'Im Besitz' if row.copy_row.status == 'owned' else row.copy_row.status|capitalize }}</small>
+      <small>{{ {'owned':'Im Besitz','wishlist':'Wunschliste','missing':'Fehlt'}.get(row.copy_row.status,row.copy_row.status) }}</small><small>{{ row.copy_row.storage_location or 'Lagerort offen' }}</small>
     </div>
     <div class="bibo-register-value">
       <strong>{{ eur(row.total_value) if row.total_value is not none else '–' }}</strong>
       {% if row.value is not none and row.copy_row.quantity > 1 %}<small>{{ eur(row.value) }} je Exemplar</small>{% endif %}
     </div>
-    <div class="bibo-register-actions"><a class="button secondary" href="{{ row.link }}">Werk öffnen</a>{% if row.legacy_link %}<a href="{{ row.legacy_link }}">Originaldatensatz →</a>{% endif %}</div>
+    <div class="bibo-register-actions"><a class="button secondary" href="{{ row.link }}">Details</a>{% if row.bulk_key and can_collection('edit_items') %}<a href="{{ url_for('bibo_copy_edit',copy_id=row.copy_row.id) }}">Exemplar bearbeiten</a>{% endif %}{% if filters.quality != 'all' %}<small>{{ quality_labels[filters.quality] }}</small>{% endif %}</div>
   </article>
   {% else %}
   <div class="empty-state"><h2>Keine passenden Einträge</h2><p>Ändere Suche oder Filter.</p></div>
@@ -65,3 +74,5 @@
 </section>
 {% include '_collection_pagination.html' %}
 {% endblock %}
+
+{% block scripts %}<script defer src="{{ url_for('static', filename='library-selection.js') }}?v={{ app_version }}"></script>{% endblock %}

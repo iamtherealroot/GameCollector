@@ -1,7 +1,7 @@
 {% extends 'base.html' %}
 {% block title %}Massenbearbeitung · Bibo{% endblock %}
 {% block content %}
-<div class="page-head"><div><span class="eyebrow">Verwaltung</span><h1>Massenbearbeitung</h1><p class="muted">Games, Medien, Bücher, Karten, Hardware und Zubehör gemeinsam auswählen – mit bereichssicheren Änderungen.</p></div></div>
+<div class="page-head"><div><span class="eyebrow">Verwaltung</span><h1>Auswahl bearbeiten</h1><p class="muted">Games, Medien, Bücher, Karten, Hardware und Zubehör gemeinsam auswählen – mit bereichssicheren Änderungen.</p></div></div>
 <section class="panel bulk-filter-panel">
   <div class="bulk-type-filter"><a class="button {% if selected_type=='all' %}active{% endif %}" href="{{ url_for('collection_bulk',type='all') }}">Alle</a>{% for key in ['games','movies','tv','books','music','cards','custom','hardware','accessories'] %}<a class="button {% if selected_type==key %}active{% endif %}" href="{{ url_for('collection_bulk',type=key) }}">{{ icons[key] }} {{ labels[key] }}</a>{% endfor %}</div>
   <form method="get" class="bulk-search"><input type="hidden" name="type" value="{{ selected_type }}"><label>Bestand durchsuchen<input name="q" value="{{ query_text }}" placeholder="Titel, Plattform oder Typ"></label><button class="button" type="submit">Filtern</button>{% if query_text %}<a class="button secondary-link" href="{{ url_for('collection_bulk',type=selected_type) }}">Zurücksetzen</a>{% endif %}</form>
@@ -18,7 +18,7 @@
     <div class="bulk-preview" id="bulk-preview"><strong>Noch nichts ausgewählt</strong><span>Die Vorschau aktualisiert sich automatisch.</span></div>
     <button {% if effective_role=='viewer' %}disabled{% endif %}>Auswahl aktualisieren</button>
   </section>
-  <section class="panel bulk-list"><div class="bulk-select-head"><div><h2>{{ rows|length }} Einträge</h2><small>{{ 'Alle Bereiche' if selected_type=='all' else labels[selected_type] }}</small></div><div><button type="button" class="secondary" id="bulk-select-all">Alle wählen</button><button type="button" class="secondary" id="bulk-select-none">Keine</button></div></div>{% for row in rows %}<label class="bulk-row" data-kind="{{ row.kind }}"><input class="bulk-check" type="checkbox" name="item_keys" value="{{ row.key }}"><span class="bulk-kind-icon">{{ row.icon }}</span><span><strong>{{ row.title }}</strong><small>{{ row.label }} · {{ row.subtitle }}{% if row.storage %} · 📍 {{ row.storage }}{% endif %}</small></span></label>{% else %}<p class="muted">Keine passenden Einträge gefunden.</p>{% endfor %}</section>
+  <section class="panel bulk-list"><div class="bulk-select-head"><div><h2>{{ rows|length }} Einträge</h2><small>{{ 'Alle Bereiche' if selected_type=='all' else labels[selected_type] }}</small></div><div><button type="button" class="secondary" id="bulk-select-all">Alle wählen</button><button type="button" class="secondary" id="bulk-select-none">Keine</button></div></div>{% for row in rows %}<label class="bulk-row" data-kind="{{ row.kind }}"><input class="bulk-check" type="checkbox" name="item_keys" value="{{ row.key }}" {% if row.key in preselected_keys %}checked{% endif %}><span class="bulk-kind-icon">{{ row.icon }}</span><span><strong>{{ row.title }}</strong><small>{{ row.label }} · {{ row.subtitle }}{% if row.storage %} · 📍 {{ row.storage }}{% endif %}</small></span></label>{% else %}<p class="muted">Keine passenden Einträge gefunden.</p>{% endfor %}</section>
 </form>
 {% endblock %}
 {% block scripts %}<script>

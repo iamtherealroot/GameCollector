@@ -1,0 +1,29 @@
+/* Bibo 6: shared collection, accessible selection and compact cover view. */
+.library-selection-toolbar,.library-detail-actions,.library-quality-links{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:16px 0}
+.library-selection-toolbar{padding:14px;border:1px solid var(--line,#485365);border-radius:14px;background:var(--panel,#18202c)}
+.library-selection-toolbar label,.library-copy-select,.library-scan-next{display:flex;align-items:center;gap:10px}
+.library-selection-toolbar input,.library-copy-select input,.library-scan-next input{width:22px;height:22px;flex-shrink:0;accent-color:var(--accent,#b99b51)}
+.bibo-register-row{position:relative;padding-left:50px}
+.library-copy-select{position:absolute;left:14px;top:18px;min-height:44px}
+.library-copy-select .sr-only{position:absolute;width:1px;height:1px;padding:0;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap}
+.library-quality summary{cursor:pointer;font-weight:700;padding:14px 0}
+.library-view-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:16px}
+.library-view-grid .bibo-register-row{display:flex;flex-direction:column;align-items:stretch;gap:12px;padding:18px 18px 18px 48px}
+.library-view-grid .bibo-register-cover{width:100%;height:190px;display:flex;align-items:center;justify-content:center}
+.library-view-grid .bibo-register-cover img{max-height:190px;max-width:100%;width:auto;height:100%;object-fit:contain}
+.library-view-grid .bibo-register-main h2{font-size:1.1rem}
+.library-view-grid .bibo-register-actions{margin-top:auto}
+.bibo-register-main h2 a{color:inherit;text-decoration:none}
+.library-detail-actions .button,.library-quality-links .button{min-height:44px}
+@media(max-width:620px){
+ .library-selection-toolbar{align-items:stretch;gap:10px}
+ .library-selection-toolbar button{flex:1 1 100%;min-height:48px}
+ .bibo-register-row{padding-left:44px}
+ .library-copy-select{left:10px}
+ .library-view-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+ .library-view-grid .bibo-register-row{padding:52px 10px 14px;min-width:0;overflow-wrap:anywhere}
+ .library-view-grid .bibo-register-cover,.library-view-grid .bibo-register-cover img{height:145px;max-height:145px}
+ .library-view-grid .bibo-register-actions .button{width:100%}
+ .library-detail-actions{align-items:stretch;flex-direction:column}
+ .library-quality-links .button{flex:1 1 100%}
+}

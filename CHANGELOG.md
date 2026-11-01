@@ -1,3 +1,9 @@
+## v6.0.0-rc.1
+
+- Sammlung mit gespeicherten Filtern und Coveransicht; direkte Mehrfachauswahl und konkrete Datenqualitätshinweise.
+- Einheitliche Detailaktionen je Exemplar; klarer Erfassungseinstieg und nächster Scan nach dem Speichern.
+- Bereichsfilter bei Mehrfachänderungen konsequent anwenden; Tests für Rechte und Sammlungsgrenzen.
+
 ## v5.1.5
 
 - Sammlung: Große Bereichsschaltflächen mit Symbolen, deutlich markierter Auswahl, Tastaturfokus und zweispaltigem Raster auf dem Handy.
