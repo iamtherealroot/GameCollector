@@ -22,7 +22,7 @@ jobs:
         with:
           ref: main
           fetch-depth: 0
-      - uses: actions/configure-pages@v5
+      - uses: actions/configure-pages@v6
       - name: Check packages, update hooks and APT signatures
         run: |
           sudo apt-get update -qq
