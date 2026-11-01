@@ -73,7 +73,11 @@
 }
 @media(max-width:720px){
   .topbar .brand-v213 .brand-logo{width:54px!important;height:54px!important;min-width:54px!important;max-width:54px!important;min-height:54px!important;max-height:54px!important;flex-basis:54px!important}
-  .topbar{padding:10px 12px!important}
+  /* Keep content below the iPhone status bar in standalone/PWA mode.
+     This shorthand must preserve the safe area from the legacy header rules. */
+  .topbar{padding:calc(10px + env(safe-area-inset-top,0px)) max(12px,env(safe-area-inset-right,0px)) 10px max(12px,env(safe-area-inset-left,0px))!important}
+  .test-environment-banner{padding-top:calc(.65rem + env(safe-area-inset-top,0px))}
+  .test-environment-banner ~ .topbar{padding-top:10px!important}
   .header-search-field input{height:44px;padding-right:8px;font-size:16px}
 }
 .regal-rotation-toggle{width:auto;margin:.8rem 0;font-size:.8rem}

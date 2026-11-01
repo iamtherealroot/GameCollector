@@ -110,3 +110,15 @@
 .media-copy-parts-grid input[type=checkbox]{width:20px;height:20px;flex:none;margin:0;accent-color:#9584ff}
 .media-copy-parts[hidden]{display:none!important}
 @media(max-width:480px){.media-copy-parts-grid{grid-template-columns:1fr}}
+
+/* Collection areas are the primary navigation within the library. */
+.library-area-picker{margin:24px 0}
+.library-area-picker h2{margin:0 0 12px;font-size:1.05rem;color:var(--text)}
+.library-area-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;justify-content:stretch}
+.library-area-grid .library-area-button{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:9px;min-width:0;min-height:96px;padding:16px 12px;border:1px solid #455579;border-radius:15px;background:linear-gradient(145deg,#202d49,#131d32);color:#e9eeff;text-align:center;text-decoration:none;overflow-wrap:anywhere}
+.library-area-button>span{font-size:1.8rem;line-height:1.2}
+.library-area-button>strong{font-size:1rem}
+.library-area-grid .library-area-button.active{background:linear-gradient(135deg,#6750d5,#315ebc);border:2px solid #c2c9ff;box-shadow:0 0 0 2px #8e9eff26,0 8px 24px #11183166}
+.library-area-grid .library-area-button:hover{border-color:#aebcff;background:#293b60}
+.library-area-grid .library-area-button:focus-visible{outline:3px solid #d8ddff;outline-offset:3px}
+@media(max-width:600px){.library-area-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.library-area-grid .library-area-button{min-height:88px;padding:12px 8px}}

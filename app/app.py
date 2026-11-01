@@ -38,7 +38,7 @@ from pathlib import Path
 from html.parser import HTMLParser
 from itsdangerous import BadSignature, URLSafeSerializer
 
-APP_VERSION = "5.1.4"
+APP_VERSION = "5.1.5"
 APP_NAME = "Bibo"
 DISPLAY_TIMEZONE_NAME = os.environ.get("TZ", "Europe/Berlin")
 try:
@@ -2892,7 +2892,7 @@ def auto_value_item(item, run=None):
             return False, item.auto_value_status
         item.auto_value_status = "ok"
         prefix = "Primärwert gleicher Vollständigkeit"
-        item.auto_value_message = f"{prefix} aus {ebay_prices.get('offer_count')} plausiblen eBay-Festpreisangeboten; Details geeigneter Treffer wurden mit getItem geprüft."
+        item.auto_value_message = f"{prefix} aus {ebay_prices.get('offer_count')} plausiblen eBay-Festpreisangeboten; Details passender Angebote wurden geprüft."
         return True, "eBay-Angebote"
 
     prix_prices, prix_status = prixretro_lookup(item.game)
@@ -5240,6 +5240,7 @@ def bibo_library():
     query_text = request.args.get("q", "").strip()
     selected_kind = request.args.get("kind", "all").strip()
     selected_status = request.args.get("status", "all").strip()
+    selected_custom_category = request.args.get("custom_category", "").strip() if selected_kind in {"all", "custom"} else ""
     copies = BiboCopy.query.options(joinedload(BiboCopy.edition).joinedload(BiboEdition.work).selectinload(BiboWork.series_memberships)).filter_by(active=True, owner_id=active_collection_user_id()).all()
     source_models = {"game": CollectionItem, "collector": CollectorItem, "hardware": HardwareItem, "accessory": AccessoryItem}
     sources = {}
@@ -5249,6 +5250,7 @@ def bibo_library():
         sources[kind] = {row.id: row for row in model.query.filter(model.id.in_(ids), model.user_id == active_collection_user_id()).all()} if ids else {}
     rows = []
     for copy in copies:
+        source = None
         edition, work = copy.edition, copy.edition.work
         value = None
         link = None
@@ -5282,6 +5284,8 @@ def bibo_library():
             continue
         if selected_kind != "all" and work.media_kind != selected_kind:
             continue
+        if selected_custom_category and (copy.source_kind != "collector" or not source or source.category != "custom" or collector_metadata(source).get("custom_category") != selected_custom_category):
+            continue
         if selected_status != "all" and copy.status != selected_status:
             continue
         rows.append(row)
@@ -5295,7 +5299,7 @@ def bibo_library():
     }
     kinds = sorted({row.edition.work.media_kind for row in copies}, key=lambda key: BIBO_KIND_LABELS.get(key, key))
     rows, pagination = collection_page(rows)
-    return render_template("bibo_library.html", rows=rows, pagination=pagination, stats=stats, kinds=kinds, kind_labels=BIBO_KIND_LABELS, selected_kind=selected_kind, selected_status=selected_status, query_text=query_text)
+    return render_template("bibo_library.html", rows=rows, pagination=pagination, stats=stats, kinds=kinds, kind_labels=BIBO_KIND_LABELS, selected_kind=selected_kind, selected_status=selected_status, query_text=query_text, selected_custom_category=selected_custom_category, custom_categories=custom_collection_categories(active_collection_user_id()))
 
 
 def bibo_registry_health(owner_id=None):
@@ -8760,7 +8764,8 @@ def _collector_media_ean_terms(code):
             "name": row.get("name") or "", "cover_url": row.get("cover_url") or "",
             "source": row.get("source") or "eBay GTIN",
             "source_id": row.get("source_id") or row.get("id") or "",
-            "category": "DVD / Blu-ray", "barcode": code,
+            "category": row.get("category") or "Produkt", "barcode": code,
+            "platform": infer_game_platform(row.get("name"), row.get("category")),
         })
 
     # Regression references are intentionally tiny and only cover EANs that were
@@ -8827,6 +8832,8 @@ def collector_media_ean_results(code, limit=12):
     results, seen, searches = [], set(), {}
     # Strong TV hints search TV first; otherwise allow both media types.
     for term, product, hint in terms[:10]:
+        if classify_collector_candidate(product) == "games":
+            continue
         kinds = [hint] if hint else ["movie", "tv"]
         for kind in kinds:
             endpoint = "search/tv" if kind == "tv" else "search/movie"
@@ -13842,6 +13849,7 @@ def classify_collector_candidate(row):
     blob = " ".join(str(row.get(k) or "") for k in ("name", "category", "publisher", "platform")).casefold()
     movie_words = ("blu-ray", "bluray", "blu ray", "dvd", "4k uhd", "ultra hd", "movie", "film", "video")
     game_words = ("playstation", "xbox", "nintendo", "switch", "gamecube", "wii", "3ds", "video game", "videogame", "pc game")
+    if infer_game_platform(row.get("name"), row.get("platform")) != "Unbekannt": return "games"
     if any(x in blob for x in movie_words): return "movies"
     if any(x in blob for x in game_words) or row.get("platform") not in (None, "", "Unbekannt"): return "games"
     return "unknown"
@@ -14283,7 +14291,7 @@ def collector_media_questionnaire():
         if request.args.get("custom_category") and not prefill.get("custom_category"):
             prefill["custom_category"] = (request.args.get("custom_category") or "").strip()[:80]
         requested = str(prefill.get("category") or request.args.get("category") or "movies").strip().lower()
-        template = "collector_media_questionnaire.html" if request.args.get("advanced") == "1" or prefill.get("from_provider") or prefill.get("from_existing") else "collector_media_simple.html"
+        template = "collector_media_simple.html" if request.args.get("simple") == "1" else "collector_media_questionnaire.html"
         return render_template(template, selected_category=requested if requested in allowed else "movies", sections=COLLECTOR_SECTIONS, prefill=prefill,
                                custom_categories=custom_collection_categories(active_collection_user_id()))
 
@@ -14472,6 +14480,8 @@ def collector_identify(barcode):
             seen_external.add(key)
             row = dict(product)
             row["collector_hint"] = classify_collector_candidate(row)
+            if row["collector_hint"] == "games":
+                row["platform"] = infer_game_platform(row.get("platform"), row.get("name"))
             external.append(row)
 
         isbn = normalize_isbn(code)

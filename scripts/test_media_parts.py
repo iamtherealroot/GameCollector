@@ -23,7 +23,7 @@ with m.app.app_context():
     client=m.app.test_client();assert client.post('/login',data={'username':'parts-admin','password':'test-pass'}).status_code==302
     for category,media in [('movies','Blu-ray'),('tv','DVD'),('music','CD')]:
         for advanced in ('','&advanced=1'):
-            response=client.get('/add/media?category='+category+advanced)
+            response=client.get('/add/media?category='+category+(advanced or '&simple=1'))
             assert response.status_code==200
             page=response.get_data(as_text=True)
             assert ('name="purchase_date"' in page)==bool(advanced)

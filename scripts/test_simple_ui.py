@@ -52,7 +52,7 @@ with m.app.app_context():
     assert 'PRIVATE FILM' not in client.get('/find?q=Search&type=movies').get_data(as_text=True)
     assert 'Search Game' not in client.get('/find?q=Search&type=all').get_data(as_text=True)
     manual=client.get('/add/media?category=movies&title=Typed%20Title&barcode=4000000000002').get_data(as_text=True)
-    assert 'value="Typed Title"' in manual and 'value="4000000000002"' in manual and 'Speichern und öffnen' in manual
+    assert 'value="Typed Title"' in manual and 'value="4000000000002"' in manual and 'Fragenkatalog für ein neues Medium' in manual
     bad=client.post('/add/media',data={'category':'movies','title':'Keep This','purchase_price_eur':'invalid','barcode':'4000000000003'})
     assert bad.status_code==400 and 'value="Keep This"' in bad.get_data(as_text=True) and 'Kaufpreis:' in bad.get_data(as_text=True)
     assert not m.CollectorItem.query.filter_by(title='Keep This').first()
@@ -106,8 +106,8 @@ with m.app.app_context():
     snapshot=m.db.session.get(m.UndoDeletion,expired_token);snapshot.expires_at=m.utc_now()-timedelta(seconds=1);m.db.session.commit()
     client.post('/collection/undo-delete',data={'token':expired_token});assert not m.CollectorItem.query.filter_by(title='Search Film 000').first()
     home=client.get('/').get_data(as_text=True)
-    for category in ('games','movies','tv','books','music','cards'):
-        assert f'data-nav-link class="collector-module-{category}"' in home
+    for category in ('movies','tv','books','music','cards'):
+        assert f'data-nav-link class="collector-module-{category}"' not in home
     assert len(home)<160000 and 'data-character=' not in home and 'regal-shake-status' not in home
     lookup=[]
     old_resolver=m.collector_media_ean_results
