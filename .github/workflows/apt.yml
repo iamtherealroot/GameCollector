@@ -60,7 +60,7 @@ jobs:
           gpg --homedir "$bibo_work/gpg" --batch --with-colons --list-secret-keys "$APT_FINGERPRINT" | grep -q "^fpr:::::::::$APT_FINGERPRINT:"
           bash packaging/apt/build-repository.sh "$bibo_work/deb/bibo_${bibo_tag#v}-1_all.deb" "$RUNNER_TEMP/apt-site" "$bibo_work/gpg" "$APT_FINGERPRINT"
           rm -rf "$bibo_work/gpg"
-      - uses: actions/upload-pages-artifact@v4
+      - uses: actions/upload-pages-artifact@v5
         with:
           path: ${{ runner.temp }}/apt-site
   deploy:
