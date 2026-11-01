@@ -9,6 +9,7 @@ from app.app import (
     hardware_auto_value, accessory_auto_value, collection_total_value_snapshot,
     collector_total_value_snapshot, collector_scryfall_valuation, collector_ebay_valuation,
     record_collector_price, recover_stale_revaluation_runs, utc_now,
+    CARD_EBAY_SOURCE, collector_effective_value, is_pokemon_card,
 )
 
 
@@ -110,10 +111,10 @@ def run_revaluation():
             try:
                 # Pokémon is owned and valued exclusively by PokéCollector.
                 # The daily Collector market scan must never overwrite those values.
-                if row.category == "cards" and (row.tcg_game or "").strip().casefold() in {"pokémon", "pokemon"}:
+                if is_pokemon_card(row):
                     unsupported += 1
                     continue
-                old_value = row.auto_value_eur
+                old_value = collector_effective_value(row)
                 value = low = high = source = None
                 status = None
                 if row.category == "cards" and (row.tcg_game or "").strip().casefold() == "magic: the gathering":
@@ -121,7 +122,7 @@ def run_revaluation():
                     if value is not None: status = "ok"
                 if value is None:
                     value, low, high, status = collector_ebay_valuation(row)
-                    source = "eBay-Angebote" if value is not None else source
+                    source = (CARD_EBAY_SOURCE if row.category == "cards" else "eBay-Angebote") if value is not None else source
                 row.auto_value_status = status or "no_price"
                 row.auto_value_updated_at = utc_now()
                 if value is not None:

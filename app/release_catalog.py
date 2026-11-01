@@ -1,5 +1,6 @@
 """Shared release history for the full page and personal missed updates."""
 RELEASES = [
+    ("6.0.0-rc.2", "Cover, Liste und Reihe – mit Wertverlauf", "Drei gespeicherte Sammlungsansichten mit Zugang zur Reihenvervollständigung. Gesamtwert groß auf der Startseite, farbiger Tagesvergleich und wählbarer Verlaufsgraph. Einzelkartenbewertung prüft die konkrete Ausgabe; alte ungesicherte eBay-Kartenwerte werden zur Prüfung zurückgestellt."),
     ("6.0.0-rc.1", "Einfach sammeln – erste Testversion", "Listen- und Coveransicht mit gespeicherten Filtern je Konto und Sammlung. Direkte Exemplarauswahl für gemeinsame Änderungen, Datenqualität mit konkreten Einträgen und einheitliche Detailaktionen. Hinzufügen mit klaren Schritten und Anschluss zum nächsten Scan."),
     ("5.1.5", "Übersichtlicher sammeln und Spiele sicher übernehmen", "Große Bereichsschaltflächen direkt in der Sammlung, ein Menü ohne Dashboard-Dopplungen und eine korrigierte mobile Kopfzeile. Medienauswahl mit passender Vorlage; erkannte Spiele werden mit ihrer Plattform übernommen. Verständliche Texte im Bewertungsprotokoll."),
     ("5.1.5-rc.4", "Sammlungsbereiche sichtbar auswählen", "Große Schaltflächen mit Symbolen für Filme, Bücher, Spiele und weitere Bereiche. Deutliche Auswahlmarkierung und zweispaltige Anordnung auf dem Handy."),
