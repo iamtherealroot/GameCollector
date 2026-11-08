@@ -1,0 +1,54 @@
+/* Bibo 6: shared collection, accessible selection and compact cover view. */
+.library-selection-toolbar,.library-detail-actions,.library-quality-links{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:16px 0}
+.library-selection-toolbar{padding:14px;border:1px solid var(--line,#485365);border-radius:14px;background:var(--panel,#18202c)}
+.library-selection-toolbar label,.library-copy-select,.library-scan-next{display:flex;align-items:center;gap:10px}
+.library-selection-toolbar input,.library-copy-select input,.library-scan-next input{width:22px;height:22px;flex-shrink:0;accent-color:var(--accent,#b99b51)}
+.bibo-register-row{position:relative;padding-left:50px}
+.library-copy-select{position:absolute;left:14px;top:18px;min-height:44px}
+.library-copy-select .sr-only{position:absolute;width:1px;height:1px;padding:0;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap}
+.library-quality summary{cursor:pointer;font-weight:700;padding:14px 0}
+.library-view-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:16px}
+.library-view-grid .bibo-register-row{display:flex;flex-direction:column;align-items:stretch;gap:12px;padding:18px 18px 18px 48px}
+.library-view-grid .bibo-register-cover{width:100%;height:190px;display:flex;align-items:center;justify-content:center}
+.library-view-grid .bibo-register-cover img{max-height:190px;max-width:100%;width:auto;height:100%;object-fit:contain}
+.library-view-grid .bibo-register-main h2{font-size:1.1rem}
+.library-view-grid .bibo-register-actions{margin-top:auto}
+.bibo-register-main h2 a{color:inherit;text-decoration:none}
+.library-detail-actions .button,.library-quality-links .button{min-height:44px}
+@media(max-width:620px){
+ .library-selection-toolbar{align-items:stretch;gap:10px}
+ .library-selection-toolbar button{flex:1 1 100%;min-height:48px}
+ .bibo-register-row{padding-left:44px}
+ .library-copy-select{left:10px}
+ .library-view-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+ .library-view-grid .bibo-register-row{padding:52px 10px 14px;min-width:0;overflow-wrap:anywhere}
+ .library-view-grid .bibo-register-cover,.library-view-grid .bibo-register-cover img{height:145px;max-height:145px}
+ .library-view-grid .bibo-register-actions .button{width:100%}
+ .library-detail-actions{align-items:stretch;flex-direction:column}
+ .library-quality-links .button{flex:1 1 100%}
+}
+
+/* Prominent portfolio total and a compact, server-rendered value history. */
+.dashboard-simple-hero{align-items:center}
+.home-portfolio{display:flex;flex-direction:column;gap:8px;min-width:0}
+.home-portfolio-total{font-size:clamp(2rem,4.5vw,3.6rem);line-height:1.1;letter-spacing:-.04em;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+.home-portfolio-change{font-size:.88rem;font-weight:700;font-variant-numeric:tabular-nums}
+.home-portfolio-change small{display:block;font-weight:400;font-size:.73rem;margin-top:4px;color:var(--muted)}
+.home-portfolio-change.up{color:#67e8aa}.home-portfolio-change.down{color:#ff8693}.home-portfolio-change.neutral{color:var(--muted)}
+.home-value-chart-head{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+.home-value-chart h2{font-size:1rem;margin:0}
+.home-value-chart nav{display:flex;gap:5px;flex-wrap:wrap}
+.home-value-chart nav a{display:grid;place-items:center;min-height:44px;min-width:44px;border:1px solid var(--line);border-radius:10px;padding:4px 10px;text-decoration:none;color:var(--muted)}
+.home-value-chart nav a.active{background:#29365a;color:#fff;border-color:#a5b6ff}
+.home-value-chart svg{display:block;width:100%;height:145px;margin-top:8px}
+.home-chart-grid{fill:none;stroke:var(--line);stroke-width:1}
+.home-chart-line{fill:none;stroke:#a5b6ff;stroke-width:2.5;vector-effect:non-scaling-stroke}
+.home-chart-line.up{stroke:#67e8aa}.home-chart-line.down{stroke:#ff8693}.home-chart-dot{fill:#fff}
+.home-chart-labels{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;font-size:.72rem;color:var(--muted);margin:5px 0}
+.home-value-chart>small{display:block;font-size:.7rem;margin-top:10px}
+.bibo-register-main{min-width:0;overflow-wrap:anywhere}
+@media(max-width:700px){.dashboard-simple-hero{display:flex;flex-direction:column;align-items:stretch}.home-portfolio{border-top:1px solid var(--line);padding-top:18px;width:100%}.home-value-chart{padding:16px}.home-value-chart svg{height:115px}.home-value-chart-head{gap:8px}.home-value-chart nav{width:100%;justify-content:space-between}.home-value-chart nav a{padding:4px 8px}}
+
+.library-series-access{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap}.library-series-access h2{font-size:1.2rem;margin:5px 0}.library-series-access p{font-size:.88rem;margin:5px 0;color:var(--muted)}.library-series-access .library-detail-actions{margin:0}@media(max-width:700px){.library-series-access{align-items:stretch}.library-series-access>div{width:100%}}
+
+.library-view-switch{display:flex;gap:8px;margin:16px 0}.library-view-switch button{flex:1;min-height:48px}.library-view-switch button.active{outline:2px solid #a5b6ff;outline-offset:2px}.library-series-groups{display:grid;gap:18px}.library-series-group>header{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:14px}.library-series-group h2{margin:6px 0}.library-series-group header p{color:var(--muted);font-size:.85rem;margin:0}.library-series-group{min-width:0}.library-series-group .bibo-register-row{min-width:0}@media(max-width:620px){.library-series-group{padding:12px}.library-series-group header .button{width:100%}}

@@ -1,5 +1,11 @@
 """Shared release history for the full page and personal missed updates."""
 RELEASES = [
+    ("6.0.0", "Sammlung und Reihenfortschritt", "Cover-, Listen- und Reihenansicht, Wertverlauf, verbesserte Einzelkartenbewertung und Filmreihen mit Coverübersicht."),
+    ("6.0.0-rc.5", "Filmreihen als Coverübersicht", "Filmreihen zeigen den Fortschritt anhand der vollständigen Filmliste und kennzeichnen vorhandene, fehlende und ungeklärte Teile auf ihren Covern."),
+    ("6.0.0-rc.4", "Filmreihen bei fehlenden TMDB-Daten", "Lokal gespeicherte Filme erscheinen auch bei fehlender Filmliste. Unbekannte Gesamtzahlen werden verständlich dargestellt."),
+    ("6.0.0-rc.3", "Reihenfortschritt direkt in der Sammlung", "Reihe öffnet die vertraute Fortschrittsübersicht mit vorhandenen und fehlenden Teilen in der jeweiligen Reihendetailansicht."),
+    ("6.0.0-rc.2", "Cover, Liste und Reihe – mit Wertverlauf", "Drei gespeicherte Sammlungsansichten mit Zugang zur Reihenvervollständigung. Gesamtwert groß auf der Startseite, farbiger Tagesvergleich und wählbarer Verlaufsgraph. Einzelkartenbewertung prüft die konkrete Ausgabe; alte ungesicherte eBay-Kartenwerte werden zur Prüfung zurückgestellt."),
+    ("6.0.0-rc.1", "Einfach sammeln – erste Testversion", "Listen- und Coveransicht mit gespeicherten Filtern je Konto und Sammlung. Direkte Exemplarauswahl für gemeinsame Änderungen, Datenqualität mit konkreten Einträgen und einheitliche Detailaktionen. Hinzufügen mit klaren Schritten und Anschluss zum nächsten Scan."),
     ("5.1.5", "Übersichtlicher sammeln und Spiele sicher übernehmen", "Große Bereichsschaltflächen direkt in der Sammlung, ein Menü ohne Dashboard-Dopplungen und eine korrigierte mobile Kopfzeile. Medienauswahl mit passender Vorlage; erkannte Spiele werden mit ihrer Plattform übernommen. Verständliche Texte im Bewertungsprotokoll."),
     ("5.1.5-rc.4", "Sammlungsbereiche sichtbar auswählen", "Große Schaltflächen mit Symbolen für Filme, Bücher, Spiele und weitere Bereiche. Deutliche Auswahlmarkierung und zweispaltige Anordnung auf dem Handy."),
     ("5.1.5-rc.3", "Menü ohne Dashboard-Dopplungen", "Sammlung, Hinzufügen, Scanner, Werte, Top 10, Entdecken, Feedback und Funktionsübersicht sind über das Dashboard erreichbar und entfallen im Menü. Verwaltung und zusätzliche Werkzeuge bleiben erreichbar."),

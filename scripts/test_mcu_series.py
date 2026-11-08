@@ -49,7 +49,8 @@ with m.app.app_context():
     assert not next(x for x in page['rows'] if x['entry']['title']=='Iron Man')['owned']
     owned_row=next(x for x in page['rows'] if x['entry']['title']=='Iron Man 2')
     response=client.get(owned_row['detail_url'])
-    assert response.status_code==200 and 'Originaldatensatz bearbeiten' in response.get_data(as_text=True)
+    assert response.status_code==200 and 'Exemplar bearbeiten' in response.get_data(as_text=True)
+    assert '/library/copy/' in response.get_data(as_text=True)
     assert '4,72' in response.get_data(as_text=True) or '4.72' in response.get_data(as_text=True)
     response=client.get(group['detail_url']+'&order=release')
     assert 'collection-compact-head' in response.get_data(as_text=True) and 'collection-compact-price' in response.get_data(as_text=True)
@@ -60,3 +61,46 @@ with m.app.app_context():
     client.get('/collector/movies/marvel?branch=Angek%C3%BCndigt')
     assert {x['entry']['title'] for x in captured[-1]['rows']} == {'Avengers: Doomsday','Avengers: Secret Wars'}
 print('OK: always-visible MCU series, 38 films, scoped ownership, no double totals, release/timeline order and remembered choice')
+
+with m.app.app_context():
+    m.tmdb_json = lambda *args, **kwargs: None
+    m.db.session.add(m.CollectorItem(
+        user_id=m.shared_collection_user().id, category='movies', title='Testfilm',
+        media_type='Blu-ray', metadata_json=json.dumps({
+            'tmdb_collection': {'id': 987654, 'name': 'Testfilm-Reihe'},
+        }),
+    ))
+    m.db.session.commit()
+    response = client.get('/collector/movies/collection/987654')
+    assert response.status_code == 200
+    html = response.get_data(as_text=True)
+    assert '<h1>Testfilm-Reihe</h1>' in html
+    assert 'Testfilm</a>' in html
+    assert 'Die vollständige Filmliste ist derzeit nicht verfügbar.' in html
+    assert '0 / ?' not in html
+print('Filmreihendetail ohne TMDB-Daten geprüft.')
+
+with m.app.app_context():
+    movie = m.CollectorItem.query.filter_by(title='Testfilm').one()
+    movie.metadata_json = json.dumps({
+        'tmdb_id': 987651, 'physical_country': 'DE',
+        'tmdb_collection': {'id': 987654, 'name': 'Testfilm-Reihe'},
+    })
+    m.db.session.commit()
+    catalog = {'id': 987654, 'name': 'Testfilm-Reihe', 'parts': [
+        {'id': 987651, 'title': 'Testfilm', 'poster_path': '/testfilm.jpg'},
+        {'id': 987652, 'title': 'Testfilm 2', 'poster_path': '/testfilm2.jpg'},
+    ]}
+    def provider(path, params=None):
+        if path == 'collection/987654':
+            return catalog
+        if path.endswith('/release_dates'):
+            return {'results': [{'iso_3166_1': 'DE', 'release_dates': [{'type': 5}]}]}
+        return {}
+    m.tmdb_json = provider
+    response = client.get('/collector/movies/collection/987654')
+    html = response.get_data(as_text=True)
+    assert response.status_code == 200
+    assert '1/2 vorhanden' in html and 'collector-cover-grid' in html
+    assert 'testfilm2.jpg' in html and '✗ Fehlt' in html
+print('Coveransicht mit vorhandenem und fehlendem Film geprüft.')

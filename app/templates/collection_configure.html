@@ -73,6 +73,7 @@
       <details class="subpanel"><summary>Eigene Fotos dieses Exemplars</summary><div class="row three"><label>Vorderseite<input type="file" name="photo_front" accept="image/jpeg,image/png,image/webp"></label><label>Rückseite<input type="file" name="photo_back" accept="image/jpeg,image/png,image/webp"></label><label>Disc / Modul<input type="file" name="photo_media" accept="image/jpeg,image/png,image/webp"></label></div>{% if item and (item.photo_front or item.photo_back or item.photo_media) %}<div class="copy-photo-grid">{% for label,path in [('Vorderseite',item.photo_front),('Rückseite',item.photo_back),('Medium',item.photo_media)] %}{% if path %}<figure><img src="{{ url_for('static', filename=path) }}" alt="{{ label }}"><figcaption>{{ label }}</figcaption></figure>{% endif %}{% endfor %}</div>{% endif %}</details>
       <div class="form-actions">
         <button name="save_action" value="return">{% if ean_flow or retro_flow %}Weiter: Spieldaten anpassen →{% elif return_to %}Speichern und zur Sammlung{% else %}Speichern und zum Spiel{% endif %}</button>
+        <button class="secondary" name="save_action" value="scan_next">Speichern & nächstes Medium scannen</button>
         <button class="secondary" name="save_action" value="stay">Speichern und hierbleiben</button>
       </div>
     </form>

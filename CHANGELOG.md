@@ -1,3 +1,16 @@
+## v6.0.0-rc.2
+
+- Drei Ansichten: Cover, Liste und nach Reihe gruppiert; direkter Zugang zu fehlenden Reihenteilen.
+- Präsenter Gesamtwert mit Tagesveränderung und Graph für 24h, 7 Tage, 1 Monat, 1 Jahr und Gesamt.
+- Einzelkartenpreise gegen Deck-, Paket-, falsche Ausgabe-, Sprach- und Grading-Treffer absichern.
+- Alte ungesicherte eBay-Kartenwerte gesondert aufbewahren und aus aktuellen Summen und Gewinnerlisten ausschließen.
+
+## v6.0.0-rc.1
+
+- Sammlung mit gespeicherten Filtern und Coveransicht; direkte Mehrfachauswahl und konkrete Datenqualitätshinweise.
+- Einheitliche Detailaktionen je Exemplar; klarer Erfassungseinstieg und nächster Scan nach dem Speichern.
+- Bereichsfilter bei Mehrfachänderungen konsequent anwenden; Tests für Rechte und Sammlungsgrenzen.
+
 ## v5.1.5
 
 - Sammlung: Große Bereichsschaltflächen mit Symbolen, deutlich markierter Auswahl, Tastaturfokus und zweispaltigem Raster auf dem Handy.
