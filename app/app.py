@@ -38,7 +38,7 @@ from pathlib import Path
 from html.parser import HTMLParser
 from itsdangerous import BadSignature, URLSafeSerializer
 
-APP_VERSION = "6.0.0-rc.2"
+APP_VERSION = "6.0.0"
 APP_NAME = "Bibo"
 DISPLAY_TIMEZONE_NAME = os.environ.get("TZ", "Europe/Berlin")
 try:
@@ -5291,37 +5291,9 @@ def bibo_copy_edit(copy_id):
     return redirect(target)
 
 
-def library_series_groups(rows, sort="title"):
-    groups = {}
-    for row in rows:
-        work = row["work"]
-        memberships = [entry for entry in work.series_memberships if entry.active and entry.series.active]
-        membership = next((entry for entry in memberships if entry.series.title == work.series_name), memberships[0] if memberships else None)
-        title = work.series_name or (membership.series.title if membership else None) or row.get("card_set")
-        kind = work.media_kind
-        key = (kind, row.get("tcg") or "", _match_key(title) if title else "")
-        if key not in groups:
-            series_type = {"games": "games", "movies": "movies", "tv": "tv", "books": "books", "hardware": "consoles"}.get(kind)
-            groups[key] = {"title": title or "Ohne Reihe", "kind_label": (BIBO_KIND_LABELS.get(kind, kind) + (" · " + row["tcg"] if row.get("tcg") else "")), "rows": [], "value": 0,
-                           "completion_url": url_for("collector_collections", type=series_type, q=title) if series_type and title else None}
-        group = groups[key]
-        group["rows"].append(row)
-        group["value"] += row["total_value"] or 0
-    result = list(groups.values())
-    for group in result:
-        group["works"] = len({row["work"].id for row in group["rows"]})
-        group["copies"] = sum(max(row["copy_row"].quantity or 1, 1) for row in group["rows"])
-    result.sort(key=lambda group: (group["title"].casefold(), group["kind_label"]))
-    if sort == "title_desc": result.reverse()
-    elif sort == "value_desc": result.sort(key=lambda group: group["value"], reverse=True)
-    elif sort == "newest": result.sort(key=lambda group: max(row["copy_row"].id for row in group["rows"]), reverse=True)
-    return result
-
-
 @app.route("/library")
 @login_required
 def bibo_library():
-    refresh_bibo_registry(only_if_changed=True)
     session.setdefault("library_preferences_token", secrets.token_urlsafe(32))
     key = f"library_preferences_{current_user.id}_{active_collection_user_id()}"
     if not request.args:
@@ -5332,6 +5304,11 @@ def bibo_library():
     filters = library_filter_values(request.args)
     query_text = request.args.get("q", "").strip()
     selected_kind = filters["kind"]
+    if filters["view"] == "series":
+        series_kind = {"games": "games", "movies": "movies", "tv": "tv",
+                       "books": "books", "hardware": "consoles"}.get(selected_kind, "all")
+        return redirect(url_for("collector_collections", type=series_kind, q=query_text))
+    refresh_bibo_registry(only_if_changed=True)
     selected_status = filters["status"]
     selected_custom_category = filters["custom_category"]
     copies = BiboCopy.query.options(joinedload(BiboCopy.edition).joinedload(BiboEdition.work).selectinload(BiboWork.series_memberships)).filter_by(active=True, owner_id=active_collection_user_id()).all()
@@ -5387,8 +5364,6 @@ def bibo_library():
             "duplicate": identities[identity] > 1,
         }.items() if missing]
         row["bulk_key"] = f"{copy.source_kind}:{copy.source_id}" if source else None
-        row["card_set"] = source.card_set if source and copy.source_kind == "collector" and source.category == "cards" else None
-        row["tcg"] = collector_card_tcg_name(source) if source and copy.source_kind == "collector" and source.category == "cards" else None
         haystack = " ".join((work.title, work.series_name or "", subtitle)).casefold()
         if query_text and query_text.casefold() not in haystack:
             continue
@@ -5413,12 +5388,8 @@ def bibo_library():
         "value": round(sum(row["total_value"] or 0 for row in rows), 2),
     }
     kinds = sorted({row.edition.work.media_kind for row in copies}, key=lambda key: BIBO_KIND_LABELS.get(key, key))
-    series_groups = []
-    if filters["view"] == "series":
-        series_groups, pagination = collection_page(library_series_groups(rows, filters["sort"]), page_size=8)
-    else:
-        rows, pagination = collection_page(rows)
-    return render_template("bibo_library.html", series_groups=series_groups, rows=rows, pagination=pagination, stats=stats, kinds=kinds, kind_labels=BIBO_KIND_LABELS, selected_kind=selected_kind, selected_status=selected_status, query_text=query_text, selected_custom_category=selected_custom_category, custom_categories=custom_collection_categories(active_collection_user_id()), filters=filters, quality_counts=quality_counts, quality_labels=LIBRARY_QUALITY_LABELS)
+    rows, pagination = collection_page(rows)
+    return render_template("bibo_library.html", rows=rows, pagination=pagination, stats=stats, kinds=kinds, kind_labels=BIBO_KIND_LABELS, selected_kind=selected_kind, selected_status=selected_status, query_text=query_text, selected_custom_category=selected_custom_category, custom_categories=custom_collection_categories(active_collection_user_id()), filters=filters, quality_counts=quality_counts, quality_labels=LIBRARY_QUALITY_LABELS)
 
 
 def bibo_registry_health(owner_id=None):
@@ -7426,6 +7397,16 @@ def collector_movie_collection(collection_id):
             related.append((row, meta))
             related_ids.add(row.id)
 
+    if not tmdb_parts:
+        local_title = details.get("name") or next(
+            (name for row, _ in related if (name := infer_collector_group(row)[0])),
+            related[0][0].title,
+        )
+        return render_template(
+            "collector_movie_collection.html", title=local_title, collection_id=collection_id,
+            local_items=sorted((row for row, _ in related), key=lambda row: row.title.casefold()),
+        )
+
     # Preserve manual work done from any sibling collection detail. Values on
     # the currently opened canonical route win if the same movie was edited in
     # more than one former view.
@@ -7462,6 +7443,7 @@ def collector_movie_collection(collection_id):
             covered_ids.update(str(x) for x in included if str(x).isdigit())
 
     parts = []
+    catalog_ids = {str(part["id"]) for part in tmdb_parts}
     for part in sorted(tmdb_parts, key=lambda x: (str(x.get("release_date") or "9999"), str(x.get("title") or "").casefold())):
         pid = str(part.get("id"))
         owned_rows = owned_by_tmdb.get(pid, [])
@@ -7472,6 +7454,9 @@ def collector_movie_collection(collection_id):
             if target_key:
                 aliases=[]
                 for candidate in physical_candidates:
+                    candidate_id = str(collector_metadata(candidate).get("tmdb_id") or candidate.external_id or "")
+                    if candidate_id in catalog_ids and candidate_id != pid:
+                        continue
                     ck=_match_key(candidate.title or "")
                     if ck and (ck == target_key or (len(target_key) >= 8 and target_key in ck) or (len(ck) >= 8 and ck in target_key)):
                         aliases.append(candidate)
@@ -7767,6 +7752,7 @@ def collector_console_family(family):
 @login_required
 def collector_collections():
     """Universal tile overview for series and collection families."""
+    session.setdefault("library_preferences_token", secrets.token_urlsafe(32))
     kind = (request.args.get("type") or "all").strip().lower()
     allowed = {"all", "games", "books", "tv", "movies", "consoles"}
     if kind not in allowed:
@@ -7985,6 +7971,7 @@ def collector_collections():
                 if target_ids or known_ids:
                     b["total"] = len(target_ids)
                     b["owned"] = len(recognized_owned) if (recognized_owned or excluded_ids or nonphysical_de_ids) else min(b["owned"], b["total"])
+                    b["catalog_total"] = len(known_ids)
                     b["never_physical_de_count"] = len(never_physical_de_ids & known_ids)
                     b["digital_only_count"] = len(digital_only_ids & known_ids)
                 if excluded_ids:

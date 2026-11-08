@@ -85,12 +85,12 @@ with m.app.app_context():
     assert reader_client.post('/library/preferences',data={'token':reader_token,'view':'grid'}).status_code==302
     assert reader_client.post('/collection/bulk',data={'item_keys':f'collector:{first.id}','storage_mode':'clear'}).status_code==403
     assert m.app_setting_get(f'library_preferences_{admin.id}_{owner.id}').find('title_desc')!=-1
-    series_html=client.get('/library?view=series').get_data(as_text=True)
-    assert 'Sammlung nach Reihen' in series_html and 'Ohne Reihe' in series_html
-    assert 'value="grid"' in series_html and 'value="list"' in series_html and 'value="series"' in series_html
+    series_html=client.get('/library?view=series',follow_redirects=True).get_data(as_text=True)
+    assert 'Reihen &amp; Sammlungen' in series_html
+    assert 'value="grid"' in series_html and 'value="list"' in series_html and 'aria-current="page">🗂️ Reihe' in series_html
     series_saved=client.post('/library/preferences',data={'token':token,'kind':'books','view':'series'})
     assert series_saved.status_code==302 and 'view=series' in series_saved.location
-    assert 'Sammlung nach Reihen' in client.get('/library',follow_redirects=True).get_data(as_text=True)
+    assert 'Reihen &amp; Sammlungen' in client.get('/library',follow_redirects=True).get_data(as_text=True)
     assert 'Was möchtest du hinzufügen?' in client.get('/add').get_data(as_text=True)
     scan=client.post('/add/media',data={'category':'books','title':'Scan Folge','save_action':'scan_next'})
     assert scan.status_code==302 and scan.location.endswith('/scanner')

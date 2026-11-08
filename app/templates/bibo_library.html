@@ -55,11 +55,6 @@
 
 {% if can_collection('edit_items') %}<form method="get" action="{{ url_for('collection_bulk') }}" id="library-selection"><input type="hidden" name="type" value="all"></form>
 <div class="library-selection-toolbar"><label><input type="checkbox" id="library-select-page"> Diese Seite auswählen</label><button type="submit" form="library-selection" id="library-edit-selected" disabled>Auswahl bearbeiten</button><span id="library-selection-count" role="status" aria-live="polite">0 ausgewählt</span></div>{% endif %}
-{% if filters.view == 'series' %}
-<section class="library-series-groups" aria-label="Sammlung nach Reihen">
-{% for group in series_groups %}<section class="panel library-series-group"><header><div><span class="badge">{{ group.kind_label }}</span><h2>{{ group.title }}</h2><p>{{ group.works }} Werke · {{ group.copies }} Exemplare in dieser Auswahl · {{ eur(group.value) }}</p></div>{% if group.completion_url %}<a class="button secondary" href="{{ group.completion_url }}">Reihe & fehlende Teile →</a>{% endif %}</header><div class="bibo-register library-view-list">{% for row in group.rows %}{% include '_bibo_library_row.html' %}{% endfor %}</div></section>{% else %}<div class="empty-state"><h2>Keine passenden Einträge</h2><p>Ändere Suche oder Filter.</p></div>{% endfor %}
-</section>
-{% else %}
 <section class="bibo-register library-view-{{ filters.view }}" aria-label="Bibliothekseinträge">
   {% for row in rows %}
   {% include '_bibo_library_row.html' %}
@@ -67,7 +62,6 @@
   <div class="empty-state"><h2>Keine passenden Einträge</h2><p>Ändere Suche oder Filter.</p></div>
   {% endfor %}
 </section>
-{% endif %}
 {% include '_collection_pagination.html' %}
 {% endblock %}
 
