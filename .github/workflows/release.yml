@@ -20,7 +20,21 @@ jobs:
         with:
           ref: ${{ github.event.workflow_run.head_sha || github.sha }}
           fetch-depth: 0
+      - name: Check release eligibility
+        id: eligibility
+        shell: bash
+        run: |
+          # Historical tags point to the current source tree. They must not
+          # trigger a build or fail the workflow.
+          version="$(python3 -c 'import ast,pathlib; tree=ast.parse(pathlib.Path("app/app.py").read_text()); print(next(ast.literal_eval(n.value) for n in tree.body if isinstance(n,ast.Assign) and any(isinstance(t,ast.Name) and t.id=="APP_VERSION" for t in n.targets)))')"
+          if [[ "$GITHUB_EVENT_NAME" == "push" && "${GITHUB_REF_NAME}" != "v${version}" ]]; then
+            echo "Historical tag ${GITHUB_REF_NAME}; current source version v${version}. Skipping release build."
+            echo "run=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          fi
       - name: Verify public contents and version
+        if: steps.eligibility.outputs.run == 'true'
         id: version
         run: |
           bash scripts/check-public-tree.sh
@@ -31,12 +45,14 @@ jobs:
           test -f "RELEASE-NOTES-v${version}.md"
           echo "version=$version" >> "$GITHUB_OUTPUT"
       - name: Build combined installation and update package
+        if: steps.eligibility.outputs.run == 'true'
         env:
           RELEASE_VERSION: ${{ steps.version.outputs.version }}
         run: |
           python3 scripts/test_game_price_stability.py
           bash scripts/build_release.sh "$RELEASE_VERSION" "$RUNNER_TEMP/bibo-release"
       - name: Publish release if absent
+        if: steps.eligibility.outputs.run == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
           RELEASE_VERSION: ${{ steps.version.outputs.version }}
