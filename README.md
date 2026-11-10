@@ -3,9 +3,7 @@
 </p>
 
 <h1 align="center">Bibo</h1>
-> **Bibo 5.1.4** – vereinfachte Mediensuche, automatische Zusatzinfos, MCU-Filmreihe mit wählbarer Reihenfolge und Angaben zum Lieferumfang beim Anlegen. [Release-Notizen](RELEASE-NOTES-v5.1.4.md).
-
-<p align="center"><strong>Deine Sammlung. Dein Server.</strong><br>Spiele, Filme, Bücher, Musik und mehr übersichtlich verwalten.</p>
+<p align="center">Bibo ist ein selbst gehosteter Medienkatalog für Spiele, Filme, Serien, Bücher, Musik, Sammelkarten und Konsolen. Erfasse deine Exemplare per Barcode, sieh auf einen Blick, welche Teile einer Reihe fehlen, und verfolge den Wert deiner Sammlung.</p>
 <p align="center">
   <a href="https://github.com/iamtherealroot/GameCollector/releases/latest"><img src="https://img.shields.io/github/v/release/iamtherealroot/GameCollector?label=Release" alt="Aktuelles Release"></a>
   <a href="https://github.com/iamtherealroot/GameCollector/actions/workflows/ci.yml"><img src="https://github.com/iamtherealroot/GameCollector/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
@@ -17,6 +15,15 @@
   <a href="docs/README.md">Dokumentation</a> ·
   <a href="https://github.com/iamtherealroot/GameCollector/issues">Fehler melden</a>
 </p>
+
+## Neu in Bibo 6
+
+- **Cover, Liste und Reihe:** Wechsle zwischen drei Ansichten und speichere deine Filter.
+- **Reihen vervollständigen:** Sieh, was du besitzt und welche Teile fehlen. Filmreihen zeigen ein Coverraster, sobald die vollständige Filmliste von TMDB verfügbar ist.
+- **Sammlungswert verfolgen:** Die Startseite zeigt den Gesamtwert, die Änderung zum Vortag und einen Wertverlauf von 24 Stunden bis zum gesamten Zeitraum.
+- **Einzelkarten bewerten:** Bibo prüft die konkrete Kartenausgabe und filtert Decks, Pakete und Auswahlangebote aus dem Preisvergleich.
+
+[Release-Notizen zu Bibo 6.0.0](RELEASE-NOTES-v6.0.0.md)
 
 ## Was kannst du sammeln?
 
@@ -31,7 +38,7 @@
 
 **Jedes Exemplar zählt.** Mehrere Kopien mit derselben EAN können jeweils einen eigenen Zustand, Kaufpreis, Lagerort, Fotos und Notizen haben. Katalogdaten und persönlicher Besitz werden getrennt verwaltet.
 
-Eigene Dashboard-Kategorien lassen sich bearbeiten oder entfernen. Objekte können einzeln oder gemeinsam neu zugeordnet werden; beim Entfernen einer Kategorie bleibt ihr Bestand erhalten. [Anleitung](docs/CATEGORIES.md)
+Eigene Dashboard-Kategorien lassen sich bearbeiten oder entfernen. Objekte können einzeln oder gemeinsam neu zugeordnet werden. Beim Entfernen einer Kategorie bleibt ihr Bestand erhalten. [Anleitung](docs/CATEGORIES.md)
 
 ## Das steckt drin
 
@@ -39,7 +46,7 @@ Eigene Dashboard-Kategorien lassen sich bearbeiten oder entfernen. Objekte könn
 - **Den Überblick behalten:** Reihenfortschritt, Marktwerte, Preisverlauf und Auswertungen für deine aktive Sammlung.
 - **Gemeinsam sammeln:** getrennte Sammlungen, Lese-/Bearbeitungsrechte und Zugriffsanfragen. Sammlungsverwalter sehen Mitglieder ihrer Sammlung und konkrete Anfragen.
 - **Mobil nutzen:** responsive Oberfläche und installierbare PWA.
-- **Selbst betreiben:** Docker Compose mit PostgreSQL, Webanwendung und Scheduler; automatische Backups beim Update.
+- **Selbst betreiben:** Docker Compose mit PostgreSQL, Webanwendung und Scheduler. Der Installer erstellt beim Update automatisch Backups.
 
 ### Preise mit vergleichbaren Exemplaren
 
@@ -49,11 +56,11 @@ Metadaten und Preisquellen sind je nach Bereich optional, etwa eBay, PrixRetro, 
 
 ## Installation & Update
 
-**Ein Paket, ein Installer:** Lade `Bibo-vX.Y.Z.zip` aus den [Releases](https://github.com/iamtherealroot/GameCollector/releases/latest) auf deinen Server und entpacke es **außerhalb des Installationsverzeichnisses**. Beispiel für v5.1.4:
+**Ein Paket, ein Installer:** Lade `Bibo-vX.Y.Z.zip` aus den [Releases](https://github.com/iamtherealroot/GameCollector/releases/latest) auf deinen Server und entpacke es **außerhalb des Installationsverzeichnisses**. Beispiel für v6.0.0:
 
 ```bash
-unzip Bibo-v5.1.4.zip
-cd Bibo-v5.1.4
+unzip Bibo-v6.0.0.zip
+cd Bibo-v6.0.0
 sudo bash install.sh
 ```
 
@@ -75,7 +82,7 @@ Der Standardpfad bleibt `/opt/gamecollector`, damit vorhandene Installationen we
 | Fehlerseite am Reverse Proxy | [Nginx Proxy Manager](packaging/proxy/README.md) |
 | Dienste und Datenhaltung | [Architektur](docs/ARCHITECTURE.md) |
 | Eigene Daten und externe Anbieter | [Datenschutz](docs/PRIVACY.md) |
-| Änderungen dieser Version | [Release-Notizen v5.1.4](RELEASE-NOTES-v5.1.4.md) |
+| Änderungen dieser Version | [Release-Notizen v6.0.0](RELEASE-NOTES-v6.0.0.md) |
 | Entwicklungsgeschichte | [Changelog](CHANGELOG.md) · [Dokumentationsarchiv](docs/archive/README.md) |
 
 ## Mitmachen
@@ -91,7 +98,7 @@ python3 scripts/test_game_price_stability.py
 Weitere Prüfungen laufen in [GitHub Actions](https://github.com/iamtherealroot/GameCollector/actions). Für ein Release mit passender `APP_VERSION`:
 
 ```bash
-bash scripts/build_release.sh 5.1.4
+bash scripts/build_release.sh 6.0.0
 ```
 
 Bibo steht unter der [GPL-3.0](LICENSE).
