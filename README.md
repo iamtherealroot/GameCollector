@@ -10,6 +10,7 @@
   <a href="LICENSE"><img src="https://img.shields.io/badge/Lizenz-GPL--3.0-blue" alt="GPL-3.0"></a>
 </p>
 <p align="center">
+  <a href="VERSIONS.md">📚 Alle Versionen (numerisch sortiert)</a> ·
   <a href="https://github.com/iamtherealroot/GameCollector/releases/latest">Download</a> ·
   <a href="docs/INSTALLATION.md">Installation</a> ·
   <a href="docs/README.md">Dokumentation</a> ·
