@@ -1442,6 +1442,9 @@ def ebay_search_items(query, limit=50):
             "shipping": parse_money_input(shipping_price.get("value")),
             "condition": str(item.get("condition") or ""), "url": str(item.get("itemWebUrl") or ""),
             "source": "eBay", "source_id": str(item.get("itemId") or ""),
+            "category": " ".join(str(c.get("categoryName") or "") for c in (item.get("categories") or []) if isinstance(c, dict)),
+            "condition_id": str(item.get("conditionId") or ""),
+            "buying_options": item.get("buyingOptions") or [],
         })
     return rows, "ok"
 
@@ -16532,6 +16535,13 @@ def pricecharting_hardware_value(item):
     nm=re.search(name_pattern,body,flags=re.I|re.S); product_name=None
     if nm:
         product_name=html_lib.unescape(re.sub(r"<[^>]+>"," ",nm.group(1))); product_name=re.sub(r"\s+"," ",product_name).strip()
+    flags = _hardware_listing_flags({"name": product_name})
+    if not product_name or any(flags[key] for key in ("part", "accessory", "defective", "untested")) or (
+        _hardware_family_conflict(item, flags)
+        or _hardware_edition_conflict(item, flags)
+        or not _hardware_name_match(item, flags)
+    ):
+        return None, "pricecharting_wrong_product"
     loose,cib,new=_pc_price_cell(body,"used_price"),_pc_price_cell(body,"complete_price"),_pc_price_cell(body,"new_price")
     if loose is None and cib is None and new is None: return None,"pricecharting_no_price"
     completeness=item.completeness or derive_hardware_completeness(item)
@@ -16545,7 +16555,7 @@ def pricecharting_hardware_value(item):
     if item.tested_status=="defective": factor*=.35
     elif item.tested_status=="untested": factor*=.75
     value=round(raw*rate*factor,2)
-    return {"value":value,"low":round(value*.90,2),"high":round(value*1.10,2),"url":final_url,"name":product_name,"price_kind":kind,"raw_usd":raw,"usd_eur":rate,"match":match_info},"ok"
+    return {"value":value,"reference_eur":round(loose*rate,2) if loose and loose>0 else None,"low":round(value*.90,2),"high":round(value*1.10,2),"url":final_url,"name":product_name,"price_kind":kind,"raw_usd":raw,"usd_eur":rate,"match":match_info},"ok"
 
 
 def _hardware_norm(value):
@@ -16677,6 +16687,25 @@ def _hardware_search_query(item):
 
     return " ".join(x for x in parts if x)
 
+def _hardware_xbox_series(value):
+    return set(re.findall(r"\b(?:xbox\s+)?series\s*([xs])\b", value))
+
+
+def _hardware_non_console_listing(title, category):
+    if re.search(r"\b(?:accessories|zubehor|controllers?|ersatzteile|video games|videospiele)\b", category):
+        if not re.search(r"\b(?:konsolen|consoles|systems)\b", category):
+            return True
+    return bool(re.search(
+        r"\b(?:ohne konsole|without console|no console|box only|empty box|leere? (?:ovp|verpackung|karton)|"
+        r"(?:ovp|verpackung|karton|controller|netzteil|stand|halterung) only|"
+        r"(?:nur|only) (?:die |der |das )?(?:ovp|verpackung|karton|controller|netzteil|stand|halterung)|"
+        r"(?:controller|netzteil|power supply|halterung|stand|ovp|verpackung|karton|hulle|schutzfolie|skin|cooler|kuhler) "
+        r"(?:fur|for|kompatibel mit)\b|"
+        r"monatlich|pro monat|per month|anzahlung|down payment)\b",
+        title,
+    ))
+
+
 def _hardware_listing_flags(row):
     """Classify an eBay result on independent semantic dimensions."""
     title = _hardware_norm(row.get("name") or "")
@@ -16748,7 +16777,7 @@ def _hardware_listing_flags(row):
     )
     has_console_word = any(term in title for term in console_words)
 
-    accessory_title = any(term in title for term in accessory_terms)
+    accessory_title = any(re.search(r"\b" + re.escape(term) + r"\b", title) for term in accessory_terms)
     accessory_category = any(term in category for term in (
         "controller", "controllers", "accessories", "zubehor",
         "zubehör", "cables", "kabel", "batteries", "akkus",
@@ -16767,10 +16796,10 @@ def _hardware_listing_flags(row):
         "description": description,
         "condition": condition,
         "text": text,
-        "defective": any(term in text for term in defective_terms),
+        "defective": str(row.get("condition_id") or "") == "7000" or any(term in text for term in defective_terms),
         "untested": any(term in text for term in untested_terms),
         "part": is_part,
-        "accessory": is_accessory,
+        "accessory": is_accessory or _hardware_non_console_listing(title, category),
         "modified": any(term in text for term in modified_terms),
         "refurbished": any(term in text for term in refurbished_terms),
     }
@@ -17000,6 +17029,14 @@ def _hardware_name_match(item, flags):
             and "sp" in title_words
         )
 
+    xbox_series = _hardware_xbox_series(name)
+    if xbox_series:
+        return (
+            len(xbox_series) == 1
+            and _hardware_xbox_series(title) == xbox_series
+            and not re.search(r"\bxbox (?:one|360)\b", title)
+        )
+
     wanted = {
         w for w in name.split()
         if len(w) > 1
@@ -17207,12 +17244,16 @@ def _hardware_ebay_value(
 
     query = _hardware_search_query(item)
     market_key = _hardware_market_key(item)
+    cache_key = (market_key, reference_value)
+    xbox_series = _hardware_xbox_series(_hardware_norm(item.model.name))
+    if xbox_series and not reference_value:
+        return None, "hardware_reference_missing"
 
     # A caller may share this dictionary across several HardwareItems.
     # The cached object contains ONLY market information, never an
     # item-specific condition/completeness factor.
     cached = (
-        market_cache.get(market_key)
+        market_cache.get(cache_key)
         if market_cache is not None
         else None
     )
@@ -17227,14 +17268,25 @@ def _hardware_ebay_value(
         if status != "ok":
             return None, status
 
-        rows = ebay_enrich_candidates(rows, limit=20)
-
+        eligible, seen = [], set()
+        for row in rows:
+            flags = _hardware_listing_flags(row)
+            identity = str(row.get("id") or row.get("url") or "")
+            if not identity or identity in seen or not _hardware_name_match(item, flags):
+                continue
+            if flags["accessory"] or flags["part"] or flags["defective"]:
+                continue
+            seen.add(identity)
+            eligible.append(row)
+        rows = ebay_enrich_candidates(eligible, limit=10)
         candidates = []
 
         for row in rows:
             if (
-                row.get("currency") != "EUR"
+                (xbox_series and not row.get("details_checked"))
+                or row.get("currency") != "EUR"
                 or row.get("price") is None
+                or (row.get("buying_options") and "FIXED_PRICE" not in row["buying_options"])
             ):
                 continue
 
@@ -17262,7 +17314,7 @@ def _hardware_ebay_value(
                 + float(row.get("shipping") or 0)
             )
 
-            if value <= 0:
+            if not math.isfinite(value) or value <= 0:
                 continue
 
             if reference_value:
@@ -17273,13 +17325,14 @@ def _hardware_ebay_value(
 
             candidates.append({
                 "value": value,
+                "url": row.get("url"),
                 "model_match": _hardware_model_match(item, flags),
                 "listing_completeness":
                     _hardware_listing_completeness(flags),
                 "refurbished": flags["refurbished"],
             })
 
-        if len(candidates) < 3:
+        if len(candidates) < 5:
             cached = {
                 "ok": False,
                 "status": "too_few_results",
@@ -17287,7 +17340,7 @@ def _hardware_ebay_value(
             }
 
             if market_cache is not None:
-                market_cache[market_key] = cached
+                market_cache[cache_key] = cached
 
             return None, "too_few_results"
 
@@ -17297,7 +17350,7 @@ def _hardware_ebay_value(
             if x["model_match"]
         ]
 
-        if len(model_candidates) >= 3:
+        if len(model_candidates) >= 5:
             candidates = model_candidates
 
         # Prefer ordinary used hardware over refurbished listings.
@@ -17306,7 +17359,7 @@ def _hardware_ebay_value(
             if not x["refurbished"]
         ]
 
-        if len(normal) >= 3:
+        if len(normal) >= 5:
             candidates = normal
 
         # Normalize SELLER listing completeness to a common market base.
@@ -17317,26 +17370,22 @@ def _hardware_ebay_value(
             "BOXED": .82,
         }
 
-        normalized = [
-            x["value"]
-            * normalization[x["listing_completeness"]]
-            for x in candidates
-        ]
+        samples = [(x["value"] * normalization[x["listing_completeness"]], x["url"]) for x in candidates]
+        normalized = [value for value, _ in samples]
 
-        if len(normalized) < 3:
+        if len(normalized) < 5:
             return None, "too_few_results"
 
         median = statistics.median(normalized)
 
-        normalized = [
-            value
-            for value in normalized
-            if median * .55 <= value <= median * 1.80
-        ]
+        samples = [(value, url) for value, url in samples if median * .65 <= value <= median * 1.55]
+        normalized = [value for value, _ in samples]
 
-        if len(normalized) < 3:
+        if len(normalized) < 5:
             return None, "too_few_results"
 
+        if max(normalized) > min(normalized) * 1.9:
+            return None, "hardware_sample_too_wide"
         median = statistics.median(normalized)
 
         if reference_value:
@@ -17350,7 +17399,7 @@ def _hardware_ebay_value(
                 }
 
                 if market_cache is not None:
-                    market_cache[market_key] = cached
+                    market_cache[cache_key] = cached
 
                 return None, "implausible_vs_pricecharting"
 
@@ -17362,10 +17411,11 @@ def _hardware_ebay_value(
             "market_low": min(normalized),
             "market_high": max(normalized),
             "count": len(normalized),
+            "sample_urls": [url for _, url in samples if url],
         }
 
         if market_cache is not None:
-            market_cache[market_key] = cached
+            market_cache[cache_key] = cached
 
     if not cached.get("ok"):
         return None, cached.get("status", "too_few_results")
@@ -17381,6 +17431,7 @@ def _hardware_ebay_value(
         "market_base": round(cached["market_base"], 2),
         "factor": round(factor, 4),
         "market_key": market_key,
+        "sample_urls": cached["sample_urls"],
     }, "ok"
 
 
@@ -17388,17 +17439,16 @@ def hardware_auto_value(item, market_cache=None):
     calculate_hardware_set(item)
     now = utc_now()
 
-    # If an exact PriceCharting product has been pinned, evaluate it first as
-    # a plausibility reference. It does NOT automatically become the primary
-    # source; eBay still wins when its sample is credible.
+    # Compare Series X/S and pinned products with the unadjusted loose market.
+    # eBay remains primary when the sample is credible.
     pc = None
     pc_status = "not_checked"
     reference_value = None
 
-    if (item.model.pricecharting_url or "").strip():
+    if (item.model.pricecharting_url or "").strip() or _hardware_xbox_series(_hardware_norm(item.model.name)):
         pc, pc_status = pricecharting_hardware_value(item)
         if pc:
-            reference_value = pc["value"]
+            reference_value = pc["reference_eur"]
 
     ebay, ebay_status = _hardware_ebay_value(
         item,
@@ -17417,6 +17467,9 @@ def hardware_auto_value(item, market_cache=None):
         item.valuation_breakdown = json.dumps({
             "source": "eBay Browse API",
             "sample_count": ebay["count"],
+            "sample_urls": ebay["sample_urls"],
+            "market_base_eur": ebay["market_base"],
+            "item_factor": ebay["factor"],
             "completeness": item.completeness,
             "set_condition": item.set_condition,
             "pricecharting_reference_eur": reference_value,
@@ -17445,9 +17498,7 @@ def hardware_auto_value(item, market_cache=None):
         ))
         return True, "ok"
 
-    # If PriceCharting was not already checked as an exact pinned reference,
-    # try automatic PriceCharting matching now as the fallback.
-    if pc is None:
+    if pc_status == "not_checked":
         pc, pc_status = pricecharting_hardware_value(item)
 
     if pc:
@@ -17494,10 +17545,9 @@ def hardware_auto_value(item, market_cache=None):
         ))
         return True, "ok_fallback"
 
-    item.auto_value_updated_at = now
     item.auto_value_message = (
         f"eBay: {ebay_status}; PriceCharting: {pc_status}. "
-        f"Kein sicherer Konsolenpreis gefunden."
+        "Kein sicherer Konsolenpreis gefunden. Ein vorhandener Wert wurde nicht bestätigt."
     )
     return False, ebay_status
 
